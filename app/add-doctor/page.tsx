@@ -1,10 +1,11 @@
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { lookupRegistration } from "@/app/add-doctor/actions";
 import { AddDoctorFlow } from "@/components/AddDoctorFlow";
 import { OtpSignIn } from "@/components/OtpSignIn";
 import { RouteMeta } from "@/components/RouteMeta";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionUser, setupPath } from "@/lib/auth/session";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AddDoctorPage() {
   const user = await getSessionUser();
+  if (user && !user.profileComplete) redirect(setupPath("/add-doctor"));
   return (
     <>
       <RouteMeta

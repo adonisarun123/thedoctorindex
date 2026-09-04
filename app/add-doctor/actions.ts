@@ -24,6 +24,7 @@ export async function submitProfileAction(_prev: SubmitState, form: FormData): P
   try {
     const user = await getSessionUser();
     if (!user) return { error: "Sign in before submitting." };
+    if (!user.profileComplete) return { error: "Complete your account details first." };
     const list = (k: string) => String(form.get(k) ?? "").split(",").map((x) => x.trim()).filter(Boolean);
     const payload: SubmissionPayload = {
       name: String(form.get("name") ?? "").replace(/^dr\.?\s*/i, "").trim(),

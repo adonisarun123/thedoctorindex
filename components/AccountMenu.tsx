@@ -31,7 +31,7 @@ export function AccountMenu({ className = "plain" }: { className?: string }) {
     const next = pathname && pathname !== "/" && !pathname.startsWith("/sign-in") ? pathname : undefined;
     return (
       <Link className={className} href={paths.signIn(next)}>
-        Sign in
+        Sign in / Sign up
       </Link>
     );
   }

@@ -16,6 +16,7 @@ export async function claimAction(_prev: ClaimState, form: FormData): Promise<Cl
   try {
     const user = await getSessionUser();
     if (!user) return { error: "Sign in first." };
+    if (!user.profileComplete) return { error: "Complete your account details first." };
     const registration = String(form.get("registration") ?? "").trim();
     const method = String(form.get("method") ?? "practice_otp") as "practice_otp" | "work_email" | "practice_admin" | "document";
     const doctor = await findByRegistration(registration);

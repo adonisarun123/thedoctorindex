@@ -102,6 +102,12 @@ export const users = pgTable(
     phone: text("phone"),
     role: userRole("role").notNull().default("patient"),
     displayName: text("display_name"),
+    /** Registration details (plan §5.1 accounts): every account completes these once. */
+    localityKey: text("locality_key"),
+    city: text("city"),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+    profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
+    marketingOptIn: boolean("marketing_opt_in").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
     disabledAt: timestamp("disabled_at", { withTimezone: true }),

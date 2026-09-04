@@ -80,7 +80,8 @@ role. The seed's claimed doctors have accounts `<firstname-lastname>@doctors.exa
 | Data reads | `lib/data/index.ts` → `db-source.ts` or `seed-source.ts` | Public pages consume only this facade. |
 | Writes | `lib/services/*` | Every write goes through a service that records an `audit_logs` row (actor, before, after, reason). Profile edits snapshot a revision and recompute the quality score. |
 | Field grammar | `lib/services/doctors.ts#applyField` | `name`, `about`, `practice.<id>.hours`, `facility.<id>.address` … Sensitive fields (name, gender, speciality, registration, qualification) become change requests that a verification officer publishes; everything else publishes on save. |
-| Reviews | `lib/services/reviews.ts` | Sign-in required; one per person per doctor; optional proof of consultation stored as a private file with a purge date; automated risk flags (phone numbers, health detail, allegations, velocity, duplicates) prioritise the queue; a person decides. |
+| Accounts | `app/account/setup`, `lib/auth/session.ts#requireUser` | One-time code creates the account; before it can enquire, review, submit, claim or manage anything it must complete registration once — full name, mobile, email, locality, terms — and every guarded page/action checks `profileComplete`. Details are editable on `/account`; the sign-in channel is fixed. |
+| Reviews | `lib/services/reviews.ts` | Registered account required; one per person per doctor; **proof of consultation is mandatory** (prescription, bill/receipt, appointment record — stored private, purged after `RETENTION_REVIEW_EVIDENCE_DAYS`). Publication is blocked until a moderator records the proof as valid; a rejected proof rejects the review. Automated risk flags prioritise the queue; a person decides. `REVIEW_EVIDENCE_REQUIRED=0` relaxes this for demos only. |
 | Contact gating | `app/api/contact/[practice]` | Practice phone numbers are not in public HTML, RSC payloads, sitemaps or JSON-LD. A signed-in person fetches them per practice, rate-limited per account, and each release is counted as a call/directions action for the doctor's analytics. |
 | Near me | `lib/geo.ts`, `components/NearMe.tsx` | Browser geolocation with the browser's own consent prompt, rounded to ~100 m, passed as `?near=lat,lng` and never stored server-side. Facilities without their own coordinates use the locality centroid and are marked approximate (`~`). |
 | Files | `lib/services/files.ts`, `app/admin/files/[id]` | Private bytes in Postgres for the MVP (JPEG EXIF stripped); `storage_key` is the seam for object storage. Staff-only download, audited. |
@@ -224,7 +225,7 @@ The e2e run needs a built app and a throwaway database: start `npm start` with
 `CRON_SECRET`. It covers OTP sign-in, review with evidence → moderation, enquiry, submission →
 approval → dashboard edit → change request → publish → slug redirect, staff-created doctor, SEO
 recompute, staff roles, claim, gated contact, theme, account page, near-me, MFA enrolment and
-gate, photo upload/removal, notifications, the cron endpoint and manual geocoding — 64 checks.
+gate, photo upload/removal, notifications, the cron endpoint, manual geocoding, first-run registration (name, mobile, email, locality, terms; duplicate mobile refused) and the mandatory-evidence moderation gate — 75 checks.
 It creates data; never point it at production.
 
 Accessibility: axe-core (WCAG 2.2 AA rules) runs clean on the home, listing, profile, review,

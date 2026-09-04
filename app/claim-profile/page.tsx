@@ -1,9 +1,10 @@
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { ClaimForm } from "@/components/ClaimForm";
 import { OtpSignIn } from "@/components/OtpSignIn";
 import { RouteMeta } from "@/components/RouteMeta";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionUser, setupPath } from "@/lib/auth/session";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
   const sp = await searchParams;
   const initial = typeof sp.registration === "string" ? sp.registration : "";
   const user = await getSessionUser();
+  if (user && !user.profileComplete) redirect(setupPath("/claim-profile"));
   return (
     <>
       <RouteMeta

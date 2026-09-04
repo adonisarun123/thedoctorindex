@@ -43,6 +43,9 @@ export interface SessionUser {
   /** Staff only: has a TOTP authenticator been enrolled, and has this session passed it. */
   mfaEnrolled: boolean;
   mfaVerified: boolean;
+  /** Registration complete: name, mobile, email, locality and accepted terms. */
+  profileComplete: boolean;
+  localityKey: string | null;
 }
 
 export async function createSession(userId: string): Promise<void> {
@@ -119,6 +122,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       mfaEnrolled: staffMembers.mfaEnrolled,
       mfaVerifiedAt: sessions.mfaVerifiedAt,
       disabledAt: users.disabledAt,
+      profileCompletedAt: users.profileCompletedAt,
+      localityKey: users.localityKey,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -138,12 +143,26 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     sessionId: row.sessionId,
     mfaEnrolled: Boolean(row.mfaEnrolled),
     mfaVerified: Boolean(row.mfaVerifiedAt),
+    profileComplete: Boolean(row.profileCompletedAt && row.displayName && row.phone && row.email),
+    localityKey: row.localityKey,
   };
 }
 
+/** Where an account with missing registration details is sent, returning to `next` after. */
+export function setupPath(next?: string): string {
+  return `/account/setup${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+}
+
+/**
+ * A signed-in account whose registration is complete. New accounts are
+ * created by the one-time code alone; before they can do anything that
+ * touches a doctor or a practice — enquire, review, submit, claim, manage —
+ * they give a full name, mobile, email, locality and accept the terms once.
+ */
 export async function requireUser(next?: string): Promise<SessionUser> {
   const u = await getSessionUser();
   if (!u) redirect(`/sign-in${next ? `?next=${encodeURIComponent(next)}` : ""}`);
+  if (!u.profileComplete) redirect(setupPath(next));
   return u;
 }
 

@@ -19,7 +19,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
       <div className="dash-head">
         <div>
           <h1>Review moderation</h1>
-          <div className="sub">Highest risk first. Automated checks flag; a person decides. Publish every policy-compliant review, positive or negative.</div>
+          <div className="sub">Highest risk first. Automated checks flag; a person decides. <b>Step 1:</b> open the proof of consultation and record whether it is valid (doctor or practice name and a date that fits the stated visit month). <b>Step 2:</b> publish, redact or reject the text. Publishing is blocked until the proof is validated; a rejected proof rejects the review automatically.</div>
         </div>
         <div className="quick" style={{ marginTop: 0 }}>
           {(["pending", "published", "redacted", "rejected", "removed"] as const).map((st) => (
@@ -95,18 +95,22 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
 
             {r.evidenceFiles.length && r.evidenceFiles[0]?.outcome === "supplied" ? (
               <div style={{ marginTop: "10px", borderTop: "1px solid var(--hair)", paddingTop: "10px" }}>
-                <div className="eyebrow" style={{ marginBottom: "6px" }}>Private evidence</div>
+                <div className="eyebrow" style={{ marginBottom: "6px" }}>Step 1 · Proof of consultation (private)</div>
                 <Link href={`/admin/files/${r.evidenceFiles[0].fileId}`} target="_blank">Open document ↗</Link>
-                <ActionForm action={validateEvidenceAction} submitLabel="Record evidence decision" variant="quiet" style={{ marginTop: "6px" }}>
+                <div className="qm" style={{ margin: "4px 0 6px" }}>Valid when it names this doctor or their practice and carries a date consistent with “{r.visitMonth}”. Diagnoses or results may be covered by the reviewer; that does not invalidate it.</div>
+                <ActionForm action={validateEvidenceAction} submitLabel="Record evidence decision" variant="outline" style={{ marginTop: "6px" }}>
                   <input type="hidden" name="id" value={r.evidenceFiles[0].id} />
-                  <div className="two" style={{ gridTemplateColumns: "180px 1fr" }}>
-                    <div className="field" style={{ marginBottom: 0 }}><select name="outcome" defaultValue="checked"><option value="checked">Valid proof of visit</option><option value="rejected">Not valid</option></select></div>
-                    <div className="field" style={{ marginBottom: 0 }}><input type="text" name="note" placeholder="Receipt dated within the stated month" /></div>
+                  <div className="two" style={{ gridTemplateColumns: "220px 1fr" }}>
+                    <div className="field" style={{ marginBottom: 0 }}><select name="outcome" defaultValue="checked"><option value="checked">Valid — doctor/practice and date match</option><option value="rejected">Not valid — rejects the review</option></select></div>
+                    <div className="field" style={{ marginBottom: 0 }}><input type="text" name="note" placeholder="Prescription on clinic letterhead dated 12 Aug" /></div>
                   </div>
                 </ActionForm>
               </div>
             ) : null}
 
+            {r.status === "pending" && r.evidence !== "checked" ? (
+              <div className="qm" style={{ marginTop: "10px", color: "var(--pending)" }}>Step 2 unlocks once the proof is recorded as valid. {r.evidence === "none" ? "No document was supplied — reject." : ""}</div>
+            ) : null}
             {r.status === "pending" || status !== "pending" ? (
               <ActionForm action={moderateReviewAction} submitLabel="Apply decision" variant="solid" style={{ marginTop: "10px" }}>
                 <input type="hidden" name="id" value={r.id} />

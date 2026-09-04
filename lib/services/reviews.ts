@@ -30,6 +30,12 @@ export interface ReviewInput {
 }
 
 /** Automated pre-moderation (plan §10.1 step 6). Flags, never decides. */
+/** Every review must carry proof of consultation unless REVIEW_EVIDENCE_REQUIRED=0. */
+export function evidenceRequired(): boolean {
+  const v = process.env.REVIEW_EVIDENCE_REQUIRED;
+  return !(v === "0" || v === "false");
+}
+
 export function assessRisk(text: string): { score: number; flags: string[] } {
   const flags: string[] = [];
   const t = text.trim();
@@ -48,6 +54,7 @@ export function assessRisk(text: string): { score: number; flags: string[] } {
 export async function submitReview(userId: string, doctorId: string, input: ReviewInput, evidence?: { filename: string; mime: string; bytes: Buffer } | null, meta?: { ip?: string | null; deviceHash?: string | null }) {
   const db = getDb();
   if (!input.attestation) throw new Error("The first-hand attestation is required.");
+  if (evidenceRequired() && !evidence) throw new Error("Attach proof of the consultation — a prescription, bill, receipt or appointment confirmation from this doctor or practice. Reviews without it are not accepted.");
   for (const k of ["communication", "explanation", "waitTime", "facility"] as const) {
     if (!(input[k] >= 1 && input[k] <= 5)) throw new Error("Rate every dimension from 1 to 5.");
   }
@@ -127,6 +134,13 @@ export async function moderateReview(id: string, decision: "published" | "redact
   const [r] = await db.select().from(s.reviews).where(eq(s.reviews.id, id)).limit(1);
   if (!r) throw new Error("review not found");
   if (decision === "redacted" && !opts.publishedText?.trim()) throw new Error("A redacted review needs the redacted text.");
+  // Publication is gated on validated proof of consultation (plan §10): a
+  // moderator must record the evidence decision first, and a review whose
+  // proof was rejected can only be rejected.
+  if ((decision === "published" || decision === "redacted") && evidenceRequired()) {
+    if (r.evidence === "rejected") throw new Error("The proof of consultation was rejected; this review can only be rejected.");
+    if (r.evidence !== "checked") throw new Error("Validate the proof of consultation first. A review is published only after its prescription, bill or appointment record has been checked.");
+  }
   await db.update(s.reviews).set({ status: decision, publishedText: decision === "redacted" ? opts.publishedText : null, moderatedAt: new Date(), moderatedByUserId: staffUserId, moderationReason: opts.reason ?? null }).where(eq(s.reviews.id, id));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `review.${decision}`, entityType: "review", entityId: id, before: { status: r.status }, after: { status: decision }, reason: opts.reason });
   await recomputeQuality(r.doctorId);
@@ -141,6 +155,13 @@ export async function validateEvidence(evidenceId: string, outcome: "checked" | 
   if (!e) throw new Error("evidence not found");
   await db.update(s.reviews).set({ evidence: outcome }).where(eq(s.reviews.id, e.reviewId));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `evidence.${outcome}`, entityType: "review", entityId: e.reviewId, reason: note });
+  if (outcome === "rejected" && evidenceRequired()) {
+    // No valid proof, no review. Decided here so the queue never holds an unpublishable item.
+    const [rv] = await db.select({ status: s.reviews.status }).from(s.reviews).where(eq(s.reviews.id, e.reviewId)).limit(1);
+    if (rv && (rv.status === "pending" || rv.status === "published" || rv.status === "redacted")) {
+      await moderateReview(e.reviewId, rv.status === "pending" ? "rejected" : "removed", staffUserId, { reason: `Proof of consultation not valid${note ? `: ${note}` : ""}` });
+    }
+  }
 }
 
 export async function submitResponse(doctorId: string, doctorUserId: string, reviewId: string, text: string) {

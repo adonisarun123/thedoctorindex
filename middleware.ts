@@ -24,7 +24,7 @@ export function middleware(request: NextRequest) {
   // requireStaff()/requireDoctor() — layouts alone cannot protect pages
   // because Next renders layout and page in parallel.
   const path = request.nextUrl.pathname;
-  const protectedArea = (path.startsWith("/admin") && path !== "/admin/sign-in") || (path.startsWith("/dashboard") && path !== "/dashboard/sign-in") || path === "/account";
+  const protectedArea = (path.startsWith("/admin") && path !== "/admin/sign-in") || (path.startsWith("/dashboard") && path !== "/dashboard/sign-in") || path.startsWith("/account");
   if (protectedArea && !request.cookies.get(process.env.AUTH_COOKIE_NAME ?? "tdi_session")) {
     const url = request.nextUrl.clone();
     url.pathname = path.startsWith("/admin") ? "/admin/sign-in" : "/sign-in";

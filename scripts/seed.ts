@@ -118,12 +118,17 @@ async function main() {
     return row.id;
   }
 
+  // Seed accounts are fictional; give them complete registrations (fake but
+  // well-formed mobiles) so the seeded doctors and reviewers can be used
+  // straight away without the first-run details step.
+  let seedPhone = 9000000000;
+  const registered = () => ({ phone: `+91${seedPhone++}`, localityKey: LOCALITY_KEYS[seedPhone % LOCALITY_KEYS.length], city: "Bengaluru", termsAcceptedAt: new Date(), profileCompletedAt: new Date() });
   const reviewerUsers = new Map<string, string>();
   async function reviewerUser(label: string): Promise<string> {
     if (reviewerUsers.has(label)) return reviewerUsers.get(label)!;
     const email = `${label.toLowerCase().replace(/[^a-z]/g, "")}@reviewers.example`;
     let [u] = await db.select().from(s.users).where(sql`lower(${s.users.email}) = ${email}`);
-    if (!u) [u] = await db.insert(s.users).values({ email, role: "patient", displayName: label }).returning();
+    if (!u) [u] = await db.insert(s.users).values({ email, role: "patient", displayName: label, ...registered() }).returning();
     reviewerUsers.set(label, u.id);
     return u.id;
   }
@@ -145,7 +150,7 @@ async function main() {
     if (d.claimed) {
       const email = `${d.name.toLowerCase().replace(/[^a-z]/g, ".")}@doctors.example`;
       let [u] = await db.select().from(s.users).where(sql`lower(${s.users.email}) = ${email}`);
-      if (!u) [u] = await db.insert(s.users).values({ email, role: "doctor", displayName: `Dr ${d.name}` }).returning();
+      if (!u) [u] = await db.insert(s.users).values({ email, role: "doctor", displayName: `Dr ${d.name}`, ...registered() }).returning();
       claimedByUserId = u.id;
     }
 

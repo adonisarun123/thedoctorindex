@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { signOutAction } from "@/app/sign-in/actions";
+import { ProfileDetailsForm } from "@/components/ProfileDetailsForm";
 import { RouteMeta } from "@/components/RouteMeta";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
@@ -25,14 +26,16 @@ export default async function AccountPage() {
   if (!process.env.DATABASE_URL) redirect("/sign-in");
   const user = await requireUser("/account");
   const db = getDb();
-  const [reviews, enquiries, submissions, claims, corrections, managed] = await Promise.all([
+  const [reviews, enquiries, submissions, claims, corrections, managed, extra] = await Promise.all([
     db.query.reviews.findMany({ where: eq(s.reviews.authorUserId, user.id), with: { doctor: true }, orderBy: [desc(s.reviews.submittedAt)], limit: 50 }),
     db.query.enquiries.findMany({ where: eq(s.enquiries.userId, user.id), with: { doctor: true }, orderBy: [desc(s.enquiries.createdAt)], limit: 50 }),
     db.query.doctorSubmissions.findMany({ where: eq(s.doctorSubmissions.userId, user.id), orderBy: [desc(s.doctorSubmissions.createdAt)] }),
     db.query.doctorClaims.findMany({ where: eq(s.doctorClaims.userId, user.id), with: { doctor: true }, orderBy: [desc(s.doctorClaims.createdAt)] }),
     db.query.corrections.findMany({ where: eq(s.corrections.submittedByUserId, user.id), with: { doctor: true }, orderBy: [desc(s.corrections.createdAt)], limit: 50 }),
     db.select({ id: s.doctors.id }).from(s.doctors).where(eq(s.doctors.claimedByUserId, user.id)).limit(1),
+    db.select({ city: s.users.city, marketingOptIn: s.users.marketingOptIn, termsAcceptedAt: s.users.termsAcceptedAt }).from(s.users).where(eq(s.users.id, user.id)).limit(1),
   ]);
+  const profileRow = extra[0];
   const isDoctor = user.role === "doctor" || managed.length > 0;
   const isStaff = user.role === "staff" && user.staffRoles.length > 0;
 
@@ -43,7 +46,7 @@ export default async function AccountPage() {
         <div className="dash-head">
           <div>
             <h1>My account</h1>
-            <div className="sub">Signed in as <span className="mono">{user.email ?? user.phone}</span>. Your contact details are never shown on the site.</div>
+            <div className="sub">{user.displayName} · <span className="mono">{user.email}</span> · <span className="mono">{user.phone}</span>. Your contact details are never shown on the site.</div>
           </div>
           <form action={signOutAction}><button type="submit" className="btn quiet">Sign out</button></form>
         </div>
@@ -58,6 +61,11 @@ export default async function AccountPage() {
             Are you a doctor? <Link href={paths.addDoctor()}>Create your profile</Link> or <Link href={paths.claimProfile()}>claim an existing one</Link>. Approved profiles unlock the doctor dashboard on this same account.
           </div>
         )}
+
+        <section style={{ marginBottom: "22px" }}>
+          <div className="chart-head"><span className="t">Your details</span><span className="m">{profileRow?.termsAcceptedAt ? `terms accepted ${toDisplay(profileRow.termsAcceptedAt)}` : ""}</span></div>
+          <ProfileDetailsForm user={{ ...user, city: profileRow?.city ?? null, marketingOptIn: profileRow?.marketingOptIn ?? false }} />
+        </section>
 
         <section style={{ marginBottom: "22px" }}>
           <div className="chart-head"><span className="t">Your reviews</span><span className="m">{reviews.length}</span></div>

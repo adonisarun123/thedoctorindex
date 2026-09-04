@@ -37,7 +37,9 @@ export async function verifyOtpAction(_prev: SignInState, form: FormData): Promi
   if (!res.ok) return { step: "verify", identifier, error: res.error, next };
   await createSession(res.userId);
   await audit({ actorUserId: res.userId, action: res.created ? "user.created_and_signed_in" : "user.signed_in", entityType: "user", entityId: res.userId });
-  redirect(next === "/" ? await homeFor(res.userId) : next);
+  const dest = next === "/" ? await homeFor(res.userId) : next;
+  const me = await getSessionUser();
+  redirect(me && !me.profileComplete ? `/account/setup?next=${encodeURIComponent(dest)}` : dest);
 }
 
 /** Where a freshly signed-in account lands when no `next` was requested. */

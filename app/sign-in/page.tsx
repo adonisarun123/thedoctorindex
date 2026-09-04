@@ -12,15 +12,18 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const next = typeof sp.next === "string" ? sp.next : "/";
   const user = await getSessionUser();
-  if (user) redirect(next === "/" ? (user.role === "staff" && user.staffRoles.length ? "/admin" : user.role === "doctor" ? "/dashboard" : "/account") : next);
+  if (user) {
+    const dest = next === "/" ? (user.role === "staff" && user.staffRoles.length ? "/admin" : user.role === "doctor" ? "/dashboard" : "/account") : next;
+    redirect(user.profileComplete ? dest : `/account/setup?next=${encodeURIComponent(dest)}`);
+  }
 
   return (
     <div className="wrap">
       <div className="signin">
         <span className="eyebrow">The Doctor Index</span>
-        <h1 style={{ marginTop: "8px" }}>Sign in</h1>
+        <h1 style={{ marginTop: "8px" }}>Sign in or create an account</h1>
         <p style={{ color: "var(--ink-2)", fontSize: "14.5px", marginBottom: "18px" }}>
-          One account for patients and doctors. Your contact details are never shown on the site.
+          Enter your email or mobile; we send a one-time code. New here? The same step creates your account, then we ask for your name, contact details and locality once. One account for patients and doctors; nothing about you is ever shown publicly.
         </p>
         <div className="panel pad">
           <OtpSignIn next={next} />

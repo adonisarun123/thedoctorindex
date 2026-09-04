@@ -65,7 +65,7 @@ export const POLICIES: Policy[] = [
               </tr>
               <tr>
                 <td>Visit evidence checked</td>
-                <td>A reviewer supplied private proof of consultation and a moderator validated it</td>
+                <td>The reviewer&rsquo;s private proof of consultation (prescription, bill, appointment record) was validated by a moderator — required for every published review</td>
                 <td>Not an endorsement of the review&rsquo;s opinion</td>
               </tr>
             </tbody>
@@ -192,11 +192,17 @@ export const POLICIES: Policy[] = [
         <ul>
           <li>No ratings or review text imported from any other platform.</li>
           <li>No self-reviews by doctors or staff, no competitor reviews, no incentives, no review gating.</li>
-          <li>Every policy-compliant review is published, positive or negative.</li>
+          <li>
+            Every review must be supported by proof of consultation — a prescription, bill or receipt,
+            appointment confirmation or discharge summary. A moderator validates the document before
+            anything is published; a review whose proof is not valid is not published. The document is
+            private, seen by one moderator, and deleted 90 days after moderation.
+          </li>
+          <li>Every policy-compliant, evidence-checked review is published, positive or negative.</li>
           <li>No doctor can pay to remove a review or suppress criticism.</li>
           <li>
-            &ldquo;Visit evidence checked&rdquo; appears only where private proof was supplied and validated by a
-            moderator.
+            &ldquo;Visit evidence checked&rdquo; therefore appears on every published review; the date of the check
+            is recorded.
           </li>
           <li>Doctors may post one reply and must not reveal or confirm any health information in it.</li>
           <li>
@@ -375,7 +381,7 @@ export const POLICIES: Policy[] = [
             </thead>
             <tbody>
               <tr><td>Doctors</td><td>Name, registration, qualifications, practice details, contact for OTP, identity evidence</td><td>Verifying and publishing a professional profile</td><td>While the profile exists, then 3 years for audit</td></tr>
-              <tr><td>Reviewers</td><td>Mobile or email for OTP, review content, optional private proof of visit</td><td>Publishing first-hand reviews and validating evidence</td><td>Proof deleted 90 days after moderation; review while published</td></tr>
+              <tr><td>Reviewers</td><td>Name, mobile and email, review content, private proof of consultation (required)</td><td>Publishing first-hand reviews and validating evidence</td><td>Proof deleted 90 days after moderation; review while published</td></tr>
               <tr><td>Visitors</td><td>Search terms, pages viewed, contact actions taken</td><td>Improving discovery and measuring whether people reach a doctor</td><td>Aggregated after 13 months</td></tr>
             </tbody>
           </table>

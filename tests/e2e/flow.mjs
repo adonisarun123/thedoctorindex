@@ -23,6 +23,20 @@ function latestOtpFor(email) {
   return last;
 }
 
+
+let __phoneSeq = 9800000000;
+/** First-run registration step: fills name, mobile (email was the sign-in channel), locality, terms. */
+async function completeDetailsIfAsked(page, name) {
+  await page.waitForLoadState("networkidle").catch(() => {});
+  if (!page.url().includes("/account/setup")) return false;
+  await page.fill("#fullName", name);
+  await page.fill("#phone", String(__phoneSeq++));
+  await page.selectOption("#locality", "indiranagar");
+  await page.check('input[name="terms"]');
+  await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/account/setup"), { timeout: 20000 }), page.click('form:has(#fullName) button[type=submit]')]);
+  return true;
+}
+
 async function signIn(page, email, next = "/") {
   await page.goto(`${BASE}/sign-in?next=${encodeURIComponent(next)}`);
   await page.fill("#identifier", email);
@@ -33,6 +47,8 @@ async function signIn(page, email, next = "/") {
   if (!code) throw new Error("no OTP in log for " + email);
   await page.fill("#code", code);
   await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/sign-in"), { timeout: 20000 }), page.click("form:has(#code) button[type=submit]")]);
+  const registered = await completeDetailsIfAsked(page, `Test ${email.split("@")[0].replace(/[^a-z]+/gi, " ").trim()}`);
+  if (registered) ok(`registration: ${email} completed details before continuing`, !page.url().includes("/account/setup"), page.url());
   return code;
 }
 
@@ -52,7 +68,8 @@ async function adminSignIn(page, email) {
   await new Promise((r) => setTimeout(r, 500));
   const code = latestOtpFor(email);
   await page.fill("#code", code);
-  await Promise.all([page.waitForURL(/\/admin(\/|$|\?)/, { timeout: 20000 }), page.click("form:has(#code) button[type=submit]")]);
+  await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/admin/sign-in"), { timeout: 20000 }), page.click("form:has(#code) button[type=submit]")]);
+  await completeDetailsIfAsked(page, "Super Administrator");
   await page.waitForLoadState("networkidle").catch(() => {});
   await page.waitForFunction(() => location.pathname === "/admin/security" || document.querySelector(".dash-nav") !== null, null, { timeout: 15000 }).catch(() => {});
   if (page.url().includes("/admin/security")) {
@@ -180,8 +197,15 @@ try {
   ok("admin: private evidence file downloadable by staff", fileResp.status() === 200 && (fileResp.headers()["content-type"] || "").includes("pdf"), `${fileResp.status()} ${fileResp.headers()["content-type"]}`);
   const anonFile = await ctxPatient.request.get(BASE + fileLink, { maxRedirects: 0 });
   ok("admin: evidence file refused for non-staff", anonFile.status() === 307 || anonFile.status() === 404, String(anonFile.status()));
-  await rcard.locator('select[name="outcome"]').selectOption("checked");
-  await rcard.locator('button:has-text("Record evidence decision")').click();
+  ok("review: proof of consultation is mandatory on the form", (await patient.goto(`${BASE}/doctor/${seedDoc.slug}/review`), (await patient.locator("#evidence").getAttribute("required")) !== null));
+  await rcard.locator('select[name="decision"]').selectOption("published");
+  await rcard.locator('button:has-text("Apply decision")').click();
+  await admin.waitForSelector(".notice.alert", { timeout: 20000 });
+  ok("moderation: publishing before the proof is validated is refused", (await admin.locator(".notice.alert").first().innerText()).includes("Validate the proof"));
+  await admin.goto(`${BASE}/admin/reviews`);
+  const rcard0 = admin.locator(".qcard", { hasText: "9876543210" }).first();
+  await rcard0.locator('select[name="outcome"]').selectOption("checked");
+  await rcard0.locator('button:has-text("Record evidence decision")').click();
   await settle(admin);
   await admin.goto(`${BASE}/admin/reviews`);
   const rcard2 = admin.locator(".qcard", { hasText: "9876543210" }).first();
@@ -442,6 +466,47 @@ await signIn(claimant, "e2e.claimant@example.com", `/doctor/${unclaimed.slug}`);
   await settle(admin2);
   const [fac] = await sql`select f.lat, f.lng, f.geocode_source from facilities f join doctor_practices p on p.facility_id = f.id where p.doctor_id = ${staffDoc.id} limit 1`;
   ok("geo: manual coordinates saved with source=manual", fac.lat === "12.9352" && fac.geocode_source === "manual", JSON.stringify(fac));
+
+  /* 12. Registration: a fresh account is stopped at the details step before it can enquire */
+  const ctxNew = await browser.newContext();
+  const fresh = await ctxNew.newPage();
+  await fresh.goto(`${BASE}/sign-in?next=${encodeURIComponent(`/doctor/${seedDoc.slug}/enquire`)}`);
+  await fresh.fill("#identifier", "e2e.fresh@example.com");
+  await fresh.click("form:has(#identifier) button[type=submit]");
+  await fresh.waitForSelector("#code", { timeout: 15000 });
+  await new Promise((r) => setTimeout(r, 500));
+  await fresh.fill("#code", latestOtpFor("e2e.fresh@example.com"));
+  await Promise.all([fresh.waitForURL(/\/account\/setup/, { timeout: 20000 }), fresh.click("form:has(#code) button[type=submit]")]);
+  ok("registration: new account is sent to the details step, not the enquiry form", fresh.url().includes("/account/setup?next="), fresh.url());
+  const direct = await ctxNew.request.get(`${BASE}/doctor/${seedDoc.slug}/enquire`, { maxRedirects: 0 });
+  ok("registration: enquiry page refuses an unregistered account", direct.status() === 307 && String(direct.headers()["location"]).includes("/account/setup"), `${direct.status()} ${direct.headers()["location"]}`);
+  await fresh.fill("#fullName", "Fresh Person");
+  await fresh.fill("#phone", "9123456780");
+  await fresh.selectOption("#locality", "koramangala");
+  ok("registration: terms checkbox is mandatory", (await fresh.locator('input[name="terms"]').getAttribute("required")) !== null && (await fresh.evaluate(() => !document.querySelector("form:has(#fullName)").checkValidity())));
+  await fresh.check('input[name="terms"]');
+  await Promise.all([fresh.waitForURL(/\/enquire/, { timeout: 20000 }), fresh.click('form:has(#fullName) button[type=submit]')]);
+  ok("registration: after details the account lands on the enquiry form with contact preview", (await fresh.locator("text=Fresh Person").count()) >= 1 && (await fresh.content()).includes("+919123456780"));
+  const [freshRow] = await sql`select display_name, phone, email, locality_key, city, terms_accepted_at, profile_completed_at from users where email='e2e.fresh@example.com'`;
+  ok("registration: stored name, mobile, locality, terms timestamp", freshRow.display_name === "Fresh Person" && freshRow.phone === "+919123456780" && freshRow.locality_key === "koramangala" && freshRow.city === "Bengaluru" && Boolean(freshRow.terms_accepted_at) && Boolean(freshRow.profile_completed_at), JSON.stringify(freshRow));
+  await fresh.goto(`${BASE}/account`);
+  ok("account: details are editable on the account page", (await fresh.locator("#fullName").inputValue()) === "Fresh Person");
+  const dupe = await browser.newContext();
+  const dupePage = await dupe.newPage();
+  await dupePage.goto(`${BASE}/sign-in`);
+  await dupePage.fill("#identifier", "e2e.dupe@example.com");
+  await dupePage.click("form:has(#identifier) button[type=submit]");
+  await dupePage.waitForSelector("#code", { timeout: 15000 });
+  await new Promise((r) => setTimeout(r, 500));
+  await dupePage.fill("#code", latestOtpFor("e2e.dupe@example.com"));
+  await Promise.all([dupePage.waitForURL(/\/account\/setup/, { timeout: 20000 }), dupePage.click("form:has(#code) button[type=submit]")]);
+  await dupePage.fill("#fullName", "Dupe Person");
+  await dupePage.fill("#phone", "9123456780");
+  await dupePage.selectOption("#locality", "koramangala");
+  await dupePage.check('input[name="terms"]');
+  await dupePage.click('form:has(#fullName) button[type=submit]');
+  await dupePage.waitForSelector(".notice.alert", { timeout: 15000 });
+  ok("registration: a mobile already on another account is refused", (await dupePage.locator(".notice.alert").innerText()).includes("another account"));
 } catch (e) {
   console.error("E2E ERROR", e);
   await admin.screenshot({ path: `${shots}/err-admin.png`, fullPage: true }).catch(() => {});

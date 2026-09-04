@@ -13,6 +13,8 @@ interface DoctorSummary {
   name: string;
   specialtyOne: string;
   practices: Array<{ id?: string; facility: string; locality: string }>;
+  /** What an enquiry shares with the practice — the signed-in account's name and mobile. */
+  contact?: { name: string; phone: string } | null;
   reviews?: Array<{ id: string; author: string; visitMonth: string }>;
 }
 
@@ -105,6 +107,9 @@ function ReviewFields({ signedIn }: { signedIn: boolean }) {
     <>
       <div className="eyebrow" style={{ marginBottom: "10px" }}>{signedIn ? "Your experience" : "Sign in first"}</div>
       <div className="notice" style={{ marginBottom: "18px" }}>
+        <b>Every review is checked against a document.</b> Your review goes live only after a moderator has validated your proof of consultation. Reviews without proof are not accepted.
+      </div>
+      <div className="notice" style={{ marginBottom: "18px" }}>
         <b>Before you write.</b> Do not include a diagnosis, report contents, phone numbers, addresses
         or anything that identifies another patient. Automated checks flag this and a moderator will redact it.
       </div>
@@ -161,11 +166,10 @@ function ReviewFields({ signedIn }: { signedIn: boolean }) {
       </div>
 
       <div className="field">
-        <label htmlFor="evidence">Proof of visit (optional, private)</label>
-        <input id="evidence" name="evidence" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" />
+        <label htmlFor="evidence">Proof of consultation (required, private)</label>
+        <input id="evidence" name="evidence" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required />
         <div className="hint">
-          A receipt, prescription header or appointment confirmation. Seen only by a moderator, deleted 90 days
-          after moderation, never published. If validated, your review carries the “visit evidence checked” label.
+          A prescription, bill or receipt, appointment confirmation or discharge summary from this doctor or practice, showing the doctor or clinic name and a date. You may cover any diagnosis or test result — we only need to see that the consultation happened. Seen by one moderator, deleted 90 days after moderation, never published. Every published review has been checked this way.
         </div>
       </div>
 
@@ -325,9 +329,14 @@ function EnquireFields({ doctor, initialPractice, signedIn }: { doctor: DoctorSu
         <label htmlFor="note">Reason for visit (optional)</label>
         <input id="note" name="note" type="text" placeholder="One line is enough. Please do not include reports or diagnoses." />
       </div>
+      {doctor.contact ? (
+        <div className="notice" style={{ marginBottom: "12px" }}>
+          The practice will receive <b>{doctor.contact.name}</b>, <span className="mono">{doctor.contact.phone}</span> and your preferred day — nothing else. Wrong number? <Link href="/account">Update your details</Link> first.
+        </div>
+      ) : null}
       <label className="consent">
         <input type="checkbox" name="consent" required />
-        Share my verified contact with this practice so they can reach me about this enquiry.
+        Share my name and mobile number with this practice so they can reach me about this enquiry.
       </label>
     </>
   );

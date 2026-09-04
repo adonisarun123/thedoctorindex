@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { OtpSignIn } from "@/components/OtpSignIn";
 import { ProfileActionForm } from "@/components/ProfileActionForm";
 import { RouteMeta } from "@/components/RouteMeta";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionUser, setupPath } from "@/lib/auth/session";
 import { getDoctorBySlug } from "@/lib/data";
 import { LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
 import { absoluteUrl, paths } from "@/lib/site";
@@ -42,6 +42,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
   const specialty = SPECIALTIES[doctor.specialty];
   const user = await getSessionUser();
   const here = `${paths.doctor(doctor.slug)}/${KIND}${about ? `?about=${about}` : ""}`;
+  if (user && !user.profileComplete) redirect(setupPath(here));
 
   return (
     <>

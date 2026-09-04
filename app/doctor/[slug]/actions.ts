@@ -29,6 +29,7 @@ export async function submitReviewAction(_prev: ActionState, form: FormData): Pr
   try {
     const user = await getSessionUser();
     if (!user) return { error: "Sign in to write a review." };
+    if (!user.profileComplete) return { error: "Complete your account details first (name, mobile, email)." };
     const doctor = await doctorOr404(String(form.get("slug")));
     const file = form.get("evidence");
     let evidence: { filename: string; mime: string; bytes: Buffer } | null = null;
@@ -113,11 +114,12 @@ export async function enquiryAction(_prev: ActionState, form: FormData): Promise
   try {
     const user = await getSessionUser();
     if (!user) return { error: "Sign in so the practice can reach you." };
+    if (!user.profileComplete) return { error: "Complete your account details first so the practice can reach you." };
     const doctor = await doctorOr404(String(form.get("slug")));
     const practiceId = String(form.get("practice") ?? "") || null;
     await createEnquiry(doctor.dbId!, user.id, {
       practiceId,
-      contact: user.phone ?? user.email ?? "",
+      contact: `${user.displayName ?? ""} · ${user.phone ?? user.email ?? ""}`.replace(/^ · /, ""),
       preferredDay: String(form.get("day") ?? "") || null,
       forWhom: form.get("for") === "other" ? "other" : "self",
       note: String(form.get("note") ?? "").trim() || null,
