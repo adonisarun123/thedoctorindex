@@ -1,10 +1,13 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DoctorRow } from "@/components/DoctorRow";
 import { RouteMeta } from "@/components/RouteMeta";
+import { NearMe } from "@/components/NearMe";
 import { searchDoctors } from "@/lib/data";
+import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
 import { CITY, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { absoluteUrl, paths } from "@/lib/site";
 
@@ -26,7 +29,9 @@ export default async function SearchPage({
   const sp = await searchParams;
   const raw = Array.isArray(sp.q) ? sp.q[0] : sp.q;
   const query = (raw ?? "").trim();
-  const results = searchDoctors(query);
+  const near = parseNear(sp.near);
+  const found = await searchDoctors(query);
+  const results = near ? sortByDistance(found, near) : found;
 
   return (
     <>
@@ -51,14 +56,19 @@ export default async function SearchPage({
         <h1 style={{ fontSize: "1.75rem" }}>
           {query ? <>Results for “{query}”</> : "Search"}
         </h1>
-        <div className="count mono" style={{ color: "var(--muted)", marginBottom: "14px" }}>
-          {results.length} matching profiles
+        <div className="resulthead" style={{ marginBottom: "14px" }}>
+          <div className="count mono" style={{ color: "var(--muted)" }}>
+            {results.length} matching profiles
+          </div>
+          <Suspense fallback={null}>
+            <NearMe active={Boolean(near)} />
+          </Suspense>
         </div>
 
         {results.length ? (
           <div className="rows">
             {results.map((d) => (
-              <DoctorRow key={d.slug} doctor={d} ctx={{ query }} />
+              <DoctorRow key={d.slug} doctor={d} ctx={{ query }} distance={near ? nearestKm(d, near) : null} />
             ))}
           </div>
         ) : (

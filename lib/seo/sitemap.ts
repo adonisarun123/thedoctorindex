@@ -1,6 +1,8 @@
+import { GUIDES } from "@/lib/data/guides";
 import { POLICIES } from "@/lib/data/policies";
 import { countIndexable, getAllDoctors } from "@/lib/data";
 import { CITY, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { withOverride } from "@/lib/seo/override";
 import { listingGate } from "@/lib/seo/gates";
 import { absoluteUrl, paths } from "@/lib/site";
 
@@ -32,8 +34,8 @@ export function toIsoDate(display: string): string | undefined {
   return `${m[3]}-${month}-${m[1]}`;
 }
 
-export function doctorEntries(): SitemapEntry[] {
-  return getAllDoctors()
+export async function doctorEntries(): Promise<SitemapEntry[]> {
+  return (await getAllDoctors())
     .filter((d) => d.indexable)
     .map((d) => ({
       loc: absoluteUrl(paths.doctor(d.slug)),
@@ -41,24 +43,31 @@ export function doctorEntries(): SitemapEntry[] {
     }));
 }
 
-export function directoryEntries(): SitemapEntry[] {
-  const entries: SitemapEntry[] = [{ loc: absoluteUrl(paths.home()) }];
+export async function directoryEntries(): Promise<SitemapEntry[]> {
+  const entries: SitemapEntry[] = [
+    { loc: absoluteUrl(paths.home()) },
+    { loc: absoluteUrl("/doctors") },
+    { loc: absoluteUrl(`/doctors/${CITY.stateSlug}`) },
+    { loc: absoluteUrl(`/doctors/${CITY.stateSlug}/${CITY.slug}`) },
+    { loc: absoluteUrl("/specialties") },
+  ];
 
   for (const key of SPECIALTY_KEYS) {
     const specialty = SPECIALTIES[key];
 
-    if (listingGate("national", countIndexable(key), true).indexable) {
+    const cityCount = await countIndexable(key);
+    if ((await withOverride(paths.specialty(specialty.key), listingGate("national", cityCount, true))).indexable) {
       entries.push({ loc: absoluteUrl(paths.specialty(specialty.key)) });
     }
 
-    if (listingGate("city", countIndexable(key), true).indexable) {
-      entries.push({
-        loc: absoluteUrl(paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug)),
-      });
+    const cityPath = paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug);
+    if ((await withOverride(cityPath, listingGate("city", cityCount, true))).indexable) {
+      entries.push({ loc: absoluteUrl(cityPath) });
     }
 
     for (const locality of LOCALITY_KEYS) {
-      if (listingGate("locality", countIndexable(key, locality), true).indexable) {
+      const locPath = paths.localitySpecialty(CITY.stateSlug, CITY.slug, locality, specialty.slug);
+      if ((await withOverride(locPath, listingGate("locality", await countIndexable(key, locality), true))).indexable) {
         entries.push({
           loc: absoluteUrl(
             paths.localitySpecialty(CITY.stateSlug, CITY.slug, locality, specialty.slug),
@@ -72,10 +81,18 @@ export function directoryEntries(): SitemapEntry[] {
 }
 
 export function editorialEntries(): SitemapEntry[] {
-  return POLICIES.map((p) => ({
-    loc: absoluteUrl(paths.policy(p.slug)),
-    lastmod: toIsoDate(p.updatedOn),
-  }));
+  return [
+    { loc: absoluteUrl("/about") },
+    { loc: absoluteUrl("/health-guides") },
+    ...GUIDES.map((g) => ({
+      loc: absoluteUrl(`/health-guides/${g.slug}`),
+      lastmod: toIsoDate(g.reviewedOn),
+    })),
+    ...POLICIES.map((p) => ({
+      loc: absoluteUrl(paths.policy(p.slug)),
+      lastmod: toIsoDate(p.updatedOn),
+    })),
+  ];
 }
 
 export function renderUrlset(entries: SitemapEntry[]): string {

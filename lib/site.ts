@@ -5,22 +5,26 @@
  * built from here.
  */
 
+import { env } from "@/lib/env";
+
 export const SITE = {
-  name: "The Doctor Index",
+  name: env.siteName,
   shortName: "Doctor Index",
   /**
    * Absolute origin, no trailing slash. Set NEXT_PUBLIC_SITE_URL in the
    * environment for previews and staging so canonicals never point at prod
    * from a preview deployment.
    */
-  origin: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://thedoctorindex.in").replace(/\/$/, ""),
+  origin: env.siteUrl,
   tagline: "Verified doctors in India",
   description:
     "Find a doctor in India and see exactly what has been verified: registration, qualification and current practice are checked separately, and each carries its source and date.",
   /** Date the seed dataset was last reconciled. Shown as the data freshness date. */
   dataSnapshot: "04 Sep 2026",
   /** Published grievance contact. Required before the platform accepts reviews. */
-  grievanceEmail: "grievance@thedoctorindex.in",
+  grievanceEmail: env.grievanceEmail,
+  supportEmail: env.supportEmail,
+  emergencyNumber: env.emergencyNumber,
 } as const;
 
 /** Build an absolute URL for canonicals, sitemaps and JSON-LD. */
@@ -48,6 +52,9 @@ export const paths = {
   ) => `/doctors/${stateSlug}/${citySlug}/${localitySlug}/${specialtySlug}`,
   search: (q: string) => `/search?q=${encodeURIComponent(q)}`,
   addDoctor: () => "/add-doctor",
+  forDoctors: () => "/for-doctors",
+  signIn: (next?: string) => (next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in"),
+  account: () => "/account",
   claimProfile: () => "/claim-profile",
   policy: (slug: string) => `/policies/${slug}`,
 } as const;

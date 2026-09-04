@@ -72,7 +72,6 @@ function practiceLd(d: DoctorView): Json[] {
       postalCode: p.postalCode,
       addressCountry: "IN",
     },
-    telephone: p.phone,
     openingHours: `${p.days} ${p.hours}`,
   }));
 }

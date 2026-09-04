@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import type { Doctor } from "@/lib/types";
 
 /**
@@ -15,14 +16,16 @@ import type { Doctor } from "@/lib/types";
  */
 
 export const GATES = {
-  /** Minimum quality score for a doctor profile to be indexed. */
-  profileQuality: 70,
-  /** Minimum indexable doctors before a city × speciality page is indexed. */
-  citySpecialty: 3,
-  /** Minimum indexable doctors before a locality × speciality page is indexed. */
-  localitySpecialty: 5,
-  /** Minimum indexable doctors before a national speciality page is indexed. */
-  nationalSpecialty: 3,
+  /** Minimum quality score for a doctor profile to be indexed. GATE_PROFILE_QUALITY */
+  profileQuality: env.gates.profileQuality,
+  /** Minimum indexable doctors before a city × speciality page is indexed. GATE_CITY_SPECIALTY_MIN_DOCTORS */
+  citySpecialty: env.gates.citySpecialty,
+  /** Minimum indexable doctors before a locality × speciality page is indexed. GATE_LOCALITY_SPECIALTY_MIN_DOCTORS */
+  localitySpecialty: env.gates.localitySpecialty,
+  /** Minimum indexable doctors before a national speciality page is indexed. GATE_NATIONAL_SPECIALTY_MIN_DOCTORS */
+  nationalSpecialty: env.gates.nationalSpecialty,
+  /** Localities linked from a city page. GATE_LOCALITY_LINK_MIN_DOCTORS */
+  localityLinkMin: env.gates.localityLinkMin,
 } as const;
 
 export interface GateResult {
@@ -114,6 +117,7 @@ export function hasFacetParams(searchParams: Record<string, string | string[] | 
     "sort",
     "page",
     "q",
+    "near",
   ];
   return FACET_KEYS.some((k) => {
     const v = searchParams[k];

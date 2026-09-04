@@ -6,6 +6,7 @@ import type { RouteMetaData } from "@/components/RouteMeta";
 import { countIndexable } from "@/lib/data";
 import { CITY, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS, localityBySlug, specialtyBySlug } from "@/lib/data/taxonomy";
 import { GATES, hasFacetParams, listingGate } from "@/lib/seo/gates";
+import { withOverride } from "@/lib/seo/override";
 import { absoluteUrl, paths } from "@/lib/site";
 import type { Locality, Specialty } from "@/lib/types";
 
@@ -87,8 +88,8 @@ export async function generateMetadata({
   const sp = await searchParams;
   const { specialty, locality, canonicalPath } = resolved;
   const placeName = locality ? `${locality.name}, ${locality.city}` : CITY.name;
-  const indexableCount = countIndexable(specialty.key, locality?.key);
-  const gate = listingGate(locality ? "locality" : "city", indexableCount, true);
+  const indexableCount = await countIndexable(specialty.key, locality?.key);
+  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", indexableCount, true));
   const faceted = hasFacetParams(sp);
 
   return {
@@ -122,8 +123,8 @@ export default async function ListingPage({
   const sp = await searchParams;
   const { specialty, locality, canonicalPath } = resolved;
   const placeName = locality ? `${locality.name}, ${locality.city}` : CITY.name;
-  const indexableCount = countIndexable(specialty.key, locality?.key);
-  const gate = listingGate(locality ? "locality" : "city", indexableCount, true);
+  const indexableCount = await countIndexable(specialty.key, locality?.key);
+  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", indexableCount, true));
   const faceted = hasFacetParams(sp);
 
   const routeMeta: RouteMetaData = {

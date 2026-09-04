@@ -1,13 +1,16 @@
+import { Suspense } from "react";
 import Link from "next/link";
 
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { DemoAction } from "@/components/DemoAction";
 import { DoctorRow } from "@/components/DoctorRow";
+import { NearMe } from "@/components/NearMe";
 import { FilterRail } from "@/components/FilterRail";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
 import { allLanguages, applyFilters, countIndexable, getDoctorsBySpecialty } from "@/lib/data";
 import { CITY, LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
+import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
 import { sortBy } from "@/lib/ranking";
 import { GATES } from "@/lib/seo/gates";
 import { breadcrumbLd, listingLd } from "@/lib/seo/structured-data";
@@ -33,7 +36,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
   };
 }
 
-export function ListingView({
+export async function ListingView({
   specialty,
   locality,
   searchParams,
@@ -49,11 +52,12 @@ export function ListingView({
   const sortMode: "relevance" | "experience" | "reviews" =
     sortParam === "experience" || sortParam === "reviews" ? sortParam : "relevance";
 
-  const base = getDoctorsBySpecialty(specialty.key);
+  const base = await getDoctorsBySpecialty(specialty.key);
   const scoped = locality ? base.filter((d) => d.localities.includes(locality.key)) : base;
   const filtered = applyFilters(scoped, filters);
   const ctx = { specialty: specialty.key, locality: locality?.key ?? filters.locality };
-  const results = sortBy(filtered, sortMode, ctx);
+  const near = parseNear(searchParams.near);
+  const results = near ? sortByDistance(filtered, near) : sortBy(filtered, sortMode, ctx);
 
   const canonicalPath = locality
     ? paths.localitySpecialty(locality.stateSlug, locality.citySlug, locality.key, specialty.slug)
@@ -62,7 +66,7 @@ export function ListingView({
   const placeName = locality ? `${locality.name}, ${locality.city}` : CITY.name;
   const heading = `${specialty.plural} in ${placeName}`;
 
-  const indexableHere = countIndexable(specialty.key, locality?.key);
+  const indexableHere = await countIndexable(specialty.key, locality?.key);
   const threshold = locality ? GATES.localitySpecialty : GATES.citySpecialty;
   const belowThreshold = indexableHere < threshold;
 
@@ -78,11 +82,9 @@ export function ListingView({
 
   // Localities that clear the supply gate get a crawlable link from this page.
   // Ones that do not are simply absent — we never link into a thin page.
-  const localityLinks = locality
-    ? []
-    : (Object.keys(LOCALITIES) as Array<keyof typeof LOCALITIES>).filter(
-        (k) => countIndexable(specialty.key, k) >= 2,
-      );
+  const localityKeys = Object.keys(LOCALITIES) as Array<keyof typeof LOCALITIES>;
+  const localityCounts = locality ? [] : await Promise.all(localityKeys.map((k) => countIndexable(specialty.key, k)));
+  const localityLinks = locality ? [] : localityKeys.filter((_, i) => localityCounts[i] >= GATES.localityLinkMin);
 
   return (
     <>
@@ -117,13 +119,18 @@ export function ListingView({
                   gate · data checked to {SITE.dataSnapshot}
                 </div>
               </div>
-              <SortLinks canonicalPath={canonicalPath} searchParams={searchParams} current={sortMode} />
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
+                <SortLinks canonicalPath={canonicalPath} searchParams={searchParams} current={near ? "distance" : sortMode} />
+                <Suspense fallback={null}>
+                  <NearMe active={Boolean(near)} />
+                </Suspense>
+              </div>
             </div>
 
             {results.length > 0 ? (
               <div className="rows">
                 {results.map((d) => (
-                  <DoctorRow key={d.slug} doctor={d} ctx={ctx} />
+                  <DoctorRow key={d.slug} doctor={d} ctx={ctx} distance={near ? nearestKm(d, near) : null} />
                 ))}
               </div>
             ) : (
@@ -221,10 +228,11 @@ function SortLinks({
     ["relevance", "Relevance & trust"],
     ["experience", "Most experience"],
     ["reviews", "Review confidence"],
+    ...(current === "distance" ? ([["distance", "Nearest first"]] as Array<[string, string]>) : []),
   ];
   const base = new URLSearchParams();
   for (const [k, v] of Object.entries(searchParams)) {
-    if (k === "sort") continue;
+    if (k === "sort" || k === "near") continue;
     if (typeof v === "string" && v) base.set(k, v);
   }
   return (

@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import type { DoctorView, LocalityKey, RankingBreakdown, SpecialtyKey } from "@/lib/types";
 
 /**
@@ -9,12 +10,12 @@ import type { DoctorView, LocalityKey, RankingBreakdown, SpecialtyKey } from "@/
  */
 
 export const WEIGHTS = {
-  relevance: 35,
-  location: 20,
-  verification: 15,
-  completeness: 10,
-  freshness: 10,
-  reviewConfidence: 10,
+  relevance: env.ranking.relevance,
+  location: env.ranking.location,
+  verification: env.ranking.verification,
+  completeness: env.ranking.completeness,
+  freshness: env.ranking.freshness,
+  reviewConfidence: env.ranking.reviewConfidence,
 } as const;
 
 export interface RankingContext {
@@ -74,7 +75,7 @@ function scoreFreshness(d: DoctorView): number {
  */
 function scoreReviewConfidence(d: DoctorView): number {
   if (d.rating.count === 0) return 3;
-  const confidence = Math.min(1, d.rating.count / 25 + 0.4);
+  const confidence = Math.min(1, d.rating.count / env.ranking.reviewConfidenceFullAt + 0.4);
   return Math.round(Math.min(WEIGHTS.reviewConfidence, (d.rating.average / 5) * 10 * confidence));
 }
 

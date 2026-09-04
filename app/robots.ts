@@ -21,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
           "/search",
           "/add-doctor",
           "/claim-profile",
+          "/dashboard",
           "/dashboard/",
           "/admin/",
           "/api/",

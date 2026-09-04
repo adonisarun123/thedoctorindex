@@ -8,17 +8,38 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "db:reset": "tsx scripts/reset.ts",
+    "db:maintenance": "tsx --require ./scripts/server-only-shim.cjs scripts/maintenance.ts",
+    "db:geocode": "tsx scripts/geocode.ts",
+    "test": "tsx --require ./scripts/server-only-shim.cjs --test tests/unit/*.test.ts",
+    "test:e2e": "node tests/e2e/flow.mjs"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "jose": "^6.2.11",
+    "nanoid": "^6.0.1",
     "next": "^15.5.25",
+    "postgres": "^3.4.9",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
+    "playwright": "^1.58.2",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   }
 }

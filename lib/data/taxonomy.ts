@@ -113,15 +113,20 @@ export function specialtyByKey(key: string): Specialty | null {
  * country > state > city > locality so additional cities are data, not code.
  */
 export const LOCALITIES: Record<LocalityKey, Locality> = {
-  indiranagar: mk("indiranagar", "Indiranagar"),
-  koramangala: mk("koramangala", "Koramangala"),
-  jayanagar: mk("jayanagar", "Jayanagar"),
-  whitefield: mk("whitefield", "Whitefield"),
-  "hsr-layout": mk("hsr-layout", "HSR Layout"),
-  malleshwaram: mk("malleshwaram", "Malleshwaram"),
+  indiranagar: mk("indiranagar", "Indiranagar", 12.9784, 77.6408),
+  koramangala: mk("koramangala", "Koramangala", 12.9352, 77.6245),
+  jayanagar: mk("jayanagar", "Jayanagar", 12.9308, 77.5838),
+  whitefield: mk("whitefield", "Whitefield", 12.9698, 77.75),
+  "hsr-layout": mk("hsr-layout", "HSR Layout", 12.9116, 77.6389),
+  malleshwaram: mk("malleshwaram", "Malleshwaram", 13.0031, 77.5643),
 };
 
-function mk(key: LocalityKey, name: string): Locality {
+/**
+ * Approximate locality centroids (WGS84, ~4 decimal places). They stand in
+ * for a facility's own coordinates until the geocoder (GEOCODING_* in .env)
+ * has run, and are the anchor for "near me" distances in the meantime.
+ */
+function mk(key: LocalityKey, name: string, lat: number, lng: number): Locality {
   return {
     key,
     name,
@@ -129,6 +134,8 @@ function mk(key: LocalityKey, name: string): Locality {
     citySlug: "bengaluru",
     state: "Karnataka",
     stateSlug: "karnataka",
+    lat,
+    lng,
   };
 }
 

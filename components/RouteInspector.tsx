@@ -19,7 +19,10 @@ export function RouteInspector() {
   const [data, setData] = useState<RouteMetaData | null>(null);
   const [open, setOpen] = useState(false);
 
-  const enabled = process.env.NODE_ENV !== "production" || searchParams.get("inspect") === "1";
+  const enabled =
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_ROUTE_INSPECTOR === "1" ||
+    searchParams.get("inspect") === "1";
 
   useEffect(() => {
     if (!enabled) return;

@@ -5,6 +5,6 @@ import { XML_HEADERS, directoryEntries, renderUrlset } from "@/lib/seo/sitemap";
  * that clear their inventory gate. Combinations below threshold are absent —
  * they are still served to people, just not submitted.
  */
-export function GET() {
-  return new Response(renderUrlset(directoryEntries()), { headers: XML_HEADERS });
+export async function GET() {
+  return new Response(renderUrlset(await directoryEntries()), { headers: XML_HEADERS });
 }

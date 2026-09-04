@@ -3,8 +3,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import "./globals.css";
-import { HeaderSearch } from "@/components/HeaderSearch";
 import { RouteInspector } from "@/components/RouteInspector";
+import { SiteHeader } from "@/components/SiteHeader";
+import { THEME_BOOT_SCRIPT } from "@/components/ThemeToggle";
 import { SPECIALTIES, SPECIALTY_KEYS, CITY } from "@/lib/data/taxonomy";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 import { organizationLd, webSiteLd } from "@/lib/seo/structured-data";
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-IN">
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link rel="stylesheet" href={FONT_HREF} />
@@ -69,32 +71,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="demo">
           <div className="wrap">
             <b>Seed data</b>
-            <span>
-              Every doctor, registration number, practice and review in this build is fictional
-              demo data. No real practitioner is represented.
-            </span>
+            <span>Fictional demo records throughout. No real practitioner is represented.</span>
           </div>
         </div>
 
-        <header className="site">
-          <div className="wrap hrow">
-            <Link className="brand" href={paths.home()}>
-              <span className="mark">{SITE.name}</span>
-              <span className="tag">India</span>
-            </Link>
-            <Suspense fallback={<div className="hsearch" aria-hidden="true" />}>
-              <HeaderSearch />
-            </Suspense>
-            <nav className="hnav">
-              <Link className="plain" href={paths.policy("verification")}>
-                How verification works
-              </Link>
-              <Link className="cta" href={paths.addDoctor()}>
-                For doctors
-              </Link>
-            </nav>
-          </div>
-        </header>
+        <SiteHeader />
 
         <main id="main">{children}</main>
 
@@ -107,14 +88,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   A free, verified directory of practising doctors in India. Basic profiles are
                   permanently free. Organic ranking is never for sale.
                 </p>
+                <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "12px" }}>
+                  Grievance officer:{" "}
+                  <a href={`mailto:${SITE.grievanceEmail}`}>{SITE.grievanceEmail}</a>
+                  <br />
+                  <Link href={paths.policy("grievance")}>Grievance process and timelines</Link>
+                </p>
               </div>
               <div>
                 <h5>Trust</h5>
                 <ul>
+                  <li><Link href="/about">About and ownership</Link></li>
                   <li><Link href={paths.policy("verification")}>Verification methodology</Link></li>
                   <li><Link href={paths.policy("ranking")}>Ranking &amp; sorting</Link></li>
                   <li><Link href={paths.policy("reviews")}>Review policy</Link></li>
+                  <li><Link href={paths.policy("editorial")}>Editorial &amp; medical review</Link></li>
                   <li><Link href={paths.policy("corrections")}>Corrections &amp; takedowns</Link></li>
+                  <li><Link href={paths.policy("advertising")}>Advertising &amp; sponsorship</Link></li>
                 </ul>
               </div>
               <div>
@@ -122,17 +112,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <ul>
                   <li><Link href={paths.addDoctor()}>Add your profile</Link></li>
                   <li><Link href={paths.claimProfile()}>Claim an existing profile</Link></li>
+                  <li><Link href="/dashboard">Doctor dashboard</Link></li>
+                </ul>
+                <h5 style={{ marginTop: "18px" }}>Legal</h5>
+                <ul>
+                  <li><Link href={paths.policy("privacy")}>Privacy</Link></li>
+                  <li><Link href={paths.policy("terms")}>Terms of use</Link></li>
                 </ul>
               </div>
               <div>
                 <h5>Browse</h5>
                 <ul>
+                  <li><Link href="/doctors">All locations</Link></li>
+                  <li><Link href="/specialties">All specialities</Link></li>
+                  <li><Link href="/health-guides">Health guides</Link></li>
                   {SPECIALTY_KEYS.map((k) => (
                     <li key={k}>
                       <Link
                         href={paths.citySpecialty(CITY.stateSlug, CITY.slug, SPECIALTIES[k].slug)}
                       >
-                        {SPECIALTIES[k].plural}
+                        {SPECIALTIES[k].plural} in {CITY.name}
                       </Link>
                     </li>
                   ))}
@@ -141,8 +140,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
             <div className="fnote">
               <span>
-                Bengaluru launch cluster, 4 specialities. Front-end application; the verification
-                and moderation back office is not part of this repository.
+                Not for emergencies. If someone is in immediate danger, call {SITE.emergencyNumber}.
+                Information on this site is a directory, not medical advice.
               </span>
               <span className="mono">Data snapshot {SITE.dataSnapshot}</span>
             </div>

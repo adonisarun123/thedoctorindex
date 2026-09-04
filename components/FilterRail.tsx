@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import { LOCALITIES, LOCALITY_KEYS } from "@/lib/data/taxonomy";
 
@@ -32,9 +32,21 @@ export function FilterRail({ languages }: { languages: string[] }) {
   );
 
   const get = (k: string) => params.get(k) ?? "";
+  const [open, setOpen] = useState(false);
+  const active = ["locality", "online", "gender", "language", "experience", "fee", "claimed", "evidence"].filter((k) => get(k)).length;
 
   return (
-    <aside className="panel filters" aria-label="Filter results">
+    <div className="filters-wrap">
+      <button
+        type="button"
+        className="btn quiet filters-toggle"
+        aria-expanded={open}
+        aria-controls="filters"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? "Hide filters" : `Filters${active ? ` (${active})` : ""}`}
+      </button>
+    <aside id="filters" className={`panel filters${open ? " show" : ""}`} aria-label="Filter results">
       <div className="fgroup">
         <h4>Locality</h4>
         <select
@@ -158,5 +170,6 @@ export function FilterRail({ languages }: { languages: string[] }) {
         </button>
       </div>
     </aside>
+    </div>
   );
 }

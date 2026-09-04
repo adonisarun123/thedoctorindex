@@ -55,6 +55,9 @@ export interface Locality {
   citySlug: string;
   state: string;
   stateSlug: string;
+  /** Approximate centroid, WGS84. */
+  lat: number;
+  lng: number;
 }
 
 /** Whether a claim on the profile has been checked, and against what. */
@@ -84,6 +87,9 @@ export interface ExperienceEntry {
 }
 
 export interface Practice {
+  /** Database ids, present when the record came from Postgres. */
+  id?: string;
+  facilityId?: string;
   facility: string;
   locality: LocalityKey;
   address: string;
@@ -97,6 +103,11 @@ export interface Practice {
   /** Date the address, hours and contact were last reconfirmed with the practice. */
   confirmedOn: string;
   phone: string;
+  /** Facility coordinates when geocoded, else the locality centroid. Filled by the data layer. */
+  lat?: number;
+  lng?: number;
+  /** "facility" when geocoded, "locality" when the centroid stands in. */
+  geoSource?: "facility" | "locality";
 }
 
 export interface ReviewDimensions {
@@ -164,12 +175,18 @@ export interface Doctor {
 
 /** A doctor with the derived fields the UI needs. */
 export interface DoctorView extends Doctor {
+  /** Postgres row id, present when the record came from the database. */
+  dbId?: string;
+  /** Lifecycle status from the database; seed records are always "published". */
+  lifecycle?: "draft" | "submitted" | "in_review" | "published" | "suspended" | "retired" | "archived";
   yearsOfExperience: number;
   localities: LocalityKey[];
   /** True when every hard indexation gate passes. See lib/seo/gates.ts. */
   indexable: boolean;
   /** True where at least one published review carries validated visit evidence. */
   hasEvidenceReviews: boolean;
+  /** Public photo URL when one was supplied with usage consent. */
+  photoUrl?: string | null;
 }
 
 export interface RankingBreakdown {

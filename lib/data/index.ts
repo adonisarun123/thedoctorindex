@@ -1,72 +1,58 @@
-import { SEED_DOCTORS } from "@/lib/data/doctors";
-import { isProfileIndexable } from "@/lib/seo/gates";
-import type { Doctor, DoctorView, ListingFilters, LocalityKey, SpecialtyKey } from "@/lib/types";
+import "server-only";
+
+import { dbSource } from "@/lib/data/db-source";
+import { seedSource } from "@/lib/data/seed-source";
+import type { DoctorView, ListingFilters, LocalityKey, SpecialtyKey } from "@/lib/types";
 
 /**
  * The data access boundary.
  *
- * Everything above this file (routes, components, sitemaps) reads doctors
- * through these functions. Swapping the seed array for a fetch against the
- * directory API means rewriting only this module.
+ * Two sources implement the same interface:
+ *   db    — Postgres via Drizzle (lib/data/db-source.ts). Used whenever
+ *           DATABASE_URL is set, unless DATA_SOURCE=seed forces the fixture.
+ *   seed  — the fictional records in lib/data/doctors.ts. Zero infrastructure;
+ *           used for builds and previews that have no database.
  *
- * The functions are synchronous today. They are written to be trivially
- * promisified later — routes already `await` where it matters.
+ * Every function is async so the two are interchangeable. Routes, sitemaps and
+ * components consume only this module.
  */
 
-const CURRENT_YEAR = 2026;
+export type DataSource = {
+  getAllDoctors(): Promise<DoctorView[]>;
+  getDoctorBySlug(slug: string): Promise<DoctorView | null>;
+  /** Canonical /doctor path for a stale slug (rename or merge), or null when unknown. */
+  canonicalDoctorPath(slug: string): Promise<string | null>;
+  findByRegistration(registrationNumber: string): Promise<DoctorView | null>;
+  getDoctorsBySpecialty(specialty: SpecialtyKey): Promise<DoctorView[]>;
+  getDoctorsBySpecialtyAndLocality(specialty: SpecialtyKey, locality: LocalityKey): Promise<DoctorView[]>;
+  countIndexable(specialty: SpecialtyKey, locality?: LocalityKey): Promise<number>;
+  searchDoctors(query: string): Promise<DoctorView[]>;
+  getNearby(doctor: DoctorView, limit?: number): Promise<DoctorView[]>;
+  getDoctorsByLocality(locality: LocalityKey): Promise<DoctorView[]>;
+};
 
-function toSlug(name: string, id: string): string {
-  return `${name.toLowerCase().replace(/[^a-z\s]/g, "").trim().replace(/\s+/g, "-")}-${id}`;
+export function activeSourceName(): "db" | "seed" {
+  if (process.env.DATA_SOURCE === "seed") return "seed";
+  if (process.env.DATA_SOURCE === "db") return "db";
+  return process.env.DATABASE_URL ? "db" : "seed";
 }
 
-function decorate(raw: Omit<Doctor, "slug">): DoctorView {
-  const doctor: Doctor = { ...raw, slug: toSlug(raw.name, raw.id) };
-  return {
-    ...doctor,
-    yearsOfExperience: CURRENT_YEAR - doctor.practiceStartYear,
-    localities: Array.from(new Set(doctor.practices.map((p) => p.locality))),
-    indexable: isProfileIndexable(doctor),
-    hasEvidenceReviews: doctor.reviews.some((r) => r.evidenceChecked),
-  };
+function source(): DataSource {
+  return activeSourceName() === "db" ? dbSource : seedSource;
 }
 
-const ALL: DoctorView[] = SEED_DOCTORS.map(decorate);
-const BY_SLUG = new Map(ALL.map((d) => [d.slug, d]));
-const BY_REGISTRATION = new Map(ALL.map((d) => [d.registration.number.toUpperCase(), d]));
+export const getAllDoctors = () => source().getAllDoctors();
+export const getDoctorBySlug = (slug: string) => source().getDoctorBySlug(slug);
+export const canonicalDoctorPath = (slug: string) => source().canonicalDoctorPath(slug);
+export const findByRegistration = (n: string) => source().findByRegistration(n);
+export const getDoctorsBySpecialty = (k: SpecialtyKey) => source().getDoctorsBySpecialty(k);
+export const getDoctorsBySpecialtyAndLocality = (k: SpecialtyKey, l: LocalityKey) => source().getDoctorsBySpecialtyAndLocality(k, l);
+export const countIndexable = (k: SpecialtyKey, l?: LocalityKey) => source().countIndexable(k, l);
+export const searchDoctors = (q: string) => source().searchDoctors(q);
+export const getNearby = (d: DoctorView, limit?: number) => source().getNearby(d, limit);
+export const getDoctorsByLocality = (l: LocalityKey) => source().getDoctorsByLocality(l);
 
-export function getAllDoctors(): DoctorView[] {
-  return ALL;
-}
-
-export function getDoctorBySlug(slug: string): DoctorView | null {
-  return BY_SLUG.get(slug) ?? null;
-}
-
-/**
- * Registration number plus council is the identity key, never the name.
- * Used by the add-doctor flow to catch a duplicate before one is created.
- */
-export function findByRegistration(registrationNumber: string): DoctorView | null {
-  return BY_REGISTRATION.get(registrationNumber.trim().toUpperCase()) ?? null;
-}
-
-export function getDoctorsBySpecialty(specialty: SpecialtyKey): DoctorView[] {
-  return ALL.filter((d) => d.specialty === specialty);
-}
-
-export function getDoctorsBySpecialtyAndLocality(
-  specialty: SpecialtyKey,
-  locality: LocalityKey,
-): DoctorView[] {
-  return ALL.filter((d) => d.specialty === specialty && d.localities.includes(locality));
-}
-
-/** Count that the indexation gates are measured against. Indexable profiles only. */
-export function countIndexable(specialty: SpecialtyKey, locality?: LocalityKey): number {
-  return ALL.filter(
-    (d) => d.specialty === specialty && d.indexable && (!locality || d.localities.includes(locality)),
-  ).length;
-}
+/* Pure helpers, source-independent. */
 
 export function applyFilters(pool: DoctorView[], f: ListingFilters): DoctorView[] {
   return pool.filter((d) => {
@@ -80,15 +66,6 @@ export function applyFilters(pool: DoctorView[], f: ListingFilters): DoctorView[
     if (f.evidenceOnly && !d.hasEvidenceReviews) return false;
     return true;
   });
-}
-
-/** Free-text search across name and speciality. Powers /search, which is noindex. */
-export function searchDoctors(query: string): DoctorView[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-  return ALL.filter(
-    (d) => d.name.toLowerCase().includes(q) || d.specialty.includes(q) || d.subspecialties.some((s) => s.toLowerCase().includes(q)),
-  );
 }
 
 export function allLanguages(pool: DoctorView[]): string[] {

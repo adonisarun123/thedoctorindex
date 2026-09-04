@@ -7,6 +7,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
 import { countIndexable } from "@/lib/data";
 import { CITY, SPECIALTY_KEYS, specialtyByKey } from "@/lib/data/taxonomy";
+import { withOverride } from "@/lib/seo/override";
 import { listingGate } from "@/lib/seo/gates";
 import { breadcrumbLd } from "@/lib/seo/structured-data";
 import { absoluteUrl, paths } from "@/lib/site";
@@ -20,12 +21,12 @@ export function generateStaticParams(): Params[] {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const specialty = specialtyByKey((await params).specialty);
   if (!specialty) return { title: "Not found", robots: { index: false, follow: false } };
-  const count = countIndexable(specialty.key);
+  const count = await countIndexable(specialty.key);
   return {
     title: `${specialty.name} — verified ${specialty.plural.toLowerCase()} in India`,
     description: specialty.guide.slice(0, 155),
     alternates: { canonical: absoluteUrl(paths.specialty(specialty.key)) },
-    robots: { index: listingGate("national", count, true).indexable, follow: true },
+    robots: { index: (await withOverride(paths.specialty(specialty.key), listingGate("national", count, true))).indexable, follow: true },
   };
 }
 
@@ -33,8 +34,8 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   const specialty = specialtyByKey((await params).specialty);
   if (!specialty) notFound();
 
-  const count = countIndexable(specialty.key);
-  const gate = listingGate("national", count, true);
+  const count = await countIndexable(specialty.key);
+  const gate = await withOverride(paths.specialty(specialty.key), listingGate("national", count, true));
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
     { name: "Specialities" },

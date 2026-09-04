@@ -280,6 +280,210 @@ export const POLICIES: Policy[] = [
       </>
     ),
   },
+  {
+    slug: "editorial",
+    title: "Editorial and medical review policy",
+    summary:
+      "Who writes and reviews health content on this site, how sources are handled, and what we will not publish.",
+    updatedOn: "28 Aug 2026",
+    body: (
+      <>
+        <p>
+          Health guidance on this site exists to help a person decide which kind of doctor to see and
+          what to expect. It is not diagnosis, and it never substitutes for a consultation.
+        </p>
+        <h2>Authorship and review</h2>
+        <ul>
+          <li>Every guide names a qualified author and a separate medical reviewer with their registration.</li>
+          <li>Every guide shows its publication date and the date of its last substantive review.</li>
+          <li>Guides are re-reviewed at least every 12 months, and sooner when guidance changes.</li>
+        </ul>
+        <h2>Sources</h2>
+        <p>
+          We cite primary sources &mdash; national guidelines, professional bodies, peer-reviewed
+          literature &mdash; and we prefer Indian guidance where it exists. We do not cite other
+          directories, marketing pages or content farms.
+        </p>
+        <h2>What we will not publish</h2>
+        <ul>
+          <li>Symptom checkers, triage tools or anything that outputs a diagnosis.</li>
+          <li>Bulk-generated condition pages. Every guide is commissioned, written and reviewed individually.</li>
+          <li>Content that names or recommends a specific doctor. Guidance and directory are separate.</li>
+          <li>Sponsored health content of any kind.</li>
+        </ul>
+        <h2>Corrections</h2>
+        <p>
+          Errors in health content are corrected on the page with a dated note. Report one through the
+          <a href="/policies/corrections"> corrections process</a>.
+        </p>
+      </>
+    ),
+  },
+  {
+    slug: "advertising",
+    title: "Advertising and sponsorship policy",
+    summary:
+      "What can and cannot be paid for on this platform, and how anything sponsored is separated and labelled.",
+    updatedOn: "28 Aug 2026",
+    body: (
+      <>
+        <p>
+          The basic doctor profile is permanently free. No doctor pays to be listed, verified, found or
+          corrected. This page exists so that nobody has to take that on trust.
+        </p>
+        <h2>Never for sale</h2>
+        <ul>
+          <li>Position in organic results. The ranking model has no field for payment.</li>
+          <li>Any verification label. Labels are earned against a source and dated; they cannot be bought.</li>
+          <li>Removal, suppression or reordering of reviews.</li>
+          <li>&ldquo;Best doctor&rdquo; placements, awards or badges of any kind.</li>
+          <li>Patient personal or health data.</li>
+        </ul>
+        <h2>What may be offered later</h2>
+        <p>
+          Premium tools for doctors &mdash; analytics, practice pages, appointment integrations, multi-location
+          management &mdash; and clearly labelled sponsored cards. If sponsored cards are introduced they
+          will sit outside the organic list, be visually separate, and carry the word
+          &ldquo;Sponsored&rdquo;. A sponsored card never displays a verification label it has not earned.
+        </p>
+        <h2>Disclosure</h2>
+        <p>
+          Any commercial relationship that could affect what a patient sees is disclosed on the page
+          where it applies, not in a policy nobody reads.
+        </p>
+      </>
+    ),
+  },
+  {
+    slug: "privacy",
+    title: "Privacy policy",
+    summary:
+      "What personal data this platform collects, why, for how long, and the rights you have over it under the DPDP Act.",
+    updatedOn: "28 Aug 2026",
+    body: (
+      <>
+        <p>
+          This is a plain-language summary of how personal data is handled on the platform. It is
+          written to the Digital Personal Data Protection Act, 2023 and its Rules. It is a product
+          document pending counsel review, not a legal instrument.
+        </p>
+        <h2>What we collect, and why</h2>
+        <div className="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Who</th><th>Data</th><th>Purpose</th><th>Kept for</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Doctors</td><td>Name, registration, qualifications, practice details, contact for OTP, identity evidence</td><td>Verifying and publishing a professional profile</td><td>While the profile exists, then 3 years for audit</td></tr>
+              <tr><td>Reviewers</td><td>Mobile or email for OTP, review content, optional private proof of visit</td><td>Publishing first-hand reviews and validating evidence</td><td>Proof deleted 90 days after moderation; review while published</td></tr>
+              <tr><td>Visitors</td><td>Search terms, pages viewed, contact actions taken</td><td>Improving discovery and measuring whether people reach a doctor</td><td>Aggregated after 13 months</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h2>What we do not collect</h2>
+        <p>
+          We do not collect diagnoses, prescriptions, reports or treatment records. Reviewers are warned
+          not to include them and moderators redact them. Identity documents and proof of visit are
+          private evidence and never appear on a public page.
+        </p>
+        <h2>Your rights</h2>
+        <ul>
+          <li>Access, correct, complete and update your data.</li>
+          <li>Withdraw consent as easily as you gave it.</li>
+          <li>Ask for erasure, subject to the retention schedule above.</li>
+          <li>Nominate someone to exercise these rights for you.</li>
+          <li>Raise a grievance with the named officer, and escalate to the Data Protection Board.</li>
+        </ul>
+        <h2>Contact</h2>
+        <p>
+          Grievance officer: <a href="mailto:grievance@thedoctorindex.in">grievance@thedoctorindex.in</a>.
+          Acknowledged within 24 hours. See the <a href="/policies/grievance">grievance process</a>.
+        </p>
+      </>
+    ),
+  },
+  {
+    slug: "terms",
+    title: "Terms of use",
+    summary:
+      "The rules for using the directory, for doctors listing on it, and for anyone posting a review.",
+    updatedOn: "28 Aug 2026",
+    body: (
+      <>
+        <p>
+          A product summary pending counsel review. The definitive terms will be published before the
+          platform accepts public reviews.
+        </p>
+        <h2>The directory</h2>
+        <ul>
+          <li>The site is a directory. It does not provide medical advice and it does not endorse any doctor.</li>
+          <li>A verification label means what the <a href="/policies/verification">verification policy</a> says it means, and nothing more.</li>
+          <li>Information is correct to the date shown on it. Confirm with the practice before you travel.</li>
+          <li>Not for emergencies. Call 108.</li>
+        </ul>
+        <h2>Doctors</h2>
+        <ul>
+          <li>You warrant that everything you submit is accurate and complies with the professional conduct rules that apply to you.</li>
+          <li>You may not submit cure guarantees, outcome promises, unverified awards or superlatives.</li>
+          <li>Changes to name, registration, qualification or speciality return to verification before publication.</li>
+          <li>You may reply once to a review and must not reveal or confirm any health information in the reply.</li>
+        </ul>
+        <h2>Reviewers</h2>
+        <ul>
+          <li>Reviews must be first-hand. No reviews by doctors or their staff, no competitor reviews, no incentivised reviews.</li>
+          <li>Do not include diagnoses, report contents, phone numbers, addresses or anything identifying another patient.</li>
+          <li>Reviews are moderated under the <a href="/policies/reviews">review policy</a> and may be redacted or rejected.</li>
+        </ul>
+        <h2>Content and takedown</h2>
+        <p>
+          Anyone may report content. The <a href="/policies/corrections">corrections and takedown process</a>
+          sets out how reports, appeals and lawful orders are handled and preserved.
+        </p>
+      </>
+    ),
+  },
+  {
+    slug: "grievance",
+    title: "Grievance process",
+    summary:
+      "How to raise a complaint about a profile, a review, your data or the platform, who handles it, and the timelines that apply.",
+    updatedOn: "28 Aug 2026",
+    body: (
+      <>
+        <p>
+          A named person handles complaints. The timelines below are our internal targets; the
+          statutory timelines in force at launch govern and will be published here once confirmed
+          by counsel.
+        </p>
+        <h2>Grievance officer</h2>
+        <p>
+          Email <a href="mailto:grievance@thedoctorindex.in">grievance@thedoctorindex.in</a>. Include
+          the page URL, what is wrong, and how to reach you. Every complaint is acknowledged within
+          24 hours with a reference number.
+        </p>
+        <h2>Timelines</h2>
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Type</th><th>Initial assessment</th><th>Resolution target</th></tr></thead>
+            <tbody>
+              <tr><td>Impersonation, privacy breach, safety</td><td>4 hours</td><td>72 hours</td></tr>
+              <tr><td>Incorrect profile information</td><td>24 hours</td><td>3 business days</td></tr>
+              <tr><td>Review report or appeal</td><td>24 hours</td><td>48 hours</td></tr>
+              <tr><td>Data access, correction or erasure</td><td>24 hours</td><td>As required by the DPDP Rules</td></tr>
+              <tr><td>Lawful order or court matter</td><td>Immediate escalation</td><td>As required by the order</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h2>What happens to your complaint</h2>
+        <ul>
+          <li>It is logged with evidence and assigned to a person who did not create the content in question.</li>
+          <li>Serious allegations &mdash; malpractice, criminal conduct, fraud, threats &mdash; go to a trained escalation queue.</li>
+          <li>Both parties to a dispute may appeal once. Appeals are decided by someone new to the case.</li>
+          <li>The decision, reason and evidence are preserved privately.</li>
+        </ul>
+      </>
+    ),
+  },
 ];
 
 export function policyBySlug(slug: string): Policy | null {

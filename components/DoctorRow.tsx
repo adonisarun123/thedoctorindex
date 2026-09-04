@@ -1,34 +1,27 @@
 import Link from "next/link";
 
-import { DemoAction } from "@/components/DemoAction";
+import { Avatar } from "@/components/Avatar";
+import { CallButton, DirectionsButton } from "@/components/ContactActions";
 import { TrustBadges } from "@/components/TrustBadges";
 import { LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
+import { formatKm } from "@/lib/geo";
 import { rank, type RankingContext } from "@/lib/ranking";
 import { paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("");
-}
 
 function inr(n: number): string {
   return `₹${n.toLocaleString("en-IN")}`;
 }
 
-export function DoctorRow({ doctor, ctx }: { doctor: DoctorView; ctx: RankingContext }) {
+export function DoctorRow({ doctor, ctx, distance = null }: { doctor: DoctorView; ctx: RankingContext; distance?: { km: number; practiceIndex: number; approximate: boolean } | null }) {
   const specialty = SPECIALTIES[doctor.specialty];
-  const practice = doctor.practices[0];
+  // With a visitor location, lead with the nearest practice.
+  const practice = doctor.practices[distance?.practiceIndex ?? 0];
   const score = rank(doctor, ctx);
 
   return (
     <article className="row">
-      <div className="av" aria-hidden="true">
-        {initials(doctor.name)}
-      </div>
+      <Avatar name={doctor.name} id={doctor.id} size={56} photoUrl={doctor.photoUrl} />
       <div>
         <Link className="nm" href={paths.doctor(doctor.slug)}>
           Dr {doctor.name}
@@ -40,6 +33,11 @@ export function DoctorRow({ doctor, ctx }: { doctor: DoctorView; ctx: RankingCon
         <div className="meta">
           {doctor.yearsOfExperience} yrs since practice start · {doctor.languages.join(", ")}
           <br />
+          {distance ? (
+            <span className="dist" title={distance.approximate ? "Straight-line distance to the locality centre; the clinic itself is not yet geocoded" : "Straight-line distance to the clinic"}>
+              {formatKm(distance.km)}{distance.approximate ? "~" : ""} away ·{" "}
+            </span>
+          ) : null}
           {practice.facility}, {LOCALITIES[practice.locality].name} ·{" "}
           {practice.feeInr !== null ? inr(practice.feeInr) : "Fee not confirmed"} ·{" "}
           {doctor.modes.join(" / ")}
@@ -79,15 +77,8 @@ export function DoctorRow({ doctor, ctx }: { doctor: DoctorView; ctx: RankingCon
         <Link className="btn solid" href={paths.doctor(doctor.slug)}>
           View profile
         </Link>
-        <DemoAction
-          label="Call practice"
-          variant="outline"
-          explains={`Dials ${practice.phone} and records a call_clicked event. Telephony and event capture are services outside this repository.`}
-        />
-        <DemoAction
-          label="Directions"
-          explains={`Opens directions to ${practice.facility} and records a directions_clicked event. Maps provider is not wired up in this build.`}
-        />
+        <CallButton practiceId={practice.id} variant="outline" />
+        <DirectionsButton practiceId={practice.id} variant="quiet" />
       </div>
     </article>
   );
