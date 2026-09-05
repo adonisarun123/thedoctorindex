@@ -9,7 +9,8 @@ import { countIndexable } from "@/lib/data";
 import { CITY, SPECIALTY_KEYS, specialtyByKey } from "@/lib/data/taxonomy";
 import { withOverride } from "@/lib/seo/override";
 import { listingGate } from "@/lib/seo/gates";
-import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { breadcrumbLd, specialtyLd } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
 type Params = { specialty: string };
@@ -22,12 +23,14 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const specialty = specialtyByKey((await params).specialty);
   if (!specialty) return { title: "Not found", robots: { index: false, follow: false } };
   const count = await countIndexable(specialty.key);
-  return {
-    title: `${specialty.name} — verified ${specialty.plural.toLowerCase()} in India`,
-    description: specialty.guide.slice(0, 155),
-    alternates: { canonical: absoluteUrl(paths.specialty(specialty.key)) },
-    robots: { index: (await withOverride(paths.specialty(specialty.key), listingGate("national", count, true))).indexable, follow: true },
-  };
+  return pageMeta({
+    title: `${specialty.name}: verified ${specialty.plural.toLowerCase()} in India`,
+    ogTitle: `${specialty.name} — when to consult ${specialty.aOne}, and verified ${specialty.plural.toLowerCase()} in India`,
+    description: `When to consult ${specialty.aOne}, reviewed ${specialty.reviewedOn}, plus ${count} verified ${specialty.plural.toLowerCase()} with registration, qualification and practice checked.`,
+    path: paths.specialty(specialty.key),
+    image: "segment",
+    index: (await withOverride(paths.specialty(specialty.key), listingGate("national", count, true))).indexable,
+  });
 }
 
 export default async function SpecialtyPage({ params }: { params: Promise<Params> }) {
@@ -49,7 +52,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
     canonical: absoluteUrl(paths.specialty(specialty.key)),
     index: gate.indexable,
     gate: { name: "National speciality gate", checks: gate.checks },
-    structuredData: "CollectionPage, BreadcrumbList",
+    structuredData: "CollectionPage + MedicalWebPage (about MedicalSpecialty, lastReviewed), BreadcrumbList",
     notes: [
       {
         label: "Why this indexes",
@@ -65,7 +68,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   return (
     <>
       <RouteMeta data={routeMeta} />
-      <JsonLd data={breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path })))} />
+      <JsonLd data={[specialtyLd(specialty, count, [paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug)]), breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path })))]} />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">

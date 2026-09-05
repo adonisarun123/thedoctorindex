@@ -35,9 +35,18 @@ export const env = {
   grievanceEmail: str("NEXT_PUBLIC_GRIEVANCE_EMAIL", "grievance@thedoctorindex.in"),
   supportEmail: str("NEXT_PUBLIC_SUPPORT_EMAIL", "support@thedoctorindex.in"),
   emergencyNumber: str("NEXT_PUBLIC_EMERGENCY_NUMBER", "108"),
+  /** Official profiles for Organization.sameAs; comma-separated absolute URLs. */
+  socialLinks: str("NEXT_PUBLIC_SOCIAL_LINKS", "").split(",").map((u) => u.trim()).filter((u) => /^https?:\/\//.test(u)),
+  /** Handle for twitter:site (e.g. @thedoctorindex). Empty = tag omitted. */
+  twitterHandle: str("NEXT_PUBLIC_TWITTER_HANDLE", ""),
+  /** Google Search Console HTML-tag verification token. Empty = tag omitted. */
+  googleSiteVerification: str("GOOGLE_SITE_VERIFICATION", ""),
+  bingSiteVerification: str("BING_SITE_VERIFICATION", ""),
   appEnv: str("APP_ENV", process.env.NODE_ENV === "production" ? "production" : "development"),
   forceNoindex: flag("FORCE_NOINDEX"),
   routeInspector: flag("NEXT_PUBLIC_ROUTE_INSPECTOR"),
+  /** "1" / "0" to force the "seed data" banner on or off; unset = shown only while the seed dataset is the data source. */
+  demoBanner: process.env.NEXT_PUBLIC_DEMO_BANNER === undefined || process.env.NEXT_PUBLIC_DEMO_BANNER === "" ? null : flag("NEXT_PUBLIC_DEMO_BANNER"),
   mediaCdnUrl: str("NEXT_PUBLIC_MEDIA_CDN_URL", ""),
 
   /* --- launch cluster ---------------------------------------------------- */

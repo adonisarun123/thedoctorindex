@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 
 import { OtpSignIn } from "@/components/OtpSignIn";
 import { getSessionUser } from "@/lib/auth/session";
+import { privateMeta } from "@/lib/seo/meta";
 import { paths } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Sign in", robots: { index: false, follow: false } };
+export const metadata: Metadata = privateMeta("Sign in or create an account", "Sign in with a one-time code to request appointments, write verified reviews or manage a doctor profile.", "/sign-in");
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;

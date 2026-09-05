@@ -11,6 +11,7 @@ import { TrustBadges } from "@/components/TrustBadges";
 import { canonicalDoctorPath, getAllDoctors, getDoctorBySlug, getNearby } from "@/lib/data";
 import { CITY, LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
 import { profileGate } from "@/lib/seo/gates";
+import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, doctorLd } from "@/lib/seo/structured-data";
 import { absoluteUrl, paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
@@ -26,17 +27,19 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const doctor = await resolve(slug);
 
   const specialty = SPECIALTIES[doctor.specialty];
-  return {
+  const locality = doctor.localities[0] ? LOCALITIES[doctor.localities[0]]?.name : null;
+  const degrees = doctor.qualifications.filter((q) => q.state === "verified").map((q) => q.degree).slice(0, 2).join(", ");
+  const [firstName, ...rest] = doctor.name.split(/\s+/);
+  return pageMeta({
     title: `Dr ${doctor.name} – ${specialty.one} in ${CITY.name}`,
-    description: `Dr ${doctor.name}, ${specialty.one.toLowerCase()} in ${CITY.name}. Registration, qualifications and current practice with the date each was checked.`,
-    alternates: { canonical: absoluteUrl(paths.doctor(doctor.slug)) },
-    robots: { index: doctor.indexable, follow: true },
-    openGraph: {
-      type: "profile",
-      title: `Dr ${doctor.name}, ${specialty.one} in ${CITY.name}`,
-      url: absoluteUrl(paths.doctor(doctor.slug)),
-    },
-  };
+    ogTitle: `Dr ${doctor.name}, ${specialty.one} in ${locality ? `${locality}, ` : ""}${CITY.name}`,
+    description: `Dr ${doctor.name}, ${specialty.one.toLowerCase()} in ${locality ? `${locality}, ` : ""}${CITY.name}. ${degrees ? `${degrees}. ` : ""}${doctor.yearsOfExperience}+ years. Registration checked ${doctor.registration.checkedOn}; qualifications and practice dated.`,
+    path: paths.doctor(doctor.slug),
+    index: doctor.indexable,
+    type: "profile",
+    image: "segment",
+    profile: { firstName, lastName: rest.join(" ") || undefined, gender: doctor.gender === "F" ? "female" : "male" },
+  });
 }
 
 /**

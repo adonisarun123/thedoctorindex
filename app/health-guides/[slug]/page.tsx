@@ -8,7 +8,8 @@ import { RouteMeta } from "@/components/RouteMeta";
 import { countIndexable } from "@/lib/data";
 import { GUIDES, guideBySlug } from "@/lib/data/guides";
 import { CITY, SPECIALTIES } from "@/lib/data/taxonomy";
-import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { breadcrumbLd, guideLd, isoDate } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
 type Params = { slug: string };
@@ -20,13 +21,14 @@ export function generateStaticParams(): Params[] {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const guide = guideBySlug((await params).slug);
   if (!guide) return { title: "Not found", robots: { index: false, follow: false } };
-  return {
+  return pageMeta({
     title: guide.title,
     description: guide.standfirst,
-    alternates: { canonical: absoluteUrl(`/health-guides/${guide.slug}`) },
-    robots: { index: true, follow: true },
-    openGraph: { type: "article", title: guide.title, url: absoluteUrl(`/health-guides/${guide.slug}`) },
-  };
+    path: `/health-guides/${guide.slug}`,
+    type: "article",
+    image: "segment",
+    article: { publishedTime: isoDate(guide.publishedOn), modifiedTime: isoDate(guide.reviewedOn), authors: [absoluteUrl("/about")], section: "Health guides", tags: guide.specialty ? [SPECIALTIES[guide.specialty].name] : undefined },
+  });
 }
 
 export default async function GuidePage({ params }: { params: Promise<Params> }) {
@@ -40,19 +42,6 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
     { name: guide.title },
   ];
 
-  const articleLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: guide.title,
-    description: guide.standfirst,
-    datePublished: guide.publishedOn,
-    dateModified: guide.reviewedOn,
-    author: { "@type": "Organization", name: guide.author },
-    reviewedBy: { "@type": "Person", name: guide.reviewer },
-    publisher: { "@type": "Organization", name: "The Doctor Index" },
-    mainEntityOfPage: absoluteUrl(`/health-guides/${guide.slug}`),
-  };
-
   return (
     <>
       <RouteMeta
@@ -62,7 +51,7 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
           h1: guide.title,
           canonical: absoluteUrl(`/health-guides/${guide.slug}`),
           index: true,
-          structuredData: "Article (author + reviewedBy), BreadcrumbList",
+          structuredData: "MedicalWebPage (lastReviewed, reviewedBy) › Article (author, publisher, image), BreadcrumbList",
           lastmod: guide.reviewedOn,
           notes: [
             {
@@ -72,7 +61,7 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
           ],
         }}
       />
-      <JsonLd data={[articleLd, breadcrumbLd(crumbs)]} />
+      <JsonLd data={[guideLd(guide), breadcrumbLd(crumbs)]} />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">

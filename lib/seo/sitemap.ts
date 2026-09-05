@@ -1,6 +1,6 @@
 import { GUIDES } from "@/lib/data/guides";
 import { POLICIES } from "@/lib/data/policies";
-import { countIndexable, getAllDoctors } from "@/lib/data";
+import { countIndexable, getAllDoctors, getDoctorsBySpecialty } from "@/lib/data";
 import { CITY, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { withOverride } from "@/lib/seo/override";
 import { listingGate } from "@/lib/seo/gates";
@@ -60,19 +60,18 @@ export async function directoryEntries(): Promise<SitemapEntry[]> {
       entries.push({ loc: absoluteUrl(paths.specialty(specialty.key)) });
     }
 
+    const pool = (await getDoctorsBySpecialty(key)).filter((d) => d.indexable);
+    const newest = (ds: typeof pool) => ds.map((d) => toIsoDate(d.lastVerifiedOn)).filter((x): x is string => !!x).sort().pop();
+
     const cityPath = paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug);
     if ((await withOverride(cityPath, listingGate("city", cityCount, true))).indexable) {
-      entries.push({ loc: absoluteUrl(cityPath) });
+      entries.push({ loc: absoluteUrl(cityPath), lastmod: newest(pool) });
     }
 
     for (const locality of LOCALITY_KEYS) {
       const locPath = paths.localitySpecialty(CITY.stateSlug, CITY.slug, locality, specialty.slug);
       if ((await withOverride(locPath, listingGate("locality", await countIndexable(key, locality), true))).indexable) {
-        entries.push({
-          loc: absoluteUrl(
-            paths.localitySpecialty(CITY.stateSlug, CITY.slug, locality, specialty.slug),
-          ),
-        });
+        entries.push({ loc: absoluteUrl(locPath), lastmod: newest(pool.filter((d) => d.localities.includes(locality))) });
       }
     }
   }
@@ -83,6 +82,7 @@ export async function directoryEntries(): Promise<SitemapEntry[]> {
 export function editorialEntries(): SitemapEntry[] {
   return [
     { loc: absoluteUrl("/about") },
+    { loc: absoluteUrl(paths.forDoctors()) },
     { loc: absoluteUrl("/health-guides") },
     ...GUIDES.map((g) => ({
       loc: absoluteUrl(`/health-guides/${g.slug}`),

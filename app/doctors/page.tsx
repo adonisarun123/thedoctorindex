@@ -7,15 +7,15 @@ import { RouteMeta } from "@/components/RouteMeta";
 import { getAllDoctors } from "@/lib/data";
 import { CITY } from "@/lib/data/taxonomy";
 import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Find verified doctors by location in India",
-  description:
-    "Browse verified doctors by state and city. A location opens only once it has enough verified, currently practising doctors to be useful.",
-  alternates: { canonical: absoluteUrl("/doctors") },
-  robots: { index: true, follow: true },
-};
+export const metadata: Metadata = pageMeta({
+  title: "Verified doctors by state and city",
+  ogTitle: "Find verified doctors by location in India",
+  description: "Browse verified doctors by state and city. A location opens only once it has enough verified, currently practising doctors to be useful.",
+  path: "/doctors",
+});
 
 /**
  * National browse root. The plan opens cities one cluster at a time, so this

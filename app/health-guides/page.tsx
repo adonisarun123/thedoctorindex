@@ -6,16 +6,16 @@ import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
 import { GUIDES } from "@/lib/data/guides";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
-import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Health guides — when to consult which specialist",
-  description:
-    "Plain-language, medically reviewed guides to which kind of doctor to see and what to expect. Each names its author and reviewer and shows its review date.",
-  alternates: { canonical: absoluteUrl("/health-guides") },
-  robots: { index: true, follow: true },
-};
+export const metadata: Metadata = pageMeta({
+  title: "Health guides: which specialist to see",
+  ogTitle: "Health guides — when to consult which specialist",
+  description: "Plain-language, medically reviewed guides to which kind of doctor to see and what to expect. Each names its author and reviewer and shows its review date.",
+  path: "/health-guides",
+});
 
 export default function GuidesIndexPage() {
   const crumbs = [{ name: "Home", path: paths.home() }, { name: "Health guides" }];
@@ -37,7 +37,7 @@ export default function GuidesIndexPage() {
           ],
         }}
       />
-      <JsonLd data={breadcrumbLd(crumbs)} />
+      <JsonLd data={[collectionLd({ name: "Health guides", path: "/health-guides", description: String(metadata.description), items: GUIDES.map((g) => ({ name: g.title, path: `/health-guides/${g.slug}` })) }), breadcrumbLd(crumbs)]} />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">

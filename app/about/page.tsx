@@ -6,15 +6,14 @@ import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
 import { getAllDoctors } from "@/lib/data";
 import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "About and ownership",
-  description:
-    "Who runs The Doctor Index, what it is for, how it is funded, and the commitments that do not change when money arrives.",
-  alternates: { canonical: absoluteUrl("/about") },
-  robots: { index: true, follow: true },
-};
+  description: "Who runs The Doctor Index, what it is for, how it is funded, and the commitments that do not change when money arrives.",
+  path: "/about",
+});
 
 export default async function AboutPage() {
   const all = await getAllDoctors();

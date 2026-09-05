@@ -9,6 +9,7 @@ import { NearMe } from "@/components/NearMe";
 import { searchDoctors } from "@/lib/data";
 import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
 import { CITY, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { privateMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
 /**
@@ -17,7 +18,7 @@ import { absoluteUrl, paths } from "@/lib/site";
  * search box is never the only path to a record.
  */
 export const metadata: Metadata = {
-  title: "Search results",
+  ...privateMeta("Search results", "Search verified doctors by name, speciality or locality.", "/search"),
   robots: { index: false, follow: true },
 };
 

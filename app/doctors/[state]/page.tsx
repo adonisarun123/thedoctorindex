@@ -8,6 +8,7 @@ import { RouteMeta } from "@/components/RouteMeta";
 import { getAllDoctors } from "@/lib/data";
 import { CITY } from "@/lib/data/taxonomy";
 import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
 type Params = { state: string };
@@ -19,12 +20,11 @@ export function generateStaticParams(): Params[] {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { state } = await params;
   if (state !== CITY.stateSlug) return { title: "Not found", robots: { index: false, follow: false } };
-  return {
+  return pageMeta({
     title: `Verified doctors in ${CITY.state}`,
-    description: `Cities in ${CITY.state} with verified, currently practising doctors on The Doctor Index.`,
-    alternates: { canonical: absoluteUrl(`/doctors/${state}`) },
-    robots: { index: true, follow: true },
-  };
+    description: `Cities in ${CITY.state} with verified, currently practising doctors: registration, qualification and practice checked separately and dated on every profile.`,
+    path: `/doctors/${state}`,
+  });
 }
 
 export default async function StatePage({ params }: { params: Promise<Params> }) {

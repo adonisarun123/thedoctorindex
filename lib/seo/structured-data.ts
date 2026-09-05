@@ -1,6 +1,7 @@
+import type { Guide } from "@/lib/data/guides";
 import { CITY, SPECIALTIES } from "@/lib/data/taxonomy";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
-import type { DoctorView, Specialty } from "@/lib/types";
+import type { DoctorView, Practice, Specialty, SpecialtyKey } from "@/lib/types";
 
 /**
  * Structured data (project plan §11.6).
@@ -14,25 +15,54 @@ import type { DoctorView, Specialty } from "@/lib/types";
  *    review snippet feature does not support a standalone Person the way it
  *    supports a qualifying local business, and promising stars on every doctor
  *    page would be selling something we cannot deliver.
- * 3. Markup describes what is visible on the page and nothing else.
+ * 3. Markup describes what is visible on the page and nothing else. Practice
+ *    phone numbers are gated behind sign-in on the page, so `telephone` is
+ *    never emitted; nor is a photo without usage consent.
+ *
+ * Every entity that appears more than once (the organisation, the website, a
+ * doctor) carries a stable `@id` so the graph across pages joins up.
  */
 
 type Json = Record<string, unknown>;
+
+const ORG_ID = () => `${absoluteUrl("/")}#organization`;
+const SITE_ID = () => `${absoluteUrl("/")}#website`;
+const LOGO_URL = () => absoluteUrl("/icon.svg");
+
+/** "12 Aug 2026" → "2026-08-12". Unparseable input is returned unchanged. */
+const MONTHS: Record<string, string> = { Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06", Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12" };
+export function isoDate(display: string | null | undefined): string | undefined {
+  if (!display) return undefined;
+  const m = /^(\d{2}) ([A-Za-z]{3}) (\d{4})$/.exec(display.trim());
+  if (!m || !MONTHS[m[2]]) return /^\d{4}-\d{2}-\d{2}/.test(display) ? display.slice(0, 10) : undefined;
+  return `${m[3]}-${MONTHS[m[2]]}-${m[1]}`;
+}
+
+/** schema.org MedicalSpecialty enumeration members for our specialities. */
+export const MEDICAL_SPECIALTY: Record<SpecialtyKey, string> = {
+  cardiology: "https://schema.org/Cardiovascular",
+  dermatology: "https://schema.org/Dermatology",
+  orthopaedics: "https://schema.org/Musculoskeletal",
+  paediatrics: "https://schema.org/Pediatric",
+};
 
 export function organizationLd(): Json {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": ORG_ID(),
     name: SITE.name,
+    alternateName: SITE.shortName,
     url: absoluteUrl("/"),
+    logo: { "@type": "ImageObject", url: LOGO_URL(), width: 64, height: 64 },
     description: SITE.description,
+    email: SITE.supportEmail,
+    areaServed: { "@type": "Country", name: "India" },
+    knowsAbout: ["Medical registration verification", "Doctor directories", "Healthcare in India"],
+    ...(SITE.socialLinks.length ? { sameAs: SITE.socialLinks } : {}),
     contactPoint: [
-      {
-        "@type": "ContactPoint",
-        contactType: "grievance officer",
-        email: SITE.grievanceEmail,
-        areaServed: "IN",
-      },
+      { "@type": "ContactPoint", contactType: "customer support", email: SITE.supportEmail, areaServed: "IN", availableLanguage: ["en"] },
+      { "@type": "ContactPoint", contactType: "grievance officer", email: SITE.grievanceEmail, areaServed: "IN", availableLanguage: ["en"] },
     ],
   };
 }
@@ -41,8 +71,20 @@ export function webSiteLd(): Json {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": SITE_ID(),
     name: SITE.name,
+    alternateName: SITE.shortName,
     url: absoluteUrl("/"),
+    description: SITE.description,
+    inLanguage: "en-IN",
+    publisher: { "@id": ORG_ID() },
+    // The site search exists and works; the sitelinks search box feature that
+    // once read this was retired by Google in 2024, so it is informational.
+    potentialAction: {
+      "@type": "SearchAction",
+      target: { "@type": "EntryPoint", urlTemplate: `${absoluteUrl("/search")}?q={search_term_string}` },
+      "query-input": "required name=search_term_string",
+    },
   };
 }
 
@@ -59,32 +101,113 @@ export function breadcrumbLd(items: Array<{ name: string; path?: string }>): Jso
   };
 }
 
-/** One MedicalClinic per practice location, using the most specific applicable type. */
+/* ---------------------------------------------------------------------------
+   Opening hours. Practice rows store "Mon–Fri" / "10:00–13:00, 17:00–19:30".
+   Parsed into OpeningHoursSpecification where the strings are regular; the
+   raw string is kept as `openingHours` either way so nothing is lost.
+--------------------------------------------------------------------------- */
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DAY_INDEX: Record<string, number> = { mon: 0, tue: 1, tues: 1, wed: 2, thu: 3, thur: 3, thurs: 3, fri: 4, sat: 5, sun: 6 };
+
+export function parseDays(spec: string): string[] | null {
+  const out = new Set<string>();
+  for (const part of spec.split(",").map((p) => p.trim()).filter(Boolean)) {
+    const range = part.split(/\s*[–—-]\s*/);
+    if (range.length === 1) {
+      const i = DAY_INDEX[range[0].toLowerCase()];
+      if (i === undefined) return null;
+      out.add(DAYS[i]);
+    } else if (range.length === 2) {
+      const a = DAY_INDEX[range[0].toLowerCase()];
+      const b = DAY_INDEX[range[1].toLowerCase()];
+      if (a === undefined || b === undefined) return null;
+      for (let i = a; ; i = (i + 1) % 7) {
+        out.add(DAYS[i]);
+        if (i === b) break;
+      }
+    } else return null;
+  }
+  return out.size ? [...out] : null;
+}
+
+export function parseHours(spec: string): Array<{ opens: string; closes: string }> | null {
+  const out: Array<{ opens: string; closes: string }> = [];
+  for (const part of spec.split(",").map((p) => p.trim()).filter(Boolean)) {
+    const m = /^(\d{1,2}:\d{2})\s*[–—-]\s*(\d{1,2}:\d{2})$/.exec(part);
+    if (!m) return null;
+    out.push({ opens: m[1].padStart(5, "0"), closes: m[2].padStart(5, "0") });
+  }
+  return out.length ? out : null;
+}
+
+export function openingHoursLd(p: Pick<Practice, "days" | "hours">): Json[] | undefined {
+  const days = parseDays(p.days);
+  const hours = parseHours(p.hours);
+  if (!days || !hours) return undefined;
+  return hours.map((h) => ({ "@type": "OpeningHoursSpecification", dayOfWeek: days, opens: h.opens, closes: h.closes }));
+}
+
+function addressLd(p: Practice): Json {
+  return {
+    "@type": "PostalAddress",
+    streetAddress: p.address,
+    addressLocality: CITY.name,
+    addressRegion: CITY.state,
+    postalCode: p.postalCode,
+    addressCountry: "IN",
+  };
+}
+
+/** One MedicalClinic per practice location. Coordinates only when the facility itself was geocoded. */
 function practiceLd(d: DoctorView): Json[] {
-  return d.practices.map((p) => ({
-    "@type": "MedicalClinic",
-    name: p.facility,
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: p.address,
-      addressLocality: CITY.name,
-      addressRegion: CITY.state,
-      postalCode: p.postalCode,
-      addressCountry: "IN",
-    },
-    openingHours: `${p.days} ${p.hours}`,
-  }));
+  return d.practices.map((p) => {
+    const spec = openingHoursLd(p);
+    return {
+      "@type": "MedicalClinic",
+      ...(p.facilityId ? { "@id": `${absoluteUrl(paths.doctor(d.slug))}#facility-${p.facilityId}` } : {}),
+      name: p.facility,
+      address: addressLd(p),
+      ...(p.geoSource === "facility" && p.lat !== undefined && p.lng !== undefined ? { geo: { "@type": "GeoCoordinates", latitude: p.lat, longitude: p.lng } } : {}),
+      openingHours: `${p.days} ${p.hours}`,
+      ...(spec ? { openingHoursSpecification: spec } : {}),
+      ...(p.feeInr !== null ? { priceRange: `₹${p.feeInr}` } : {}),
+      medicalSpecialty: MEDICAL_SPECIALTY[d.specialty],
+    };
+  });
 }
 
 export function doctorLd(d: DoctorView): Json {
   const specialty = SPECIALTIES[d.specialty];
-  const person: Json = {
-    "@type": "Person",
+  const url = absoluteUrl(paths.doctor(d.slug));
+  const clinics = practiceLd(d);
+  const [first, last] = (() => {
+    const parts = d.name.trim().split(/\s+/);
+    return parts.length > 1 ? [parts[0], parts.slice(1).join(" ")] : [parts[0], undefined];
+  })();
+
+  // IndividualPhysician is schema.org's type for a practitioner as opposed to
+  // a practice; paired with Person so consumers that only know Person still
+  // read the name, credentials and languages.
+  const physician: Json = {
+    "@type": ["Person", "IndividualPhysician"],
+    "@id": `${url}#physician`,
     name: `Dr ${d.name}`,
+    givenName: first,
+    ...(last ? { familyName: last } : {}),
+    honorificPrefix: "Dr",
+    gender: d.gender === "F" ? "Female" : "Male",
     jobTitle: specialty.one,
-    url: absoluteUrl(paths.doctor(d.slug)),
+    url,
+    ...(d.photoUrl ? { image: absoluteUrl(d.photoUrl) } : {}),
+    medicalSpecialty: MEDICAL_SPECIALTY[d.specialty],
+    knowsAbout: [specialty.name, ...d.subspecialties],
     knowsLanguage: d.languages,
-    worksFor: practiceLd(d),
+    identifier: {
+      "@type": "PropertyValue",
+      propertyID: `${d.registration.council} registration`,
+      value: d.registration.number,
+    },
     hasCredential: d.qualifications
       .filter((q) => q.state === "verified")
       .map((q) => ({
@@ -93,6 +216,9 @@ export function doctorLd(d: DoctorView): Json {
         name: q.degree,
         recognizedBy: { "@type": "Organization", name: q.institution },
       })),
+    ...(d.services.length ? { availableService: d.services.map((name) => ({ "@type": "MedicalProcedure", name })) } : {}),
+    ...(clinics.length ? { address: (clinics[0] as { address: Json }).address, hospitalAffiliation: clinics } : {}),
+    isAcceptingNewPatients: d.status === "active",
   };
 
   // Claimed profiles are participatory, so ProfilePage applies. Unclaimed
@@ -100,33 +226,129 @@ export function doctorLd(d: DoctorView): Json {
   return {
     "@context": "https://schema.org",
     "@type": d.claimed ? "ProfilePage" : "WebPage",
-    url: absoluteUrl(paths.doctor(d.slug)),
+    "@id": url,
+    url,
     name: `Dr ${d.name}, ${specialty.one} in ${CITY.name}`,
-    dateModified: d.lastVerifiedOn,
-    mainEntity: person,
+    inLanguage: "en-IN",
+    isPartOf: { "@id": SITE_ID() },
+    publisher: { "@id": ORG_ID() },
+    dateModified: isoDate(d.lastVerifiedOn) ?? d.lastVerifiedOn,
+    primaryImageOfPage: { "@type": "ImageObject", url: `${url}/opengraph-image`, width: 1200, height: 630 },
+    mainEntity: physician,
   };
 }
 
-export function listingLd(
-  specialty: Specialty,
-  placeName: string,
-  canonicalPath: string,
-  doctors: DoctorView[],
-): Json {
+export function listingLd(specialty: Specialty, placeName: string, canonicalPath: string, doctors: DoctorView[]): Json {
+  const url = absoluteUrl(canonicalPath);
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    url: absoluteUrl(canonicalPath),
+    "@id": url,
+    url,
     name: `Verified ${specialty.plural} in ${placeName}`,
+    inLanguage: "en-IN",
+    isPartOf: { "@id": SITE_ID() },
+    publisher: { "@id": ORG_ID() },
+    about: { "@type": "MedicalSpecialty", "@id": MEDICAL_SPECIALTY[specialty.key], name: specialty.name },
+    spatialCoverage: { "@type": "Place", name: placeName, address: { "@type": "PostalAddress", addressLocality: CITY.name, addressRegion: CITY.state, addressCountry: "IN" } },
+    primaryImageOfPage: { "@type": "ImageObject", url: absoluteUrl(`/og/listing${canonicalPath.replace(/^\/doctors/, "")}`), width: 1200, height: 630 },
     mainEntity: {
       "@type": "ItemList",
+      itemListOrder: "https://schema.org/ItemListOrderDescending",
       numberOfItems: doctors.length,
       itemListElement: doctors.map((d, i) => ({
         "@type": "ListItem",
         position: i + 1,
         url: absoluteUrl(paths.doctor(d.slug)),
         name: `Dr ${d.name}`,
+        item: { "@type": ["Person", "IndividualPhysician"], "@id": `${absoluteUrl(paths.doctor(d.slug))}#physician`, name: `Dr ${d.name}`, url: absoluteUrl(paths.doctor(d.slug)), jobTitle: specialty.one, medicalSpecialty: MEDICAL_SPECIALTY[specialty.key] },
       })),
+    },
+  };
+}
+
+/** National speciality hub: reviewed guidance plus the open listing pages under it. */
+export function specialtyLd(specialty: Specialty, count: number, listingPaths: string[]): Json {
+  const url = absoluteUrl(paths.specialty(specialty.key));
+  return {
+    "@context": "https://schema.org",
+    "@type": ["CollectionPage", "MedicalWebPage"],
+    "@id": url,
+    url,
+    name: `${specialty.name} — verified ${specialty.plural.toLowerCase()} in India`,
+    description: specialty.guide,
+    inLanguage: "en-IN",
+    isPartOf: { "@id": SITE_ID() },
+    publisher: { "@id": ORG_ID() },
+    about: { "@type": "MedicalSpecialty", "@id": MEDICAL_SPECIALTY[specialty.key], name: specialty.name },
+    medicalAudience: { "@type": "MedicalAudience", audienceType: "Patient" },
+    lastReviewed: isoDate(specialty.reviewedOn) ?? specialty.reviewedOn,
+    primaryImageOfPage: { "@type": "ImageObject", url: `${url}/opengraph-image`, width: 1200, height: 630 },
+    mainEntity: {
+      "@type": "ItemList",
+      name: `Where to find verified ${specialty.plural.toLowerCase()}`,
+      numberOfItems: listingPaths.length,
+      itemListElement: listingPaths.map((p, i) => ({ "@type": "ListItem", position: i + 1, url: absoluteUrl(p) })),
+    },
+    ...(count ? { significantLink: listingPaths.map((p) => absoluteUrl(p)) } : {}),
+  };
+}
+
+/** Health guide: a MedicalWebPage whose main entity is the reviewed article. */
+export function guideLd(guide: Guide): Json {
+  const url = absoluteUrl(`/health-guides/${guide.slug}`);
+  const image = `${url}/opengraph-image`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "MedicalWebPage",
+    "@id": url,
+    url,
+    name: guide.title,
+    description: guide.standfirst,
+    inLanguage: "en-IN",
+    isPartOf: { "@id": SITE_ID() },
+    publisher: { "@id": ORG_ID() },
+    medicalAudience: { "@type": "MedicalAudience", audienceType: "Patient" },
+    lastReviewed: isoDate(guide.reviewedOn) ?? guide.reviewedOn,
+    reviewedBy: { "@type": "Person", name: guide.reviewer },
+    ...(guide.specialty ? { about: { "@type": "MedicalSpecialty", "@id": MEDICAL_SPECIALTY[guide.specialty], name: SPECIALTIES[guide.specialty].name } } : {}),
+    primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+    mainEntity: {
+      "@type": "Article",
+      "@id": `${url}#article`,
+      headline: guide.title,
+      description: guide.standfirst,
+      image,
+      datePublished: isoDate(guide.publishedOn) ?? guide.publishedOn,
+      dateModified: isoDate(guide.reviewedOn) ?? guide.reviewedOn,
+      author: { "@type": "Organization", name: guide.author, url: absoluteUrl("/about") },
+      reviewedBy: { "@type": "Person", name: guide.reviewer },
+      publisher: { "@id": ORG_ID() },
+      mainEntityOfPage: url,
+      timeRequired: `PT${guide.readingMinutes}M`,
+      inLanguage: "en-IN",
+      isAccessibleForFree: true,
+    },
+  };
+}
+
+/** Generic hub page: a CollectionPage whose main entity lists the pages under it. */
+export function collectionLd(input: { name: string; path: string; description?: string; items: Array<{ name: string; path: string }> }): Json {
+  const url = absoluteUrl(input.path);
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": url,
+    url,
+    name: input.name,
+    ...(input.description ? { description: input.description } : {}),
+    inLanguage: "en-IN",
+    isPartOf: { "@id": SITE_ID() },
+    publisher: { "@id": ORG_ID() },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: input.items.length,
+      itemListElement: input.items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.name, url: absoluteUrl(it.path) })),
     },
   };
 }

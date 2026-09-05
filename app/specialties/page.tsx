@@ -7,16 +7,15 @@ import { RouteMeta } from "@/components/RouteMeta";
 import { countIndexable } from "@/lib/data";
 import { guideForSpecialty } from "@/lib/data/guides";
 import { CITY, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
-import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Specialities and departments",
-  description:
-    "Browse doctors by department and speciality. Each speciality page explains when to consult, in plain language, before you choose a doctor.",
-  alternates: { canonical: absoluteUrl("/specialties") },
-  robots: { index: true, follow: true },
-};
+  description: "Browse doctors by department and speciality. Each speciality page explains when to consult, in plain language, before you choose a doctor.",
+  path: "/specialties",
+});
 
 /**
  * Department → speciality browse. Four specialities are open; the plan's later
@@ -52,7 +51,7 @@ export default function SpecialtiesIndexPage() {
           ],
         }}
       />
-      <JsonLd data={breadcrumbLd(crumbs)} />
+      <JsonLd data={[collectionLd({ name: "Specialities and departments", path: "/specialties", description: String(metadata.description), items: SPECIALTY_KEYS.map((k) => ({ name: SPECIALTIES[k].name, path: paths.specialty(k) })) }), breadcrumbLd(crumbs)]} />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">

@@ -6,6 +6,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
 import { POLICIES, policyBySlug } from "@/lib/data/policies";
 import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
 type Params = { slug: string };
@@ -17,12 +18,7 @@ export function generateStaticParams(): Params[] {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const policy = policyBySlug((await params).slug);
   if (!policy) return { title: "Not found", robots: { index: false, follow: false } };
-  return {
-    title: policy.title,
-    description: policy.summary,
-    alternates: { canonical: absoluteUrl(paths.policy(policy.slug)) },
-    robots: { index: true, follow: true },
-  };
+  return pageMeta({ title: policy.title, description: policy.summary, path: paths.policy(policy.slug) });
 }
 
 export default async function PolicyPage({ params }: { params: Promise<Params> }) {

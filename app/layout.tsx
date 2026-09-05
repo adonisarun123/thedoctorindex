@@ -6,7 +6,9 @@ import "./globals.css";
 import { RouteInspector } from "@/components/RouteInspector";
 import { SiteHeader } from "@/components/SiteHeader";
 import { THEME_BOOT_SCRIPT } from "@/components/ThemeToggle";
+import { activeSourceName } from "@/lib/data";
 import { SPECIALTIES, SPECIALTY_KEYS, CITY } from "@/lib/data/taxonomy";
+import { env } from "@/lib/env";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 import { organizationLd, webSiteLd } from "@/lib/seo/structured-data";
 
@@ -56,9 +58,23 @@ export const metadata: Metadata = {
     siteName: SITE.name,
     locale: "en_IN",
     url: absoluteUrl("/"),
+    title: `${SITE.name} — ${SITE.tagline}`,
+    description: SITE.description,
   },
-  robots: { index: true, follow: true },
+  twitter: {
+    card: "summary_large_image",
+    ...(SITE.twitterHandle ? { site: SITE.twitterHandle, creator: SITE.twitterHandle } : {}),
+  },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
+  verification: {
+    ...(env.googleSiteVerification ? { google: env.googleSiteVerification } : {}),
+    ...(env.bingSiteVerification ? { other: { "msvalidate.01": env.bingSiteVerification } } : {}),
+  },
+  category: "health",
+  referrer: "strict-origin-when-cross-origin",
 };
+
+const showDemoBanner = env.demoBanner ?? activeSourceName() === "seed";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -85,12 +101,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
 
-        <div className="demo">
-          <div className="wrap">
-            <b>Seed data</b>
-            <span>Fictional demo records throughout. No real practitioner is represented.</span>
+        {showDemoBanner ? (
+          <div className="demo">
+            <div className="wrap">
+              <b>Seed data</b>
+              <span>Fictional demo records throughout. No real practitioner is represented.</span>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <SiteHeader />
 

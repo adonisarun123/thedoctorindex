@@ -18,7 +18,10 @@ export const SITE = {
   origin: env.siteUrl,
   tagline: "Verified doctors in India",
   description:
-    "Find a doctor in India and see exactly what has been verified: registration, qualification and current practice are checked separately, and each carries its source and date.",
+    "Find a doctor in India and see exactly what was verified: registration, qualification and current practice, each checked separately, with source and date.",
+  /** Official profiles, from NEXT_PUBLIC_SOCIAL_LINKS. */
+  socialLinks: env.socialLinks,
+  twitterHandle: env.twitterHandle,
   /** Date the seed dataset was last reconciled. Shown as the data freshness date. */
   dataSnapshot: "04 Sep 2026",
   /** Published grievance contact. Required before the platform accepts reviews. */

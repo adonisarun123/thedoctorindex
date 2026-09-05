@@ -8,13 +8,12 @@ import { countIndexable, getAllDoctors, getDoctorsByLocality } from "@/lib/data"
 import { GUIDES } from "@/lib/data/guides";
 import { CITY, LOCALITIES, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
+import { pageMeta } from "@/lib/seo/meta";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: `${SITE.name} — ${SITE.tagline}`,
-  description: SITE.description,
-  alternates: { canonical: absoluteUrl("/") },
-  robots: { index: true, follow: true },
+  ...pageMeta({ title: SITE.tagline, description: SITE.description, path: "/" }),
+  title: { absolute: `${SITE.name} — ${SITE.tagline}` },
 };
 
 export default async function HomePage() {

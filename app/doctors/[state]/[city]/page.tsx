@@ -8,7 +8,8 @@ import { RouteMeta } from "@/components/RouteMeta";
 import { countIndexable, getAllDoctors, getDoctorsByLocality } from "@/lib/data";
 import { CITY, LOCALITIES, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
-import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
 type Params = { state: string; city: string };
@@ -22,12 +23,12 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   if (state !== CITY.stateSlug || city !== CITY.slug) {
     return { title: "Not found", robots: { index: false, follow: false } };
   }
-  return {
-    title: `Verified doctors in ${CITY.name} by speciality and locality`,
-    description: `Browse verified ${CITY.name} doctors by speciality and locality. Every profile shows registration, qualification and current practice with the date each was checked.`,
-    alternates: { canonical: absoluteUrl(`/doctors/${state}/${city}`) },
-    robots: { index: true, follow: true },
-  };
+  return pageMeta({
+    title: `Verified doctors in ${CITY.name}`,
+    ogTitle: `Verified doctors in ${CITY.name} by speciality and locality`,
+    description: `Browse verified ${CITY.name} doctors by speciality and locality. Every profile shows registration, qualification and current practice, dated when checked.`,
+    path: `/doctors/${state}/${city}`,
+  });
 }
 
 export default async function CityPage({ params }: { params: Promise<Params> }) {
@@ -73,7 +74,7 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
           ],
         }}
       />
-      <JsonLd data={breadcrumbLd(crumbs)} />
+      <JsonLd data={[collectionLd({ name: `Verified doctors in ${CITY.name}`, path: `/doctors/${state}/${city}`, items: SPECIALTY_KEYS.map((k) => ({ name: `${SPECIALTIES[k].plural} in ${CITY.name}`, path: paths.citySpecialty(CITY.stateSlug, CITY.slug, SPECIALTIES[k].slug) })) }), breadcrumbLd(crumbs)]} />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">

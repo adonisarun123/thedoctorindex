@@ -4,13 +4,15 @@ import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
 import { breadcrumbLd } from "@/lib/seo/structured-data";
+import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "For doctors — a free, verified profile you control",
-  description: "Sign in to your dashboard, create a registration-first profile, or claim one that already exists. Basic profiles are permanently free; ranking is never for sale.",
-  alternates: { canonical: absoluteUrl(paths.forDoctors()) },
-};
+export const metadata: Metadata = pageMeta({
+  title: "For doctors: a free verified profile",
+  ogTitle: "For doctors — a free, verified profile you control",
+  description: "Sign in to your dashboard, create a registration-first profile or claim one that exists. Basic profiles are free for good; ranking is never for sale.",
+  path: paths.forDoctors(),
+});
 
 export default function ForDoctorsPage() {
   const dashboard = paths.signIn("/dashboard");

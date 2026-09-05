@@ -4,11 +4,12 @@ import { notFound } from "next/navigation";
 import { ListingView } from "@/components/ListingView";
 import type { RouteMetaData } from "@/components/RouteMeta";
 import { countIndexable } from "@/lib/data";
-import { CITY, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS, localityBySlug, specialtyBySlug } from "@/lib/data/taxonomy";
+import { CITY, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES, hasFacetParams, listingGate } from "@/lib/seo/gates";
+import { resolveListing, type ListingParams } from "@/lib/seo/listing";
+import { pageMeta } from "@/lib/seo/meta";
 import { withOverride } from "@/lib/seo/override";
 import { absoluteUrl, paths } from "@/lib/site";
-import type { Locality, Specialty } from "@/lib/types";
 
 /**
  * City × speciality and locality × speciality listings.
@@ -21,39 +22,10 @@ import type { Locality, Specialty } from "@/lib/types";
  * an empty listing.
  */
 
-type Params = { state: string; city: string; segments: string[] };
+type Params = ListingParams;
 type Search = Record<string, string | string[] | undefined>;
 
-interface Resolved {
-  specialty: Specialty;
-  locality: Locality | null;
-  canonicalPath: string;
-}
-
-function resolve(params: Params): Resolved | null {
-  const { state, city, segments } = params;
-  if (state !== CITY.stateSlug || city !== CITY.slug) return null;
-  if (segments.length === 1) {
-    const specialty = specialtyBySlug(segments[0]);
-    if (!specialty) return null;
-    return {
-      specialty,
-      locality: null,
-      canonicalPath: paths.citySpecialty(state, city, specialty.slug),
-    };
-  }
-  if (segments.length === 2) {
-    const locality = localityBySlug(segments[0]);
-    const specialty = specialtyBySlug(segments[1]);
-    if (!locality || !specialty) return null;
-    return {
-      specialty,
-      locality,
-      canonicalPath: paths.localitySpecialty(state, city, locality.key, specialty.slug),
-    };
-  }
-  return null;
-}
+const resolve = resolveListing;
 
 /**
  * Every valid combination is prerendered so patients get a fast page. Whether
@@ -92,22 +64,16 @@ export async function generateMetadata({
   const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", indexableCount, true));
   const faceted = hasFacetParams(sp);
 
-  return {
-    // "Verified", never "Best". "Best cardiologists in Bengaluru" needs a
-    // published methodology, minimum review volume and recency criteria that we
-    // are not prepared to defend, so we do not use the word.
+  // "Verified", never "Best". "Best cardiologists in Bengaluru" needs a
+  // published methodology, minimum review volume and recency criteria that we
+  // are not prepared to defend, so we do not use the word.
+  return pageMeta({
     title: `Verified ${specialty.plural} in ${placeName}`,
-    description: `${indexableCount} verified ${specialty.plural.toLowerCase()} in ${placeName}, each showing registration, qualification and current practice with the date it was checked.`,
-    alternates: { canonical: absoluteUrl(canonicalPath) },
-    robots: {
-      index: gate.indexable && !faceted,
-      follow: true,
-    },
-    openGraph: {
-      title: `Verified ${specialty.plural} in ${placeName}`,
-      url: absoluteUrl(canonicalPath),
-    },
-  };
+    description: `${indexableCount} verified ${(indexableCount === 1 ? specialty.one : specialty.plural).toLowerCase()} in ${placeName}: registration, qualification and practice checked and dated. Filter by locality, language, fee and mode.`,
+    path: canonicalPath,
+    index: gate.indexable && !faceted,
+    image: { url: absoluteUrl(`/og/listing${canonicalPath.replace(/^\/doctors/, "")}`), alt: `Verified ${specialty.plural} in ${placeName}` },
+  });
 }
 
 export default async function ListingPage({

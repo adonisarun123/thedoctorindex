@@ -138,7 +138,20 @@ Worth loading on:
 
 ### Structured data
 
-Three constraints, all in `lib/seo/structured-data.ts`:
+All of it is in `lib/seo/structured-data.ts`, and every entity that recurs (organisation, website,
+physician, clinic) carries a stable `@id` so the graph joins up across pages.
+
+| Page | JSON-LD |
+|---|---|
+| Every page | `Organization` (logo, support + grievance `ContactPoint`, `sameAs` from `NEXT_PUBLIC_SOCIAL_LINKS`) and `WebSite` (`publisher`, `SearchAction`) |
+| Doctor profile | `ProfilePage` (claimed) or `WebPage` (unclaimed) → `mainEntity` typed `Person` + `IndividualPhysician`: `medicalSpecialty`, registration as `identifier`, verified degrees as `hasCredential`, `availableService`, `hospitalAffiliation` of `MedicalClinic`s with `PostalAddress`, `openingHoursSpecification` parsed from the practice hours, `geo` only when the facility itself was geocoded |
+| City × speciality, locality × speciality | `CollectionPage` with `about` = the schema.org `MedicalSpecialty`, `spatialCoverage`, and an `ItemList` of the doctors shown |
+| National speciality | `CollectionPage` + `MedicalWebPage` (`lastReviewed`, `medicalAudience`) listing the open city pages |
+| Health guide | `MedicalWebPage` (`lastReviewed`, `reviewedBy`) → `mainEntity` `Article` (author, publisher, image, `timeRequired`) |
+| City, specialities and guides hubs | `CollectionPage` + `ItemList` of the pages under them |
+| All | `BreadcrumbList` |
+
+Three constraints:
 
 1. `ProfilePage` is used **only** where the doctor is affiliated with and actively participates in
    the page — i.e. claimed. Unclaimed records get `WebPage`. Calling a page a profile does not earn
@@ -146,7 +159,25 @@ Three constraints, all in `lib/seo/structured-data.ts`:
 2. **No `review` or `aggregateRating` markup on doctor pages.** Google's review snippet feature does
    not support a standalone `Person` the way it supports a qualifying local business. Promising
    stars on every doctor page would be selling something we cannot deliver.
-3. Markup describes what is visible on the page, and nothing else.
+3. Markup describes what is visible on the page, and nothing else. Practice phones are gated behind
+   sign-in on the page, so `telephone` is never emitted; photos appear only with usage consent.
+
+### Titles, descriptions, Open Graph
+
+`lib/seo/meta.ts › pageMeta()` builds the `<head>` for every public page. Next does not deep-merge
+`openGraph`/`twitter` across layouts (a page that sets `openGraph.title` silently loses the root's
+`siteName` and `locale`), so the helper emits the whole block each time: canonical, robots, a title
+kept to 60 characters (the brand suffix shrinks to "Doctor Index" and then drops before the page
+title is cut), a description trimmed to 155 on a word boundary, `og:*` with `type`, `siteName`,
+`locale`, `url`, image, and `twitter:card=summary_large_image`. Auth and flow pages use
+`privateMeta()` (noindex, nofollow, nocache).
+
+Social cards are generated on the server with `next/og` (`lib/seo/og.tsx`): a site card at
+`/opengraph-image`, and per-entity cards for doctors, specialities and guides
+(`opengraph-image.tsx` in each route folder) and for listings (`/og/listing/…`, a route handler,
+because a file-based image cannot sit under a catch-all segment). Cards show only what the page
+shows — no phone, no photo, no ratings. `app/manifest.ts` and `app/icon.svg` complete the set;
+`GOOGLE_SITE_VERIFICATION` / `BING_SITE_VERIFICATION` emit the verification tags when set.
 
 ---
 
@@ -192,6 +223,22 @@ which is what lets CI build the site with no database and lets the dashboard, ad
 degrade to read-only notices rather than crash.
 
 `lib/types.ts` mirrors the plan's schema (§14); `lib/db/schema.ts` is its relational form.
+
+### Importing doctors in bulk
+
+`npm run db:import -- --file data/your.csv --source "Karnataka Medical Council register" [--dry] [--publish]`
+loads records from a CSV (template and column reference: `data/import-template.csv`,
+`scripts/import-doctors.ts`). Provenance is mandatory: every row needs a `source_url`, the dataset
+name is written to `doctors.source` as `import:<name>`, and each row's URL goes into the audit log.
+Rows import as **drafts** with registration and qualifications in the `submitted` state; staff
+verify them in `/admin/doctors` against the council register before publishing, exactly as for a
+doctor's own submission. Duplicates (same council + registration number) are skipped and reported.
+
+What may be imported: State Medical Council and NMC Indian Medical Register lookups, hospital and
+clinic websites with their permission, and records doctors submit themselves. Aggregator sites
+(Practo, Justdial, Lybrate and similar) are not a permitted source — their terms prohibit
+scraping, the data is unverified, and importing it would contradict the verification promise on
+every page of this site.
 
 ---
 
