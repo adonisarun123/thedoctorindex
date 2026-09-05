@@ -48,7 +48,7 @@ export function FilterRail({ languages }: { languages: string[] }) {
       </button>
     <aside id="filters" className={`panel filters${open ? " show" : ""}`} aria-label="Filter results">
       <div className="fgroup">
-        <h4>Locality</h4>
+        <div className="ftitle">Locality</div>
         <select
           value={get("locality")}
           onChange={(e) => set("locality", e.target.value || null)}
@@ -64,7 +64,7 @@ export function FilterRail({ languages }: { languages: string[] }) {
       </div>
 
       <div className="fgroup">
-        <h4>Consultation</h4>
+        <div className="ftitle">Consultation</div>
         <label className="fopt">
           <input
             type="checkbox"
@@ -76,7 +76,7 @@ export function FilterRail({ languages }: { languages: string[] }) {
       </div>
 
       <div className="fgroup">
-        <h4>Gender</h4>
+        <div className="ftitle">Gender</div>
         {[
           ["", "Any"],
           ["F", "Female"],
@@ -95,7 +95,7 @@ export function FilterRail({ languages }: { languages: string[] }) {
       </div>
 
       <div className="fgroup">
-        <h4>Language</h4>
+        <div className="ftitle">Language</div>
         <select
           value={get("language")}
           onChange={(e) => set("language", e.target.value || null)}
@@ -109,7 +109,7 @@ export function FilterRail({ languages }: { languages: string[] }) {
       </div>
 
       <div className="fgroup">
-        <h4>Experience</h4>
+        <div className="ftitle">Experience</div>
         <select
           value={get("experience")}
           onChange={(e) => set("experience", e.target.value || null)}
@@ -123,7 +123,7 @@ export function FilterRail({ languages }: { languages: string[] }) {
       </div>
 
       <div className="fgroup">
-        <h4>Fee</h4>
+        <div className="ftitle">Fee</div>
         <select
           value={get("fee")}
           onChange={(e) => set("fee", e.target.value || null)}
@@ -140,7 +140,7 @@ export function FilterRail({ languages }: { languages: string[] }) {
       </div>
 
       <div className="fgroup">
-        <h4>Trust</h4>
+        <div className="ftitle">Trust</div>
         <label className="fopt">
           <input
             type="checkbox"

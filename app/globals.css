@@ -249,7 +249,7 @@ main { padding-bottom: 64px; flex: 1; }
 @media (max-width: 880px) { .filters-wrap { position: static; } }
 .fgroup { border-bottom: 1px solid var(--hair); padding: 14px 16px; }
 .fgroup:last-child { border-bottom: 0; }
-.fgroup h4 {
+.fgroup h4, .fgroup .ftitle {
   font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.13em;
   text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 9px;
 }
@@ -421,7 +421,7 @@ select {
 footer.site { border-top: 1px solid var(--hair); background: var(--surface); padding: 32px 0 44px; margin-top: 40px; }
 .fgrid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 26px; }
 @media (max-width: 760px) { .fgrid { grid-template-columns: 1fr 1fr; } }
-.fgrid h5 { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; font-weight: 500; }
+.fgrid h5, .fgrid .fh { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; font-weight: 500; }
 .fgrid ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
 .fgrid a { color: var(--ink-2); }
 .fnote { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--hair); font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -693,3 +693,101 @@ footer.site { border-top: 1px solid var(--hair); background: var(--surface); pad
 /* --- accessibility: links inside prose are underlined, not colour-only ------ */
 p a, li a, dd a, .upd a, .hint a, .notice a, .qb a, .qm a, td a, .sub a, .count a { text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
 p a:hover, li a:hover, dd a:hover, td a:hover { text-decoration-thickness: 2px; }
+
+/* =========================================================================
+   Mobile layer. Loaded last so it wins over component defaults, and uses
+   !important only where a component sets grid-template-columns inline
+   (dashboard/admin forms) — those inline values are desktop layouts.
+   ========================================================================= */
+@media (max-width: 760px) {
+  .two, .locgrid, .deptgrid, .guidegrid, .steps3, .prof, .listing { grid-template-columns: 1fr !important; }
+  .tiles { grid-template-columns: 1fr 1fr !important; }
+  .fgrid { grid-template-columns: 1fr 1fr; }
+  .wrap { padding-left: 16px; padding-right: 16px; }
+  .section { padding-top: 30px; padding-bottom: 30px; }
+  h1 { font-size: clamp(1.7rem, 7.5vw, 2.2rem); line-height: 1.15; }
+  h2 { font-size: clamp(1.25rem, 5.5vw, 1.5rem); }
+  .section-head { flex-wrap: wrap; gap: 6px 12px; }
+  /* Touch targets ≥ 40px */
+  .btn { min-height: 42px; padding: 10px 14px; font-size: 14.5px; display: flex; align-items: center; justify-content: center; }
+  .chip, .nearme .chip { min-height: 36px; padding: 6px 13px; font-size: 13px; display: inline-flex; align-items: center; }
+  .menubtn { min-height: 40px; min-width: 64px; font-size: 12px; }
+  .hnav .cta { display: none; }
+  .hnav { gap: 12px; }
+  .hsearch input { font-size: 16px; padding: 12px 12px; } /* 16px stops iOS zooming into the field */
+  .hsearch button { min-width: 84px; font-size: 14px; }
+  .field input, .field select, .field textarea, input[type="text"], input[type="email"], input[type="tel"], input[type="search"], select, textarea { font-size: 16px; min-height: 44px; }
+  .field textarea { min-height: 110px; }
+  .fopt, .consent { font-size: 14px; line-height: 1.45; }
+  .fopt input, .consent input { width: 20px; height: 20px; flex: none; }
+  .stars label { font-size: 30px; padding: 0 4px; }
+  /* Type never below 12px on a phone */
+  .demo { font-size: 12.5px; }
+  .demo b { font-size: 12px; }
+  .brand .tag { font-size: 10.5px; }
+  .mobnav .h { font-size: 11px; }
+  .mobnav a { min-height: 40px; display: flex; align-items: center; }
+  .mini { grid-template-columns: 40px 1fr; row-gap: 4px; }
+  .mini .r { grid-column: 2; font-size: 12.5px; }
+  .mini .s { font-size: 12.5px; }
+  .row { grid-template-columns: 44px 1fr; }
+  .row .act { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row .act .rating { grid-column: 1 / -1; }
+  .row .act .btn.solid { grid-column: 1 / -1; }
+  .row .meta { font-size: 12.5px; line-height: 1.55; }
+  .row .nm { font-size: 16px; min-height: 28px; display: inline-flex; align-items: center; }
+  .why summary, .why { font-size: 12.5px; }
+  .crumbs { font-size: 12.5px; line-height: 2; }
+  .crumbs a { display: inline-block; padding: 4px 0; }
+  .eyebrow { font-size: 11px; letter-spacing: 0.1em; }
+  .kvi { grid-template-columns: 1fr; row-gap: 2px; }
+  .kvi dt { margin-top: 8px; }
+  .dash-head { flex-direction: column; align-items: stretch; gap: 10px; }
+  .dash-head .quick { margin-top: 4px; }
+  .dash-nav { position: static; }
+  /* A 120px sticky header is a third of a phone screen; scroll it away. */
+  header.site { position: static; }
+  .demo { padding: 6px 0; }
+  .dash, .listing, .prof, .two, .tiles { max-width: 100%; }
+  .dash > *, .listing > *, .prof > *, .two > *, .tiles > *, .rows, .panel { min-width: 0; }
+  .panel, .qcard, .tile, .row { max-width: 100%; overflow-x: auto; }
+  svg[width] { max-width: 100%; height: auto; }
+  .qcard .qh { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .risk { flex-wrap: wrap; }
+  .admin-search { flex-wrap: wrap; }
+  .admin-search input, .admin-search select { flex-basis: 100%; }
+  /* Tables scroll inside themselves; the page never scrolls sideways */
+  .tablewrap, .table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table thead, .table tbody, .table tr { display: table; width: 100%; table-layout: auto; }
+  .table td, .table th { white-space: nowrap; }
+  .pre { max-width: 100%; overflow-x: auto; }
+  .signin { padding-left: 0; padding-right: 0; }
+  .band { padding: 20px 16px; }
+  .themebtn.wide { min-height: 40px; }
+}
+@media (max-width: 360px) {
+  .tiles { grid-template-columns: 1fr !important; }
+  .fgrid { grid-template-columns: 1fr; }
+  .locgrid { grid-template-columns: 1fr !important; }
+  .row .act { grid-template-columns: 1fr; }
+}
+html { -webkit-text-size-adjust: 100%; }
+body { overflow-x: hidden; }
+img, svg, video { max-width: 100%; height: auto; }
+
+/* --- profile: fixed contact bar on phones ---------------------------------- */
+.mobile-actions { display: none; }
+@media (max-width: 920px) {
+  .mobile-actions {
+    display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--surface); border-top: 1px solid var(--hair);
+    box-shadow: 0 -6px 20px -14px rgba(0, 0, 0, 0.4);
+  }
+  .mobile-actions .btn { min-height: 44px; font-size: 14px; padding: 8px 10px; white-space: nowrap; }
+  /* Leave room so the footer's last line is not hidden under the bar */
+  body:has(.mobile-actions) { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .prof .sticky .pcard .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .prof .sticky .pcard .acts .btn.quiet { grid-column: 1 / -1; }
+}

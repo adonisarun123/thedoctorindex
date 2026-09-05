@@ -229,7 +229,15 @@ gate, photo upload/removal, notifications, the cron endpoint, manual geocoding, 
 It creates data; never point it at production.
 
 Accessibility: axe-core (WCAG 2.2 AA rules) runs clean on the home, listing, profile, review,
-sign-in, for-doctors, guides, policy, add-doctor and search pages in both themes.
+sign-in, for-doctors, guides, policy, add-doctor and search pages in both themes, at desktop and
+390 px mobile viewports.
+
+Mobile: a phone-width layer at the end of `globals.css` (grids collapse — including the inline
+desktop column templates in dashboard/admin forms — 42 px+ tap targets, 16 px inputs so iOS does
+not zoom, tables scroll inside themselves, a fixed Call / Directions / Enquire bar on profiles, no
+sticky header). Audited at iPhone width: zero horizontal overflow on every public, dashboard and
+account page. Lighthouse mobile (simulated 4G): performance 96–99, FCP ≈ 0.8 s, CLS 0; the Google
+Fonts stylesheet is preloaded and attached after first paint rather than render-blocking.
 
 ---
 

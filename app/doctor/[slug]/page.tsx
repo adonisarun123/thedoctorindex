@@ -108,6 +108,13 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
       <ViewBeacon doctorId={doctor.dbId} localityKey={doctor.localities[0]} />
 
       <div className="wrap">
+        {doctor.practices[0] ? (
+          <nav className="mobile-actions" aria-label="Contact this practice">
+            <CallButton practiceId={doctor.practices[0].id} variant="solid" />
+            <DirectionsButton practiceId={doctor.practices[0].id} variant="outline" />
+            <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>Enquire</Link>
+          </nav>
+        ) : null}
         <div className="prof">
           <div>
             <GateBanner doctor={doctor} />

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -30,7 +30,17 @@ import { organizationLd, webSiteLd } from "@/lib/seo/structured-data";
  */
 
 const FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap";
+  "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f2f5f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1211" },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.origin),
@@ -57,7 +67,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link rel="stylesheet" href={FONT_HREF} />
+        {/* Fonts load without blocking first paint: preload the CSS, attach it
+            once fetched, and fall back to the system stack meanwhile
+            (display=swap). <noscript> keeps them for script-less clients. */}
+        <link rel="preload" as="style" href={FONT_HREF} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href=${JSON.stringify(FONT_HREF)};document.head.appendChild(l);})();` }} />
+        <noscript>
+          <link rel="stylesheet" href={FONT_HREF} />
+        </noscript>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationLd(), webSiteLd()]) }}
@@ -83,7 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="wrap">
             <div className="fgrid">
               <div>
-                <h5>{SITE.name}</h5>
+                <p className="fh">{SITE.name}</p>
                 <p style={{ fontSize: "13.5px", color: "var(--muted)", maxWidth: "34ch" }}>
                   A free, verified directory of practising doctors in India. Basic profiles are
                   permanently free. Organic ranking is never for sale.
@@ -96,7 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </p>
               </div>
               <div>
-                <h5>Trust</h5>
+                <p className="fh">Trust</p>
                 <ul>
                   <li><Link href="/about">About and ownership</Link></li>
                   <li><Link href={paths.policy("verification")}>Verification methodology</Link></li>
@@ -108,20 +125,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </ul>
               </div>
               <div>
-                <h5>For doctors</h5>
+                <p className="fh">For doctors</p>
                 <ul>
                   <li><Link href={paths.addDoctor()}>Add your profile</Link></li>
                   <li><Link href={paths.claimProfile()}>Claim an existing profile</Link></li>
                   <li><Link href="/dashboard">Doctor dashboard</Link></li>
                 </ul>
-                <h5 style={{ marginTop: "18px" }}>Legal</h5>
+                <p className="fh" style={{ marginTop: "18px" }}>Legal</p>
                 <ul>
                   <li><Link href={paths.policy("privacy")}>Privacy</Link></li>
                   <li><Link href={paths.policy("terms")}>Terms of use</Link></li>
                 </ul>
               </div>
               <div>
-                <h5>Browse</h5>
+                <p className="fh">Browse</p>
                 <ul>
                   <li><Link href="/doctors">All locations</Link></li>
                   <li><Link href="/specialties">All specialities</Link></li>

@@ -193,7 +193,7 @@ export default async function HomePage() {
                       </div>
                     </div>
                     <div className="r">
-                      {d.rating.average.toFixed(1)} · {d.rating.count}
+                      {d.rating.count ? `${d.rating.average.toFixed(1)} · ${d.rating.count}` : "no reviews"}
                     </div>
                   </div>
                 ))}
