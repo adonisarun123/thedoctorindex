@@ -22,7 +22,7 @@
     "db:import:drdata": "tsx --require ./scripts/server-only-shim.cjs scripts/import-drdata.ts",
     "test": "tsx --require ./scripts/server-only-shim.cjs --test tests/unit/*.test.ts",
     "test:e2e": "node tests/e2e/flow.mjs",
-    "db:enrich": "NODE_EXTRA_CA_CERTS=lib/enrich/certs/ssl-com-tls-issuing-rsa-ca-r1.pem tsx --require ./scripts/server-only-shim.cjs scripts/enrich.ts"
+    "db:enrich": "NODE_EXTRA_CA_CERTS=lib/enrich/certs/ssl-com-tls-issuing-rsa-ca-r1.crt tsx --require ./scripts/server-only-shim.cjs scripts/enrich.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
