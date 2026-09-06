@@ -87,6 +87,7 @@ async function main() {
   console.log(`enrich: ${rows.length} doctors in batch · nmc=${wantNmc} google=${wantGoogle} (budget ${googleBudget} of ${DAILY_CAP} today) · ${DRY ? "DRY RUN" : "writing"} · ${MINUTES} min limit`);
   const tally: Record<string, number> = {};
   const bump = (k: string) => (tally[k] = (tally[k] ?? 0) + 1);
+  let nmcFailures = 0;
 
   for (const row of rows) {
     if (Date.now() > deadline) {
@@ -147,7 +148,8 @@ async function main() {
           bump("nmc:error");
           console.log(`  nmc → error ${msg}`);
           if (!DRY) await db.update(s.doctorEnrichment).set({ attempts: sql`${s.doctorEnrichment.attempts} + 1`, lastError: `nmc: ${msg}`.slice(0, 500), updatedAt: new Date() }).where(eq(s.doctorEnrichment.doctorId, d.id));
-          if (/nmc (search|detail) 5\d\d|fetch failed|ECONN|ETIMEDOUT/.test(msg)) {
+          nmcFailures++;
+          if (/fetch failed|ECONN|ETIMEDOUT|certificate/.test(msg) || nmcFailures >= 5) {
             console.log("register unreachable; stopping the NMC step for this run");
             break;
           }

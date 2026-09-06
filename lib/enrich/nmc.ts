@@ -11,6 +11,13 @@ import { coreTokens, nameCovers, nameTight, queryToken } from "@/lib/enrich/name
  *
  * Modern-medicine councils only: dentists, AYUSH and allied professions are on
  * other registers and are marked not_applicable by the worker.
+ *
+ * nmc.org.in serves its certificate without the SSL.com intermediate, which
+ * Node rejects ("unable to verify the first certificate"). `npm run db:enrich`
+ * therefore runs with NODE_EXTRA_CA_CERTS pointing at that intermediate
+ * (lib/enrich/certs/, fingerprint BF:BC:39:E9…0C:69, fetched from the URL in
+ * the leaf certificate's Authority Information Access). Trust is added, never
+ * relaxed.
  */
 
 const BASE = "https://www.nmc.org.in";
@@ -209,6 +216,17 @@ export class NmcClient {
     this.lastAt = Date.now();
   }
 
+  /** GET with one retry on a 5xx or a dropped connection; the register answers 500 to malformed queries and, occasionally, to good ones. */
+  private async get(url: string): Promise<Response> {
+    let res = await this.fetchImpl(url, { headers: this.headers() });
+    if (res.status >= 500) {
+      await new Promise((r) => setTimeout(r, 2500));
+      this.requests++;
+      res = await this.fetchImpl(url, { headers: this.headers() });
+    }
+    return res;
+  }
+
   private headers(json = false): Record<string, string> {
     const h: Record<string, string> = { "User-Agent": UA, Referer: PAGE, Accept: "application/json, text/javascript, */*; q=0.01", "X-Requested-With": "XMLHttpRequest" };
     if (this.cookie) h.Cookie = this.cookie;
@@ -247,7 +265,7 @@ export class NmcClient {
         smcId: params.smcId ? String(params.smcId) : "",
         year: params.year ? String(params.year) : "",
       });
-      const res = await this.fetchImpl(`${BASE}/MCIRest/open/getPaginatedData?${q}`, { headers: this.headers() });
+      const res = await this.get(`${BASE}/MCIRest/open/getPaginatedData?${q}`);
       if (!res.ok) throw new Error(`nmc search ${res.status}`);
       const body = (await res.json()) as { recordsFiltered?: number; recordsTotal?: number; data?: unknown[][] };
       total = Number(body.recordsFiltered ?? body.recordsTotal ?? 0);
@@ -309,6 +327,33 @@ export function parseRow(r: unknown[]): RegisterRow | null {
   return { year: num(r[1]), registrationNo: String(r[2] ?? "").trim(), council: String(r[3] ?? "").trim(), name: String(r[4] ?? "").trim(), doctorId: m[1] };
 }
 
+const normNo = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+/**
+ * What to send the register for a number as written on a profile, and how to
+ * recognise the same number in its answer. "MP-87 / 2007" is number MP-87 of
+ * 2007: the register is queried with "MP-87" (slashes and spaces make it
+ * answer 500) and a row is accepted when its number equals MP-87 or the
+ * whole string. Plain numbers ("12345") accept "12345" and a council-prefixed
+ * form of it ("MP-12345").
+ */
+export function registrationQuery(raw: string): { queryNumber: string; accept: (rowNumber: string) => boolean } {
+  const trimmed = raw.trim();
+  const [head] = trimmed.split(/\s*\/\s*/);
+  const queryNumber = (head || trimmed).replace(/[^A-Za-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const wanted = new Set([normNo(queryNumber), normNo(trimmed)].filter(Boolean));
+  const digitsOnly = /^\d+$/.test(queryNumber);
+  return {
+    queryNumber,
+    accept: (rowNumber: string) => {
+      const n = normNo(rowNumber);
+      if (wanted.has(n)) return true;
+      if (digitsOnly) return /^[A-Z]{1,4}/.test(n) && n.replace(/^[A-Z]+/, "") === queryNumber;
+      return false;
+    },
+  };
+}
+
 export interface ProfileForNmc {
   name: string;
   stateSlug: string | null;
@@ -332,20 +377,22 @@ export async function matchOnRegister(client: NmcClient, p: ProfileForNmc, opts:
   const maxCandidates = opts.maxCandidates ?? 6;
 
   if (p.registration?.number && /\d/.test(p.registration.number)) {
-    const number = p.registration.number.trim();
+    const { queryNumber, accept } = registrationQuery(p.registration.number);
     const smc = councilId(p.registration.council);
-    const query = `no:${number}${smc ? ` smc:${smc}` : ""}`;
-    const { rows } = await client.search({ registrationNo: number, smcId: smc ?? undefined });
-    log(`  number search ${query} → ${rows.length}`);
-    const covering = rows.filter((r) => nameCovers(r.name, p.name));
+    const query = `no:${queryNumber}${smc ? ` smc:${smc}` : ""}`;
+    // The register's registrationNo filter is a prefix match, so exactness is enforced here.
+    const { rows } = await client.search({ registrationNo: queryNumber, smcId: smc ?? undefined });
+    const exact = rows.filter((r) => accept(r.registrationNo));
+    log(`  number search ${query} → ${rows.length} rows, ${exact.length} exact`);
+    const covering = exact.filter((r) => nameCovers(r.name, p.name));
     if (covering.length >= 1) {
       const best = covering.find((r) => nameTight(r.name, p.name)) ?? covering[0];
       const detail = await client.detail(best);
       if (detail.removed) return { status: "removed", match: { ...best, detail }, query };
       return { status: "confirmed", match: { ...best, detail }, query };
     }
-    if (rows.length > 0) {
-      return { status: "number_mismatch", candidates: rows.slice(0, maxCandidates), query };
+    if (exact.length > 0) {
+      return { status: "number_mismatch", candidates: exact.slice(0, maxCandidates), query };
     }
   }
 

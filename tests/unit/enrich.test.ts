@@ -138,3 +138,18 @@ test("places responses parse into hits and phone digits normalise", () => {
   assert.equal(phoneDigits("098260 12345"), "9826012345");
   assert.ok(similarity("Dr Agrawal Clinic", "Dr. Agrawal Clinic") > 0.9);
 });
+
+test("registration numbers as written on profiles are queried safely and matched exactly", async () => {
+  const { registrationQuery } = await import("../../lib/enrich/nmc");
+  const a = registrationQuery("MP-87 / 2007");
+  assert.equal(a.queryNumber, "MP-87");
+  assert.equal(a.accept("MP-87"), true);
+  assert.equal(a.accept("MP-8700"), false, "prefix hits from the register are rejected");
+  assert.equal(a.accept("MP-87/2007"), true);
+  const b = registrationQuery("12345");
+  assert.equal(b.accept("MP-12345"), true);
+  assert.equal(b.accept("12345"), true);
+  assert.equal(b.accept("123456"), false);
+  const c = registrationQuery(" MP - 8585 ");
+  assert.equal(c.queryNumber, "MP-8585");
+});
