@@ -261,6 +261,7 @@ export function doctorLd(d: DoctorView): Json {
       })),
     ...(d.services.length ? { availableService: d.services.map((name) => ({ "@type": "MedicalProcedure", name })) } : {}),
     ...(clinics.length ? { address: (clinics[0] as { address: Json }).address, hospitalAffiliation: clinics } : {}),
+    ...(d.googleListing ? { sameAs: [d.googleListing.mapsUri] } : {}),
     isAcceptingNewPatients: d.status === "active",
   };
 
@@ -393,5 +394,27 @@ export function collectionLd(input: { name: string; path: string; description?: 
       numberOfItems: input.items.length,
       itemListElement: input.items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.name, url: absoluteUrl(it.path) })),
     },
+  };
+}
+
+/**
+ * FAQPage for a profile. The questions and answers are the same builders the
+ * visible page renders (lib/seo/profile-content.ts), so the markup never
+ * claims more than the page shows. Google restricts FAQ rich results to
+ * authoritative health sources; the value here is for answer engines and
+ * assistants reading the page, not for a rich snippet.
+ */
+export function faqLd(pagePath: string, faqs: Array<{ q: string; a: string }>): Json {
+  const url = absoluteUrl(pagePath);
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "@id": `${url}#faq`,
+    isPartOf: { "@id": url },
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
   };
 }

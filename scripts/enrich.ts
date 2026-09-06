@@ -135,6 +135,19 @@ async function main() {
                   await tx.insert(s.medicalRegistrations).values({ doctorId: d.id, number: m.registrationNo, numberNormalized: m.registrationNo.toUpperCase().replace(/[^A-Z0-9]/g, ""), council: m.council, councilNormalized: m.council.toUpperCase().replace(/[^A-Z0-9]/g, ""), registeredYear: m.year, checkedOn: today, source: "nmc-imr", isPrimary: d.registrations.length === 0 || Boolean(out.status === "matched" && out.replaces?.length) }).onConflictDoNothing();
                 }
                 await tx.insert(s.verificationChecks).values({ doctorId: d.id, kind: "registration", result: "verified", source: "nmc-imr", note: `${m.council} · ${m.registrationNo} · ${m.name}${m.detail?.degree ? ` · ${m.detail.degree}${m.detail.university ? `, ${m.detail.university}` : ""}` : ""}` });
+                // The council records the primary qualification it registered the doctor on; that is a verified degree.
+                if (m.detail?.degree) {
+                  const normDeg = (v: string) => v.toUpperCase().replace(/[^A-Z]/g, "");
+                  const quals = await tx.query.doctorQualifications.findMany({ where: eq(s.doctorQualifications.doctorId, d.id) });
+                  const same = quals.find((q) => normDeg(q.degree) === normDeg(m.detail!.degree!));
+                  const institution = m.detail.university ?? `${m.council} record`;
+                  if (same) {
+                    await tx.update(s.doctorQualifications).set({ state: "verified", checkedOn: today, institution: /not stated/i.test(same.institution) ? institution : same.institution, university: same.university ?? m.detail.university ?? null, year: same.year ?? m.detail.yearOfPassing ?? null }).where(eq(s.doctorQualifications.id, same.id));
+                  } else {
+                    await tx.insert(s.doctorQualifications).values({ doctorId: d.id, degree: m.detail.degree, institution, university: m.detail.university ?? null, year: m.detail.yearOfPassing ?? null, state: "verified", checkedOn: today, sort: quals.length });
+                  }
+                  await tx.insert(s.verificationChecks).values({ doctorId: d.id, kind: "qualification", result: "verified", source: "nmc-imr", note: `${m.detail.degree}${m.detail.university ? ` · ${m.detail.university}` : ""}${m.detail.yearOfPassing ? ` · ${m.detail.yearOfPassing}` : ""} as recorded by ${m.council}` });
+                }
                 await tx.insert(s.auditLogs).values({ actorRole: "system", action: out.status === "confirmed" ? "registration.confirmed" : "registration.matched", entityType: "doctor", entityId: d.id, before: out.status === "matched" && out.replaces?.length ? { numberOnFile: primaryReg?.number ?? null, belongsTo: out.replaces.map((c) => `${c.council} ${c.registrationNo} ${c.name}`) } : null, after: { council: m.council, number: m.registrationNo, year: m.year, degree: m.detail?.degree ?? null, university: m.detail?.university ?? null, source: "nmc-imr", query: out.query }, reason: "NMC Indian Medical Register match (scripts/enrich.ts)" });
                 await tx.update(s.doctorEnrichment).set({ ...stamp, nmcStatus: out.status, nmcCandidates: null }).where(eq(s.doctorEnrichment.doctorId, d.id));
                 await tx.update(s.doctors).set({ lastVerifiedOn: today, updatedAt: new Date() }).where(eq(s.doctors.id, d.id));

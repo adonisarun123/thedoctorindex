@@ -285,6 +285,27 @@ Aggregator sites (Practo, Justdial, Lybrate and similar) are not a permitted sou
 prohibit scraping, the data is unverified, and importing it would contradict the verification
 promise on every page of this site.
 
+### Enrichment: register matching and Google listings
+
+`npm run db:enrich -- [--batch 800] [--minutes 40] [--dry] [--only nmc|google] [--slug x]` is the
+background worker that turns imported records into checked ones. For each published doctor it
+(1) confirms the registration number on file against the NMC Indian Medical Register, or fills one
+in when exactly one register entry matches the name in the state's councils — a number that turns
+out to belong to someone else is demoted and, when the name matches uniquely, replaced; anything
+less certain goes to `/admin/enrichment` with the candidates — and (2) finds the doctor's or
+clinic's Google listing, storing only the place ID plus the fields that explain the match. Ratings
+and reviews are never stored (Places policy); the profile links to Google and can show the live
+count with `GOOGLE_PLACES_RENDER_RATING=1`. Matches write `verification_checks`, an audit row and a
+recomputed quality score. Dental, AYUSH and allied specialities are marked not applicable to the
+NMC register.
+
+`.github/workflows/enrich.yml` runs it hourly with a time limit and a per-day Google cap
+(`GOOGLE_PLACES_DAILY_CAP`, default 1500). Secrets: `DATABASE_URL`, `DIRECT_URL`,
+`GOOGLE_PLACES_API_KEY`. The register serves its certificate without the SSL.com intermediate, so
+the script runs with `NODE_EXTRA_CA_CERTS` pointing at `lib/enrich/certs/` (trust added, never
+relaxed). Profile pages are rebuilt from the record only: a summary sentence, a FAQ and FAQPage
+markup from `lib/seo/profile-content.ts`, `sameAs` to the Google listing — no generated prose.
+
 ## Deliberate product decisions carried into the code
 
 - **"Verified", never "Best".** A best-of page needs a published methodology, a minimum review volume

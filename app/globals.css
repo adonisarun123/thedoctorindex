@@ -813,3 +813,10 @@ img, svg, video { max-width: 100%; height: auto; }
 .stategroup-more:hover { text-decoration: underline; }
 @media (max-width: 900px) { .stategrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .stategrid { grid-template-columns: 1fr; } }
+
+/* Profile FAQ */
+.faq { margin: 0; }
+.faq-item { padding: 12px 0; border-top: 1px solid var(--hair); }
+.faq-item:last-child { border-bottom: 1px solid var(--hair); }
+.faq-item dt { font-weight: 600; font-size: 15px; margin: 0 0 4px; }
+.faq-item dd { margin: 0; font-size: 14.5px; color: var(--ink-2); max-width: 68ch; }
