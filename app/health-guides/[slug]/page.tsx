@@ -14,6 +14,9 @@ import { absoluteUrl, paths } from "@/lib/site";
 
 type Params = { slug: string };
 
+/** The doctor count in the guide is live data: prerendered, then refreshed hourly. */
+export const revalidate = 3600;
+
 export function generateStaticParams(): Params[] {
   return GUIDES.map((g) => ({ slug: g.slug }));
 }
