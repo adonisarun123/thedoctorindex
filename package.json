@@ -2,7 +2,7 @@
   "name": "thedoctorindex",
   "version": "0.1.0",
   "private": true,
-  "description": "The Doctor Index — verified doctor directory for India. Front-end application.",
+  "description": "The Doctor Index \u2014 verified doctor directory for India. Front-end application.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -21,7 +21,8 @@
     "db:staff": "tsx scripts/staff.ts",
     "db:import:drdata": "tsx --require ./scripts/server-only-shim.cjs scripts/import-drdata.ts",
     "test": "tsx --require ./scripts/server-only-shim.cjs --test tests/unit/*.test.ts",
-    "test:e2e": "node tests/e2e/flow.mjs"
+    "test:e2e": "node tests/e2e/flow.mjs",
+    "db:enrich": "tsx --require ./scripts/server-only-shim.cjs scripts/enrich.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
