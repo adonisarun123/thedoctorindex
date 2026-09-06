@@ -7,7 +7,9 @@ import { COUNCILS_BY_STATE, NmcClient, councilId, matchOnRegister, parseRow, pla
 
 test("name tokens drop honorifics, brackets and maiden-name notes", () => {
   assert.deepEqual(nameTokens("Dr. AGRAWAL ASHOK"), ["agrawal", "ashok"]);
-  assert.deepEqual(nameTokens("Mittal Ku. Neena Now Agrawal (Smt.) Neena"), ["mittal", "neena"]);
+  assert.deepEqual(nameTokens("Mittal Ku. Neena Now Agrawal (Smt.) Neena"), ["mittal", "neena", "agrawal"]);
+  assert.equal(nameCovers("Kaur (Ku)  Harjeet Now Bansal (Smt.)  Harjeet Kaur", "Bansal Harjeet Kaur"), true);
+  assert.equal(nameTight("Kaur (Ku)  Harjeet Now Bansal (Smt.)  Harjeet Kaur", "Bansal Harjeet Kaur"), true);
   assert.deepEqual(coreTokens("R. K. Sharma"), ["sharma"]);
   assert.equal(queryToken("Agrawal Ashok Kumar"), "agrawal");
 });
@@ -73,10 +75,21 @@ test("number on file that the register knows under the same name is confirmed", 
   assert.equal("match" in out && out.match.detail?.degree, "MBBS");
 });
 
-test("number on file under a different name is reported, not confirmed", async () => {
+test("a wrong number on file is replaced by a unique name match, and reported when the name is not found", async () => {
   const { client } = fakeRegister([["1", "7975", "15", "Verma Sunita"], ["2", "8001", "15", "Agrawal Ashok"]]);
   const out = await matchOnRegister(client, { name: "Agrawal Ashok", stateSlug: "madhya-pradesh", registration: { number: "7975", council: "Madhya Pradesh Medical Council" } });
-  assert.equal(out.status, "number_mismatch");
+  assert.equal(out.status, "matched");
+  assert.equal("match" in out && out.match.registrationNo, "8001");
+  assert.equal("replaces" in out && out.replaces?.[0].name, "Verma Sunita");
+  const none = await matchOnRegister(client, { name: "Mehta Rakesh", stateSlug: "madhya-pradesh", registration: { number: "7975", council: "Madhya Pradesh Medical Council" } });
+  assert.equal(none.status, "number_mismatch");
+});
+
+test("a prefixed number the register stores without its prefix is still confirmed", async () => {
+  const { client, calls } = fakeRegister([["1", "3037", "15", "Sahu (Miss.) Jaishree"]]);
+  const out = await matchOnRegister(client, { name: "Sahu Jaishree", stateSlug: "madhya-pradesh", registration: { number: "MP-3037", council: "Madhya Pradesh Medical Council" } });
+  assert.equal(out.status, "confirmed");
+  assert.equal(calls.filter((c) => c.includes("registrationNo=3037")).length, 1);
 });
 
 test("without a number, exactly one tight name match fills the registration", async () => {

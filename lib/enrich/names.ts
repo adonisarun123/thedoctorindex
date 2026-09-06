@@ -11,13 +11,16 @@ const HONORIFICS = new Set(["dr", "dr.", "prof", "prof.", "mr", "mrs", "ms", "sm
 
 /** Lower-case ASCII tokens with honorifics, punctuation and bracketed notes removed. */
 export function nameTokens(raw: string): string[] {
+  // "Kaur (Ku) Harjeet Now Bansal (Smt.) Harjeet Kaur": both the maiden and the
+  // married name are kept, so either form on a profile is covered.
+  const seen = new Set<string>();
   return raw
     .toLowerCase()
     .replace(/\([^)]*\)/g, " ")
-    .replace(/\b(now|alias|nee|née|w\/o|d\/o|s\/o)\b.*$/i, " ")
+    .replace(/\b(now|alias|nee|née|w\/o|d\/o|s\/o)\b/gi, " ")
     .replace(/[^a-z\s]/g, " ")
     .split(/\s+/)
-    .filter((t) => t && !HONORIFICS.has(t));
+    .filter((t) => t && !HONORIFICS.has(t) && !seen.has(t) && seen.add(t));
 }
 
 /** Tokens of at least three letters — the ones that carry identity; initials are kept separately. */

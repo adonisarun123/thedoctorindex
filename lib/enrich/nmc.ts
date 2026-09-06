@@ -183,7 +183,8 @@ export interface Candidate extends RegisterRow {
 
 export type NmcOutcome =
   | { status: "confirmed"; match: Candidate; query: string }
-  | { status: "matched"; match: Candidate; query: string }
+  /** A unique name match; `replaces` is set when the profile carried a number that belongs to someone else on the register. */
+  | { status: "matched"; match: Candidate; query: string; replaces?: Candidate[] }
   | { status: "ambiguous"; candidates: Candidate[]; query: string }
   | { status: "number_mismatch"; candidates: Candidate[]; query: string }
   | { status: "removed"; match: Candidate; query: string }
@@ -376,33 +377,47 @@ export async function matchOnRegister(client: NmcClient, p: ProfileForNmc, opts:
   const log = opts.log ?? (() => {});
   const maxCandidates = opts.maxCandidates ?? 6;
 
+  let wrongNumber: Candidate[] = [];
+  const queries: string[] = [];
   if (p.registration?.number && /\d/.test(p.registration.number)) {
     const { queryNumber, accept } = registrationQuery(p.registration.number);
     const smc = councilId(p.registration.council);
-    const query = `no:${queryNumber}${smc ? ` smc:${smc}` : ""}`;
     // The register's registrationNo filter is a prefix match, so exactness is enforced here.
-    const { rows } = await client.search({ registrationNo: queryNumber, smcId: smc ?? undefined });
-    const exact = rows.filter((r) => accept(r.registrationNo));
-    log(`  number search ${query} → ${rows.length} rows, ${exact.length} exact`);
+    // Councils store the same number as "MP-3037" or "3037"; try the written form, then the digits.
+    const forms = [queryNumber];
+    const digits = queryNumber.replace(/^[A-Za-z]+-?/, "");
+    if (digits && digits !== queryNumber && /^\d+$/.test(digits)) forms.push(digits);
+    let exact: RegisterRow[] = [];
+    for (const form of forms) {
+      const { rows } = await client.search({ registrationNo: form, smcId: smc ?? undefined });
+      const acceptForm = form === queryNumber ? accept : registrationQuery(form).accept;
+      exact = rows.filter((r) => acceptForm(r.registrationNo));
+      queries.push(`no:${form}${smc ? ` smc:${smc}` : ""} (${rows.length} rows, ${exact.length} exact)`);
+      log(`  number search ${form} smc ${smc ?? "-"} → ${rows.length} rows, ${exact.length} exact`);
+      if (exact.length) break;
+    }
     const covering = exact.filter((r) => nameCovers(r.name, p.name));
     if (covering.length >= 1) {
       const best = covering.find((r) => nameTight(r.name, p.name)) ?? covering[0];
       const detail = await client.detail(best);
+      const query = queries.join("; ");
       if (detail.removed) return { status: "removed", match: { ...best, detail }, query };
       return { status: "confirmed", match: { ...best, detail }, query };
     }
-    if (exact.length > 0) {
-      return { status: "number_mismatch", candidates: exact.slice(0, maxCandidates), query };
-    }
+    // The number belongs to someone else: remember them, then try the name like any unregistered profile.
+    wrongNumber = exact.slice(0, maxCandidates);
   }
 
   const token = queryToken(p.name);
-  if (!token || coreTokens(p.name).length < 2) return { status: "not_found", query: `name:${p.name} (too short to match safely)` };
   const councils = p.stateSlug ? (COUNCILS_BY_STATE[p.stateSlug] ?? []) : [];
-  if (!councils.length) return { status: "not_found", query: `name:${token} (no council for state ${p.stateSlug ?? "unknown"})` };
+  if (!token || coreTokens(p.name).length < 2 || !councils.length) {
+    const why = !token || coreTokens(p.name).length < 2 ? `name:${p.name} (too short to match safely)` : `name:${token} (no council for state ${p.stateSlug ?? "unknown"})`;
+    queries.push(why);
+    if (wrongNumber.length) return { status: "number_mismatch", candidates: wrongNumber, query: queries.join("; ") };
+    return { status: "not_found", query: queries.join("; ") };
+  }
 
   const seen = new Map<string, RegisterRow>();
-  const queries: string[] = [];
   for (const smc of councils) {
     const { total, rows } = await client.search({ name: token, smcId: smc }, 2000);
     queries.push(`name:${token} smc:${smc} (${total})`);
@@ -412,14 +427,17 @@ export async function matchOnRegister(client: NmcClient, p: ProfileForNmc, opts:
   }
   const query = queries.join("; ");
   const tight = [...seen.values()];
-  if (tight.length === 0) return { status: "not_found", query };
+  if (tight.length === 0) {
+    if (wrongNumber.length) return { status: "number_mismatch", candidates: wrongNumber, query };
+    return { status: "not_found", query };
+  }
   if (tight.length === 1) {
     const detail = await client.detail(tight[0]);
     if (detail.removed) return { status: "removed", match: { ...tight[0], detail }, query };
-    return { status: "matched", match: { ...tight[0], detail }, query };
+    return { status: "matched", match: { ...tight[0], detail }, query, replaces: wrongNumber.length ? wrongNumber : undefined };
   }
   const candidates: Candidate[] = [];
-  for (const r of tight.slice(0, maxCandidates)) {
+  for (const r of [...wrongNumber, ...tight].slice(0, maxCandidates + wrongNumber.length)) {
     try {
       candidates.push({ ...r, detail: await client.detail(r) });
     } catch {
