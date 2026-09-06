@@ -1,6 +1,7 @@
 import "server-only";
 
 import { LOCALITIES } from "@/lib/data/taxonomy";
+import { databaseReadyForBuild, isBuildPhase } from "@/lib/db/readiness";
 export { placeName, placeSlug } from "@/lib/geo-names";
 import type { City, Locality, State } from "@/lib/types";
 
@@ -52,6 +53,8 @@ function build(localities: Locality[]): Geo {
 }
 
 const SEED_GEO = build(Object.values(LOCALITIES));
+/** Stands in during `next build` when the database is unreachable or unmigrated (lib/db/readiness.ts). */
+const EMPTY_GEO = build([]);
 
 let cache: { geo: Geo; at: number } | null = null;
 const TTL_MS = 60_000;
@@ -65,6 +68,7 @@ function useDb(): boolean {
 export async function getGeo(): Promise<Geo> {
   if (!useDb()) return SEED_GEO;
   if (cache && Date.now() - cache.at < TTL_MS) return cache.geo;
+  if (isBuildPhase() && !(await databaseReadyForBuild())) return EMPTY_GEO;
   const { getDb } = await import("@/lib/db/client");
   const s = await import("@/lib/db/schema");
   const rows = await getDb().select().from(s.localities).where((await import("drizzle-orm")).eq(s.localities.active, true)).orderBy(s.localities.sort, s.localities.name);

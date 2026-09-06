@@ -1,7 +1,9 @@
 import "server-only";
 
 import { dbSource } from "@/lib/data/db-source";
+import { emptySource } from "@/lib/data/empty-source";
 import { seedSource } from "@/lib/data/seed-source";
+import { databaseReadyForBuild, isBuildPhase } from "@/lib/db/readiness";
 import type { DoctorView, ListingFilters, SpecialtyKey } from "@/lib/types";
 
 /**
@@ -12,6 +14,11 @@ import type { DoctorView, ListingFilters, SpecialtyKey } from "@/lib/types";
  *           DATABASE_URL is set, unless DATA_SOURCE=seed forces the fixture.
  *   seed  — the fictional records in lib/data/doctors.ts. Zero infrastructure;
  *           used for builds and previews that have no database.
+ *
+ * A third, empty source stands in during `next build` only, when DATABASE_URL
+ * is set but the database is unreachable or not yet migrated
+ * (lib/db/readiness.ts): the build succeeds and the prerendered pages
+ * regenerate from the database on their next revalidation.
  *
  * Every function is async so the two are interchangeable. Routes, sitemaps and
  * components consume only this module. Nothing here returns "all doctors":
@@ -84,25 +91,27 @@ export function activeSourceName(): "db" | "seed" {
   return process.env.DATABASE_URL ? "db" : "seed";
 }
 
-function source(): DataSource {
-  return activeSourceName() === "db" ? dbSource : seedSource;
+async function source(): Promise<DataSource> {
+  if (activeSourceName() !== "db") return seedSource;
+  if (isBuildPhase() && !(await databaseReadyForBuild())) return emptySource;
+  return dbSource;
 }
 
-export const getDoctorBySlug = (slug: string) => source().getDoctorBySlug(slug);
-export const canonicalDoctorPath = (slug: string) => source().canonicalDoctorPath(slug);
-export const findByRegistration = (n: string) => source().findByRegistration(n);
-export const getListing = (k: SpecialtyKey, place: Place, limit?: number) => source().getListing(k, place, limit);
-export const countIndexable = (k: SpecialtyKey, place?: Place) => source().countIndexable(k, place);
-export const countsBySpecialty = (place?: Place, measure?: Measure) => source().countsBySpecialty(place, measure);
-export const countsByCity = (k?: SpecialtyKey, measure?: Measure) => source().countsByCity(k, measure);
-export const countsByLocality = (citySlug: string, k?: SpecialtyKey) => source().countsByLocality(citySlug, k);
-export const countsByLocalitySpecialty = (citySlug: string) => source().countsByLocalitySpecialty(citySlug);
-export const countsByState = (measure?: Measure) => source().countsByState(measure);
-export const totals = (place?: Place) => source().totals(place);
-export const searchDoctors = (q: string, place?: Place) => source().searchDoctors(q, place);
-export const getNearby = (d: DoctorView, limit?: number) => source().getNearby(d, limit);
-export const getFeatured = (limit: number, place?: Place) => source().getFeatured(limit, place);
-export const listIndexableSlugs = () => source().listIndexableSlugs();
+export const getDoctorBySlug = async (slug: string) => (await source()).getDoctorBySlug(slug);
+export const canonicalDoctorPath = async (slug: string) => (await source()).canonicalDoctorPath(slug);
+export const findByRegistration = async (n: string) => (await source()).findByRegistration(n);
+export const getListing = async (k: SpecialtyKey, place: Place, limit?: number) => (await source()).getListing(k, place, limit);
+export const countIndexable = async (k: SpecialtyKey, place?: Place) => (await source()).countIndexable(k, place);
+export const countsBySpecialty = async (place?: Place, measure?: Measure) => (await source()).countsBySpecialty(place, measure);
+export const countsByCity = async (k?: SpecialtyKey, measure?: Measure) => (await source()).countsByCity(k, measure);
+export const countsByLocality = async (citySlug: string, k?: SpecialtyKey) => (await source()).countsByLocality(citySlug, k);
+export const countsByLocalitySpecialty = async (citySlug: string) => (await source()).countsByLocalitySpecialty(citySlug);
+export const countsByState = async (measure?: Measure) => (await source()).countsByState(measure);
+export const totals = async (place?: Place) => (await source()).totals(place);
+export const searchDoctors = async (q: string, place?: Place) => (await source()).searchDoctors(q, place);
+export const getNearby = async (d: DoctorView, limit?: number) => (await source()).getNearby(d, limit);
+export const getFeatured = async (limit: number, place?: Place) => (await source()).getFeatured(limit, place);
+export const listIndexableSlugs = async () => (await source()).listIndexableSlugs();
 
 /* Pure helpers, source-independent. */
 

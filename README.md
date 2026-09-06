@@ -233,6 +233,14 @@ fictional records in `lib/data/doctors.ts` (`seed-source.ts`). Both are async an
 which is what lets CI build the site with no database and lets the dashboard, admin and forms
 degrade to read-only notices rather than crash.
 
+A deploy never depends on the database being ready. During `next build` only, `lib/db/readiness.ts`
+checks once that `DATABASE_URL` answers and the schema is migrated; if not, the build logs one
+warning and prerenders the pages that read the database (home, hubs, sitemaps, social cards)
+from an empty source instead of failing. Every such page carries `revalidate = 3600`, so it
+regenerates from the live database within an hour of the first request once migrations and the
+import have run — or immediately on a redeploy. At runtime nothing is swallowed: a database error
+is an error.
+
 `lib/types.ts` mirrors the plan's schema (§14); `lib/db/schema.ts` is its relational form.
 
 ### Geography and specialities
