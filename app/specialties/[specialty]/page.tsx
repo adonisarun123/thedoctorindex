@@ -41,11 +41,19 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   const specialty = specialtyByKey((await params).specialty);
   if (!specialty) notFound();
 
-  const [count, cityCounts, geo] = await Promise.all([countIndexable(specialty.key), countsByCity(specialty.key), getGeo()]);
+  const [count, cityCounts, listedCounts, geo] = await Promise.all([countIndexable(specialty.key), countsByCity(specialty.key), countsByCity(specialty.key, "published"), getGeo()]);
   const openCities = cityCounts
     .filter((c) => c.n >= GATES.citySpecialty)
     .map((c) => ({ ...c, city: geo.city(c.stateSlug, c.citySlug) }))
     .filter((c) => c.city);
+  const verifiedByCity = new Map(cityCounts.map((c) => [`${c.stateSlug}/${c.citySlug}`, c.n]));
+  /* Every city with a published profile, best-supplied first. These pages are browsable whether or not they index. */
+  const listedCities = listedCounts
+    .map((c) => ({ ...c, verified: verifiedByCity.get(`${c.stateSlug}/${c.citySlug}`) ?? 0, city: geo.city(c.stateSlug, c.citySlug) }))
+    .filter((c) => c.city && c.n > 0);
+  const listedTotal = listedCities.reduce((a, c) => a + c.n, 0);
+  const CITY_LIMIT = 48;
+  const shownCities = listedCities.slice(0, CITY_LIMIT);
   const gate = await withOverride(paths.specialty(specialty.key), listingGate("national", count, Boolean(specialty.guide)));
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
@@ -84,7 +92,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
           <span className="eyebrow">{specialty.department}</span>
           <h1 style={{ marginTop: "10px" }}>{specialty.name}</h1>
           <div className="upd">
-            {count} verified {specialty.plural.toLowerCase()} indexed · Bengaluru only in this build
+            {count.toLocaleString("en-IN")} verified · {listedTotal.toLocaleString("en-IN")} listed {specialty.plural.toLowerCase()} across {listedCities.length} {listedCities.length === 1 ? "city" : "cities"}
           </div>
 
           {specialty.guide ? (
@@ -104,18 +112,43 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
             </p>
           )}
 
+          <h2>Browse {specialty.plural.toLowerCase()} by city</h2>
+          {listedCities.length === 0 ? (
+            <p>No {specialty.plural.toLowerCase()} are listed yet.</p>
+          ) : (
+            <>
+              <p>
+                Every city with at least one listed profile, best-supplied first. Profiles that have not been verified yet say so on the page.
+              </p>
+              <div className="quick">
+                {shownCities.map((c) => (
+                  <Link key={`${c.stateSlug}/${c.citySlug}`} className="chip" href={paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug)}>
+                    {c.city!.name}, {c.city!.state} · {c.n.toLocaleString("en-IN")} listed{c.verified > 0 ? ` · ${c.verified.toLocaleString("en-IN")} verified` : ""}
+                  </Link>
+                ))}
+              </div>
+              {listedCities.length > CITY_LIMIT ? (
+                <p style={{ fontSize: "13px", color: "var(--muted)" }}>
+                  {listedCities.length - CITY_LIMIT} more {listedCities.length - CITY_LIMIT === 1 ? "city" : "cities"} — <Link href="/doctors">browse by state</Link>.
+                </p>
+              ) : null}
+            </>
+          )}
+
           <h2>Cities with verified supply</h2>
           <p>
-            A city page opens when it has at least {GATES.citySpecialty} verified {specialty.plural.toLowerCase()} with confirmed practice details.
-            {openCities.length === 0 ? " No city has reached that yet." : ""}
+            A city page enters search results when it has at least {GATES.citySpecialty} verified {specialty.plural.toLowerCase()} with confirmed practice details.
+            {openCities.length === 0 ? " No city has reached that yet; the city pages above are still open to browse." : ""}
           </p>
-          <div className="quick">
-            {openCities.map((c) => (
-              <Link key={`${c.stateSlug}/${c.citySlug}`} className="chip" href={paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug)}>
-                {c.city!.name} · {c.n} verified
-              </Link>
-            ))}
-          </div>
+          {openCities.length > 0 ? (
+            <div className="quick">
+              {openCities.map((c) => (
+                <Link key={`${c.stateSlug}/${c.citySlug}`} className="chip" href={paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug)}>
+                  {c.city!.name} · {c.n} verified
+                </Link>
+              ))}
+            </div>
+          ) : null}
 
           <h2>Also called</h2>
           <p>
