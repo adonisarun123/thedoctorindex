@@ -13,6 +13,18 @@ export function registrationState(d: Pick<Doctor, "registration">): Registration
   return r.checkedOn && r.checkedOn !== "—" ? "verified" : "submitted";
 }
 
+/** Sort tier for listings: verified number 2, number on record 1, none 0. Mirrors REGISTRATION_TIER in lib/data/db-source.ts. */
+export function registrationTier(d: Pick<Doctor, "registration">): 0 | 1 | 2 {
+  switch (registrationState(d)) {
+    case "verified":
+      return 2;
+    case "submitted":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
 export function registrationLabel(d: Pick<Doctor, "registration">): string {
   switch (registrationState(d)) {
     case "verified":
