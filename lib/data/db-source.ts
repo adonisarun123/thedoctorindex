@@ -56,8 +56,16 @@ async function loadRows(ids: string[]) {
   return rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
+/**
+ * Registration tier, the first sort key of every listing (policy: /policies/ranking).
+ * 2 = a council registration number checked against the register, 1 = a number on
+ * record awaiting a check, 0 = no number. Doctors with a number on record always
+ * precede doctors without one; quality and name order within a tier.
+ */
+const REGISTRATION_TIER = sql`coalesce((select max(case when r.checked_on is not null then 2 else 1 end) from medical_registrations r where r.doctor_id = ${s.doctors.id} and r.number <> ''), 0)`;
+
 async function selectIds(where: SQL, limit?: number): Promise<string[]> {
-  const rows = (await getDb().execute(sql`select ${s.doctors.id} as id from ${s.doctors} where ${where} order by ${s.doctors.qualityScore} desc, ${s.doctors.name} asc ${limit ? sql`limit ${limit}` : sql``}`)) as unknown as Array<{ id: string }>;
+  const rows = (await getDb().execute(sql`select ${s.doctors.id} as id from ${s.doctors} where ${where} order by ${REGISTRATION_TIER} desc, ${s.doctors.qualityScore} desc, ${s.doctors.name} asc ${limit ? sql`limit ${limit}` : sql``}`)) as unknown as Array<{ id: string }>;
   return rows.map((r) => r.id);
 }
 

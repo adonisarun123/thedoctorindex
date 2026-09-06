@@ -4,6 +4,7 @@ import { LOCALITIES, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { isProfileIndexable } from "@/lib/seo/gates";
 import type { DataSource, Measure, Place, PlaceCount, Totals } from "@/lib/data/index";
 import type { Doctor, DoctorView, Practice, SpecialtyKey } from "@/lib/types";
+import { registrationTier } from "@/lib/verification";
 
 /**
  * Fixture-backed data source. Same interface as the Postgres source, no
@@ -60,7 +61,7 @@ export const seedSource: DataSource = {
   },
   async getListing(specialty: SpecialtyKey, place: Place, limit = 200): Promise<DoctorView[]> {
     return ALL.filter((d) => d.specialty === specialty && inPlace(d, place))
-      .sort((a, b) => b.qualityScore - a.qualityScore || a.name.localeCompare(b.name))
+      .sort((a, b) => registrationTier(b) - registrationTier(a) || b.qualityScore - a.qualityScore || a.name.localeCompare(b.name))
       .slice(0, limit);
   },
   async countIndexable(specialty: SpecialtyKey, place?: Place): Promise<number> {

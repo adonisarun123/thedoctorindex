@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { registrationTier } from "@/lib/verification";
 import type { DoctorView, LocalityKey, RankingBreakdown, SpecialtyKey } from "@/lib/types";
 
 /**
@@ -79,10 +80,17 @@ function scoreReviewConfidence(d: DoctorView): number {
   return Math.round(Math.min(WEIGHTS.reviewConfidence, (d.rating.average / 5) * 10 * confidence));
 }
 
+/**
+ * Relevance order. Doctors are first grouped by registration tier — a council
+ * registration number checked against the register, then a number on record
+ * awaiting its check, then no number at all — and the weighted score orders
+ * each group. A complete profile with no registration never outranks a
+ * registered doctor; the rule is published at /policies/ranking.
+ */
 export function sortByRank(doctors: DoctorView[], ctx: RankingContext): DoctorView[] {
   return [...doctors]
-    .map((d) => ({ d, score: rank(d, ctx).total }))
-    .sort((a, b) => b.score - a.score || a.d.name.localeCompare(b.d.name))
+    .map((d) => ({ d, tier: registrationTier(d), score: rank(d, ctx).total }))
+    .sort((a, b) => b.tier - a.tier || b.score - a.score || a.d.name.localeCompare(b.d.name))
     .map((x) => x.d);
 }
 

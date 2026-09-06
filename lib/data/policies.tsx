@@ -113,6 +113,14 @@ export const POLICIES: Policy[] = [
           Payment is not an input to organic order, and never will be. If sponsored placements are
           introduced they will sit outside the results list, visually separated and labelled Sponsored.
         </p>
+        <h2>Registration first</h2>
+        <p>
+          Before any weight is applied, results are grouped by whether a medical council registration
+          number is on record: doctors whose number has been checked against the register come first,
+          then doctors whose number is on record and awaiting that check, then doctors with no number
+          at all. A complete, well-reviewed profile without a registration number never sits above a
+          registered doctor. Within each group the weights below decide the order.
+        </p>
         <h2>The starting model</h2>
         <div className="tablewrap">
           <table>

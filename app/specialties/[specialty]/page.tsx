@@ -47,13 +47,22 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
     .map((c) => ({ ...c, city: geo.city(c.stateSlug, c.citySlug) }))
     .filter((c) => c.city);
   const verifiedByCity = new Map(cityCounts.map((c) => [`${c.stateSlug}/${c.citySlug}`, c.n]));
-  /* Every city with a published profile, best-supplied first. These pages are browsable whether or not they index. */
+  /* Every city with a published profile, grouped by state; states and cities best-supplied first. Browsable whether or not a page indexes. */
   const listedCities = listedCounts
     .map((c) => ({ ...c, verified: verifiedByCity.get(`${c.stateSlug}/${c.citySlug}`) ?? 0, city: geo.city(c.stateSlug, c.citySlug) }))
     .filter((c) => c.city && c.n > 0);
   const listedTotal = listedCities.reduce((a, c) => a + c.n, 0);
-  const CITY_LIMIT = 48;
-  const shownCities = listedCities.slice(0, CITY_LIMIT);
+  const CITIES_PER_STATE = 8;
+  const byState = new Map<string, { state: { slug: string; name: string }; listed: number; verified: number; cities: typeof listedCities }>();
+  for (const c of listedCities) {
+    const g = byState.get(c.stateSlug) ?? { state: { slug: c.stateSlug, name: c.city!.state }, listed: 0, verified: 0, cities: [] };
+    g.listed += c.n;
+    g.verified += c.verified;
+    g.cities.push(c);
+    byState.set(c.stateSlug, g);
+  }
+  const stateGroups = [...byState.values()].sort((a, b) => b.listed - a.listed || a.state.name.localeCompare(b.state.name));
+  const fmt = (n: number) => n.toLocaleString("en-IN");
   const gate = await withOverride(paths.specialty(specialty.key), listingGate("national", count, Boolean(specialty.guide)));
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
@@ -112,29 +121,77 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
             </p>
           )}
 
-          <h2>Browse {specialty.plural.toLowerCase()} by city</h2>
-          {listedCities.length === 0 ? (
-            <p>No {specialty.plural.toLowerCase()} are listed yet.</p>
-          ) : (
-            <>
-              <p>
-                Every city with at least one listed profile, best-supplied first. Profiles that have not been verified yet say so on the page.
-              </p>
-              <div className="quick">
-                {shownCities.map((c) => (
-                  <Link key={`${c.stateSlug}/${c.citySlug}`} className="chip" href={paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug)}>
-                    {c.city!.name}, {c.city!.state} · {c.n.toLocaleString("en-IN")} listed{c.verified > 0 ? ` · ${c.verified.toLocaleString("en-IN")} verified` : ""}
-                  </Link>
-                ))}
-              </div>
-              {listedCities.length > CITY_LIMIT ? (
-                <p style={{ fontSize: "13px", color: "var(--muted)" }}>
-                  {listedCities.length - CITY_LIMIT} more {listedCities.length - CITY_LIMIT === 1 ? "city" : "cities"} — <Link href="/doctors">browse by state</Link>.
-                </p>
-              ) : null}
-            </>
-          )}
+          <h2>Also called</h2>
+          <p>
+            {specialty.aliases.join(", ")}. These map to this one page — synonyms with the same
+            intent do not get their own URL.
+          </p>
 
+          {specialty.reviewedOn ? (
+            <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
+              Medically reviewed · last substantive review {specialty.reviewedOn}.
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <section className="section" aria-labelledby="by-place">
+        <div className="wrap">
+          <div className="section-head">
+            <div>
+              <h2 id="by-place" style={{ margin: 0 }}>{specialty.plural} by state and city</h2>
+              <p style={{ margin: "6px 0 0", fontSize: "13.5px", color: "var(--muted)" }}>
+                {fmt(listedTotal)} listed in {fmt(listedCities.length)} {listedCities.length === 1 ? "city" : "cities"} across {stateGroups.length} {stateGroups.length === 1 ? "state" : "states"}. Best-supplied first; a profile that has not been verified yet says so on its page.
+              </p>
+            </div>
+            <Link href="/doctors" className="mono" style={{ fontSize: "12.5px" }}>All locations →</Link>
+          </div>
+
+          {stateGroups.length === 0 ? (
+            <div className="panel zero">
+              <p style={{ margin: 0 }}>No {specialty.plural.toLowerCase()} are listed yet.</p>
+            </div>
+          ) : (
+            <div className="stategrid">
+              {stateGroups.map((g) => {
+                const shown = g.cities.slice(0, CITIES_PER_STATE);
+                const more = g.cities.length - shown.length;
+                return (
+                  <div className="stategroup" key={g.state.slug}>
+                    <div className="stategroup-head">
+                      <Link href={`/doctors/${g.state.slug}`} className="stategroup-name">{g.state.name}</Link>
+                      <span className="mono stategroup-count">
+                        {fmt(g.listed)} listed{g.verified > 0 ? ` · ${fmt(g.verified)} verified` : ""}
+                      </span>
+                    </div>
+                    <ul className="citylist">
+                      {shown.map((c) => (
+                        <li key={c.citySlug}>
+                          <Link href={paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug)} className="cityrow">
+                            <span className="cityrow-name">{c.city!.name}</span>
+                            <span className="mono cityrow-count">
+                              {c.verified > 0 ? <span className="cityrow-verified">{fmt(c.verified)} verified · </span> : null}
+                              {fmt(c.n)}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                    {more > 0 ? (
+                      <Link href={`/doctors/${g.state.slug}`} className="stategroup-more">
+                        {more} more {more === 1 ? "city" : "cities"} in {g.state.name} →
+                      </Link>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div className="wrap">
+        <div className="doc" style={{ paddingTop: 0 }}>
           <h2>Cities with verified supply</h2>
           <p>
             A city page enters search results when it has at least {GATES.citySpecialty} verified {specialty.plural.toLowerCase()} with confirmed practice details.
@@ -150,17 +207,6 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
             </div>
           ) : null}
 
-          <h2>Also called</h2>
-          <p>
-            {specialty.aliases.join(", ")}. These map to this one page — synonyms with the same
-            intent do not get their own URL.
-          </p>
-
-          {specialty.reviewedOn ? (
-            <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
-              Medically reviewed · last substantive review {specialty.reviewedOn}.
-            </p>
-          ) : null}
         </div>
       </div>
     </>
