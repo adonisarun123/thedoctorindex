@@ -4,7 +4,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import { SEED_DOCTORS } from "../lib/data/doctors";
-import { LOCALITIES, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "../lib/data/taxonomy";
+import { LOCALITY_KEYS, SPECIALTY_KEYS } from "../lib/data/taxonomy";
+import { syncTaxonomy } from "../lib/db/taxonomy-sync";
 import { toIso } from "../lib/db/dates";
 import * as s from "../lib/db/schema";
 
@@ -40,36 +41,7 @@ async function main() {
   const resetDoctors = process.argv.includes("--reset-doctors");
 
   /* --- taxonomy ---------------------------------------------------------- */
-  for (const [i, key] of SPECIALTY_KEYS.entries()) {
-    const sp = SPECIALTIES[key];
-    await db
-      .insert(s.specialties)
-      .values({
-        key,
-        name: sp.name,
-        plural: sp.plural,
-        one: sp.one,
-        aOne: sp.aOne,
-        slug: sp.slug,
-        department: sp.department,
-        aliases: sp.aliases,
-        guide: sp.guide,
-        whenItems: sp.when,
-        reviewedOn: toIso(sp.reviewedOn),
-        sort: i,
-      })
-      .onConflictDoUpdate({
-        target: s.specialties.key,
-        set: { name: sp.name, plural: sp.plural, one: sp.one, aOne: sp.aOne, slug: sp.slug, department: sp.department, aliases: sp.aliases, guide: sp.guide, whenItems: sp.when, reviewedOn: toIso(sp.reviewedOn), sort: i },
-      });
-  }
-  for (const [i, key] of LOCALITY_KEYS.entries()) {
-    const l = LOCALITIES[key];
-    await db
-      .insert(s.localities)
-      .values({ key, name: l.name, city: l.city, citySlug: l.citySlug, state: l.state, stateSlug: l.stateSlug, lat: String(l.lat), lng: String(l.lng), sort: i })
-      .onConflictDoUpdate({ target: s.localities.key, set: { name: l.name, city: l.city, citySlug: l.citySlug, state: l.state, stateSlug: l.stateSlug, lat: String(l.lat), lng: String(l.lng), sort: i } });
-  }
+  await syncTaxonomy(db);
   // Controlled service terms from the seed doctors' services.
   const terms = new Map<string, string>();
   for (const d of SEED_DOCTORS) for (const t of d.services) terms.set(`${d.specialty}::${t}`, t);
@@ -250,44 +222,14 @@ async function main() {
     await db.insert(s.slugRedirects).values(r).onConflictDoNothing();
   }
 
-  /* --- SEO route allowlist ------------------------------------------------ */
-  const gateCity = Number(process.env.GATE_CITY_SPECIALTY_MIN_DOCTORS ?? 3);
-  const gateLocality = Number(process.env.GATE_LOCALITY_SPECIALTY_MIN_DOCTORS ?? 5);
-  const gateNational = Number(process.env.GATE_NATIONAL_SPECIALTY_MIN_DOCTORS ?? 3);
-  const gateQuality = Number(process.env.GATE_PROFILE_QUALITY ?? 70);
-  for (const key of SPECIALTY_KEYS) {
-    const sp = SPECIALTIES[key];
-    const [{ n: cityCount }] = await db.execute<{ n: number }>(sql`
-      select count(distinct d.id)::int as n from doctors d
-      join doctor_practices p on p.doctor_id = d.id and p.active
-      where d.specialty_key = ${key} and d.status = 'published' and d.quality_score >= ${gateQuality}
-    `).then((r) => r as unknown as Array<{ n: number }>);
-    await upsertRoute(db, { kind: "national", specialtyKey: key, localityKey: null, path: `/specialties/${key}`, count: cityCount, gate: gateNational });
-    await upsertRoute(db, { kind: "city", specialtyKey: key, localityKey: null, path: `/doctors/karnataka/bengaluru/${sp.slug}`, count: cityCount, gate: gateCity });
-    for (const loc of LOCALITY_KEYS) {
-      const rows = (await db.execute(sql`
-        select count(distinct d.id)::int as n from doctors d
-        join doctor_practices p on p.doctor_id = d.id and p.active
-        join facilities f on f.id = p.facility_id
-        where d.specialty_key = ${key} and d.status = 'published' and d.quality_score >= ${gateQuality} and f.locality_key = ${loc}
-      `)) as unknown as Array<{ n: number }>;
-      await upsertRoute(db, { kind: "locality", specialtyKey: key, localityKey: loc, path: `/doctors/karnataka/bengaluru/${loc}/${sp.slug}`, count: rows[0].n, gate: gateLocality });
-    }
-  }
-  console.log(`seo_routes: ${SPECIALTY_KEYS.length * (2 + LOCALITY_KEYS.length)} computed`);
+  /* --- SEO route allowlist ------------------------------------------------
+     Computed by the maintenance job (npm run db:maintenance) and the cron
+     endpoint over every city × speciality; nothing city-specific lives here. */
+  console.log("seo_routes: run `npm run db:maintenance` to compute the route allowlist");
 
   await client.end();
 }
 
-async function upsertRoute(
-  db: ReturnType<typeof drizzle<typeof s>>,
-  r: { kind: "national" | "city" | "locality"; specialtyKey: string; localityKey: string | null; path: string; count: number; gate: number },
-) {
-  await db
-    .insert(s.seoRoutes)
-    .values({ kind: r.kind, specialtyKey: r.specialtyKey, localityKey: r.localityKey, path: r.path, indexableCount: r.count, computedIndexable: r.count >= r.gate })
-    .onConflictDoUpdate({ target: s.seoRoutes.path, set: { indexableCount: r.count, computedIndexable: r.count >= r.gate, updatedAt: new Date() } });
-}
 
 main().catch((e) => {
   console.error(e);

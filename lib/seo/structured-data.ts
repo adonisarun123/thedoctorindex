@@ -1,5 +1,5 @@
 import type { Guide } from "@/lib/data/guides";
-import { CITY, SPECIALTIES } from "@/lib/data/taxonomy";
+import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 import type { DoctorView, Practice, Specialty, SpecialtyKey } from "@/lib/types";
 
@@ -39,12 +39,55 @@ export function isoDate(display: string | null | undefined): string | undefined 
 }
 
 /** schema.org MedicalSpecialty enumeration members for our specialities. */
-export const MEDICAL_SPECIALTY: Record<SpecialtyKey, string> = {
-  cardiology: "https://schema.org/Cardiovascular",
-  dermatology: "https://schema.org/Dermatology",
-  orthopaedics: "https://schema.org/Musculoskeletal",
-  paediatrics: "https://schema.org/Pediatric",
+const MS = (v: string) => `https://schema.org/${v}`;
+export const MEDICAL_SPECIALTY: Partial<Record<SpecialtyKey, string>> = {
+  cardiology: MS("Cardiovascular"),
+  "cardiothoracic-surgery": MS("Cardiovascular"),
+  dermatology: MS("Dermatology"),
+  cosmetology: MS("Dermatology"),
+  orthopaedics: MS("Musculoskeletal"),
+  rheumatology: MS("Rheumatologic"),
+  paediatrics: MS("Pediatric"),
+  "paediatric-surgery": MS("Pediatric"),
+  "general-practice": MS("PrimaryCare"),
+  "internal-medicine": MS("PrimaryCare"),
+  geriatrics: MS("Geriatric"),
+  gynaecology: MS("Gynecologic"),
+  "general-surgery": MS("Surgical"),
+  "plastic-surgery": MS("PlasticSurgery"),
+  "gi-surgery": MS("Surgical"),
+  ophthalmology: MS("Optometric"),
+  anaesthesiology: MS("Anesthesia"),
+  pathology: MS("Pathology"),
+  radiology: MS("Radiography"),
+  psychiatry: MS("Psychiatric"),
+  "clinical-psychology": MS("Psychiatric"),
+  ent: MS("Otolaryngologic"),
+  physiotherapy: MS("Physiotherapy"),
+  "occupational-therapy": MS("Physiotherapy"),
+  pulmonology: MS("Pulmonary"),
+  urology: MS("Urologic"),
+  nephrology: MS("Renal"),
+  neurology: MS("Neurologic"),
+  neurosurgery: MS("Neurologic"),
+  dietetics: MS("DietNutrition"),
+  gastroenterology: MS("Gastroenterologic"),
+  "surgical-oncology": MS("Oncologic"),
+  "radiation-oncology": MS("Oncologic"),
+  "medical-oncology": MS("Oncologic"),
+  haematology: MS("Hematologic"),
+  diabetology: MS("Endocrine"),
+  endocrinology: MS("Endocrine"),
+  audiology: MS("SpeechPathology"),
+  dentistry: MS("Dentistry"),
+  "sexual-medicine": MS("Urologic"),
+  "non-clinical-medicine": MS("LaboratoryScience"),
 };
+
+function aboutSpecialty(specialty: Specialty): Json {
+  const id = MEDICAL_SPECIALTY[specialty.key];
+  return { "@type": "MedicalSpecialty", ...(id ? { "@id": id } : {}), name: specialty.name };
+}
 
 export function organizationLd(): Json {
   return {
@@ -152,8 +195,8 @@ function addressLd(p: Practice): Json {
   return {
     "@type": "PostalAddress",
     streetAddress: p.address,
-    addressLocality: CITY.name,
-    addressRegion: CITY.state,
+    addressLocality: p.city || p.localityName,
+    addressRegion: p.state,
     postalCode: p.postalCode,
     addressCountry: "IN",
   };
@@ -172,7 +215,7 @@ function practiceLd(d: DoctorView): Json[] {
       openingHours: `${p.days} ${p.hours}`,
       ...(spec ? { openingHoursSpecification: spec } : {}),
       ...(p.feeInr !== null ? { priceRange: `₹${p.feeInr}` } : {}),
-      medicalSpecialty: MEDICAL_SPECIALTY[d.specialty],
+      ...(MEDICAL_SPECIALTY[d.specialty] ? { medicalSpecialty: MEDICAL_SPECIALTY[d.specialty] } : {}),
     };
   });
 }
@@ -200,7 +243,7 @@ export function doctorLd(d: DoctorView): Json {
     jobTitle: specialty.one,
     url,
     ...(d.photoUrl ? { image: absoluteUrl(d.photoUrl) } : {}),
-    medicalSpecialty: MEDICAL_SPECIALTY[d.specialty],
+    ...(MEDICAL_SPECIALTY[d.specialty] ? { medicalSpecialty: MEDICAL_SPECIALTY[d.specialty] } : {}),
     knowsAbout: [specialty.name, ...d.subspecialties],
     knowsLanguage: d.languages,
     identifier: {
@@ -228,7 +271,7 @@ export function doctorLd(d: DoctorView): Json {
     "@type": d.claimed ? "ProfilePage" : "WebPage",
     "@id": url,
     url,
-    name: `Dr ${d.name}, ${specialty.one} in ${CITY.name}`,
+    name: `Dr ${d.name}, ${specialty.one} in ${d.practices[0]?.city || "India"}`,
     inLanguage: "en-IN",
     isPartOf: { "@id": SITE_ID() },
     publisher: { "@id": ORG_ID() },
@@ -238,7 +281,7 @@ export function doctorLd(d: DoctorView): Json {
   };
 }
 
-export function listingLd(specialty: Specialty, placeName: string, canonicalPath: string, doctors: DoctorView[]): Json {
+export function listingLd(specialty: Specialty, placeName: string, canonicalPath: string, doctors: DoctorView[], place: { city: string; state: string }): Json {
   const url = absoluteUrl(canonicalPath);
   return {
     "@context": "https://schema.org",
@@ -249,8 +292,8 @@ export function listingLd(specialty: Specialty, placeName: string, canonicalPath
     inLanguage: "en-IN",
     isPartOf: { "@id": SITE_ID() },
     publisher: { "@id": ORG_ID() },
-    about: { "@type": "MedicalSpecialty", "@id": MEDICAL_SPECIALTY[specialty.key], name: specialty.name },
-    spatialCoverage: { "@type": "Place", name: placeName, address: { "@type": "PostalAddress", addressLocality: CITY.name, addressRegion: CITY.state, addressCountry: "IN" } },
+    about: aboutSpecialty(specialty),
+    spatialCoverage: { "@type": "Place", name: placeName, address: { "@type": "PostalAddress", addressLocality: place.city, addressRegion: place.state, addressCountry: "IN" } },
     primaryImageOfPage: { "@type": "ImageObject", url: absoluteUrl(`/og/listing${canonicalPath.replace(/^\/doctors/, "")}`), width: 1200, height: 630 },
     mainEntity: {
       "@type": "ItemList",
@@ -261,7 +304,7 @@ export function listingLd(specialty: Specialty, placeName: string, canonicalPath
         position: i + 1,
         url: absoluteUrl(paths.doctor(d.slug)),
         name: `Dr ${d.name}`,
-        item: { "@type": ["Person", "IndividualPhysician"], "@id": `${absoluteUrl(paths.doctor(d.slug))}#physician`, name: `Dr ${d.name}`, url: absoluteUrl(paths.doctor(d.slug)), jobTitle: specialty.one, medicalSpecialty: MEDICAL_SPECIALTY[specialty.key] },
+        item: { "@type": ["Person", "IndividualPhysician"], "@id": `${absoluteUrl(paths.doctor(d.slug))}#physician`, name: `Dr ${d.name}`, url: absoluteUrl(paths.doctor(d.slug)), jobTitle: specialty.one, ...(MEDICAL_SPECIALTY[specialty.key] ? { medicalSpecialty: MEDICAL_SPECIALTY[specialty.key] } : {}) },
       })),
     },
   };
@@ -280,9 +323,9 @@ export function specialtyLd(specialty: Specialty, count: number, listingPaths: s
     inLanguage: "en-IN",
     isPartOf: { "@id": SITE_ID() },
     publisher: { "@id": ORG_ID() },
-    about: { "@type": "MedicalSpecialty", "@id": MEDICAL_SPECIALTY[specialty.key], name: specialty.name },
+    about: aboutSpecialty(specialty),
     medicalAudience: { "@type": "MedicalAudience", audienceType: "Patient" },
-    lastReviewed: isoDate(specialty.reviewedOn) ?? specialty.reviewedOn,
+    ...(specialty.reviewedOn ? { lastReviewed: isoDate(specialty.reviewedOn) ?? specialty.reviewedOn } : {}),
     primaryImageOfPage: { "@type": "ImageObject", url: `${url}/opengraph-image`, width: 1200, height: 630 },
     mainEntity: {
       "@type": "ItemList",
@@ -311,7 +354,7 @@ export function guideLd(guide: Guide): Json {
     medicalAudience: { "@type": "MedicalAudience", audienceType: "Patient" },
     lastReviewed: isoDate(guide.reviewedOn) ?? guide.reviewedOn,
     reviewedBy: { "@type": "Person", name: guide.reviewer },
-    ...(guide.specialty ? { about: { "@type": "MedicalSpecialty", "@id": MEDICAL_SPECIALTY[guide.specialty], name: SPECIALTIES[guide.specialty].name } } : {}),
+    ...(guide.specialty ? { about: aboutSpecialty(SPECIALTIES[guide.specialty]) } : {}),
     primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
     mainEntity: {
       "@type": "Article",

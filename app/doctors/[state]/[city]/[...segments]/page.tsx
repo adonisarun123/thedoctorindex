@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { ListingView } from "@/components/ListingView";
 import type { RouteMetaData } from "@/components/RouteMeta";
 import { countIndexable } from "@/lib/data";
-import { CITY, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES, hasFacetParams, listingGate } from "@/lib/seo/gates";
 import { resolveListing, type ListingParams } from "@/lib/seo/listing";
 import { pageMeta } from "@/lib/seo/meta";
@@ -28,24 +27,14 @@ type Search = Record<string, string | string[] | undefined>;
 const resolve = resolveListing;
 
 /**
- * Every valid combination is prerendered so patients get a fast page. Whether
- * it is *indexed* is a separate decision, made by the gate below — building a
- * page and submitting it to Google are not the same act.
+ * Listings render per request: they read filter/sort parameters, and with
+ * hundreds of cities and dozens of specialities there are far too many valid
+ * combinations to prerender. Whether a page is *indexed* is the gate's
+ * decision, not the build's — building a page and submitting it to Google
+ * are different acts. The data behind a listing is one capped query plus
+ * cached geography, so a render is cheap.
  */
-export function generateStaticParams(): Params[] {
-  const out: Params[] = [];
-  for (const key of SPECIALTY_KEYS) {
-    out.push({ state: CITY.stateSlug, city: CITY.slug, segments: [SPECIALTIES[key].slug] });
-    for (const loc of LOCALITY_KEYS) {
-      out.push({
-        state: CITY.stateSlug,
-        city: CITY.slug,
-        segments: [loc, SPECIALTIES[key].slug],
-      });
-    }
-  }
-  return out;
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -54,14 +43,13 @@ export async function generateMetadata({
   params: Promise<Params>;
   searchParams: Promise<Search>;
 }): Promise<Metadata> {
-  const resolved = resolve(await params);
+  const resolved = await resolve(await params);
   if (!resolved) return { title: "Page not found", robots: { index: false, follow: false } };
 
   const sp = await searchParams;
-  const { specialty, locality, canonicalPath } = resolved;
-  const placeName = locality ? `${locality.name}, ${locality.city}` : CITY.name;
-  const indexableCount = await countIndexable(specialty.key, locality?.key);
-  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", indexableCount, true));
+  const { specialty, city, locality, canonicalPath, placeName } = resolved;
+  const indexableCount = await countIndexable(specialty.key, locality ? { localityKey: locality.key } : { stateSlug: city.stateSlug, citySlug: city.slug });
+  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", indexableCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 
   // "Verified", never "Best". "Best cardiologists in Bengaluru" needs a
@@ -83,14 +71,13 @@ export default async function ListingPage({
   params: Promise<Params>;
   searchParams: Promise<Search>;
 }) {
-  const resolved = resolve(await params);
+  const resolved = await resolve(await params);
   if (!resolved) notFound();
 
   const sp = await searchParams;
-  const { specialty, locality, canonicalPath } = resolved;
-  const placeName = locality ? `${locality.name}, ${locality.city}` : CITY.name;
-  const indexableCount = await countIndexable(specialty.key, locality?.key);
-  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", indexableCount, true));
+  const { specialty, city, locality, canonicalPath, placeName } = resolved;
+  const indexableCount = await countIndexable(specialty.key, locality ? { localityKey: locality.key } : { stateSlug: city.stateSlug, citySlug: city.slug });
+  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", indexableCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 
   const routeMeta: RouteMetaData = {
@@ -121,6 +108,7 @@ export default async function ListingPage({
   return (
     <ListingView
       specialty={specialty}
+      city={city}
       locality={locality}
       searchParams={sp}
       routeMeta={routeMeta}

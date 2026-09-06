@@ -104,8 +104,9 @@ async function main() {
   const publish = has("publish");
   const limit = Number(arg("limit") ?? Infinity);
 
-  const [{ createDoctor }, taxonomy] = await Promise.all([import("../lib/services/doctors"), import("../lib/data/taxonomy")]);
-  const { resolveSpecialtyQuery, specialtyBySlug, specialtyByKey, localityBySlug, LOCALITIES } = taxonomy;
+  const [{ createDoctor }, taxonomy, { getGeo }] = await Promise.all([import("../lib/services/doctors"), import("../lib/data/taxonomy"), import("../lib/data/geo")]);
+  const { resolveSpecialtyQuery, specialtyBySlug, specialtyByKey } = taxonomy;
+  const geo = await getGeo();
 
   const rows = parseCsv(readFileSync(file, "utf8")).slice(0, limit);
   console.log(`${rows.length} rows from ${file} · source "${sourceName}"${dry ? " · DRY RUN" : ""}${publish ? " · publishing" : " · as drafts"}`);
@@ -123,8 +124,8 @@ async function main() {
     if (!r.council) problems.push("council missing");
     if (!r.source_url || !/^https?:\/\//.test(r.source_url)) problems.push("source_url missing (provenance is mandatory)");
     const gender = r.gender && ["F", "M", "X"].includes(r.gender.toUpperCase()) ? (r.gender.toUpperCase() as "F" | "M" | "X") : null;
-    let locality = r.locality ? (LOCALITIES as Record<string, { key: string }>)[r.locality] ?? localityBySlug(r.locality) : null;
-    if (r.facility_name && !locality) problems.push(`locality "${r.locality}" is not an open locality (${Object.keys(LOCALITIES).join(", ")})`);
+    let locality = r.locality ? geo.locality(r.locality) ?? geo.localities.find((l) => l.slug === r.locality) ?? null : null;
+    if (r.facility_name && !locality) problems.push(`locality "${r.locality}" is not a known locality key (see /api/places)`);
     if (r.facility_name && !r.address) problems.push("address required with facility_name");
     const dupKey = `${(r.council ?? "").toLowerCase()}|${(r.registration_number ?? "").replace(/\W+/g, "").toLowerCase()}`;
     if (seen.has(dupKey)) problems.push("duplicate registration within this file");

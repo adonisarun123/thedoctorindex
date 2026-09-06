@@ -2,7 +2,7 @@ import "server-only";
 
 import { dbSource } from "@/lib/data/db-source";
 import { seedSource } from "@/lib/data/seed-source";
-import type { DoctorView, ListingFilters, LocalityKey, SpecialtyKey } from "@/lib/types";
+import type { DoctorView, ListingFilters, SpecialtyKey } from "@/lib/types";
 
 /**
  * The data access boundary.
@@ -14,21 +14,68 @@ import type { DoctorView, ListingFilters, LocalityKey, SpecialtyKey } from "@/li
  *           used for builds and previews that have no database.
  *
  * Every function is async so the two are interchangeable. Routes, sitemaps and
- * components consume only this module.
+ * components consume only this module. Nothing here returns "all doctors":
+ * with tens of thousands of records every reader names the slice it needs
+ * (a city, a locality, a speciality) and the source answers with a query.
  */
 
+/** Where a listing or a count is scoped. All fields optional; narrower wins. */
+export interface Place {
+  stateSlug?: string;
+  citySlug?: string;
+  localityKey?: string;
+}
+
+/** Which doctors a count includes: those passing every gate, or every published one. */
+export type Measure = "indexable" | "published";
+
+export interface PlaceCount {
+  stateSlug: string;
+  citySlug: string;
+  n: number;
+}
+
+export interface Totals {
+  published: number;
+  indexable: number;
+  claimed: number;
+  /** Practice locations confirmed with the practice at least once. */
+  practices: number;
+  cities: number;
+}
+
+/** Listings are capped: a city with 4,000 family physicians is browsed by locality and filter, not scrolled. */
+export const LISTING_CAP = 200;
+/** Rows rendered per page of a listing; further pages are `?page=` facets (noindex, canonical unchanged). */
+export const LISTING_PAGE = 60;
+
 export type DataSource = {
-  getAllDoctors(): Promise<DoctorView[]>;
   getDoctorBySlug(slug: string): Promise<DoctorView | null>;
   /** Canonical /doctor path for a stale slug (rename or merge), or null when unknown. */
   canonicalDoctorPath(slug: string): Promise<string | null>;
   findByRegistration(registrationNumber: string): Promise<DoctorView | null>;
-  getDoctorsBySpecialty(specialty: SpecialtyKey): Promise<DoctorView[]>;
-  getDoctorsBySpecialtyAndLocality(specialty: SpecialtyKey, locality: LocalityKey): Promise<DoctorView[]>;
-  countIndexable(specialty: SpecialtyKey, locality?: LocalityKey): Promise<number>;
-  searchDoctors(query: string): Promise<DoctorView[]>;
+  /** Published doctors of one speciality in a place, best-first, capped at LISTING_CAP. */
+  getListing(specialty: SpecialtyKey, place: Place, limit?: number): Promise<DoctorView[]>;
+  countIndexable(specialty: SpecialtyKey, place?: Place): Promise<number>;
+  /** Count per speciality key within a place (missing key = 0). */
+  countsBySpecialty(place?: Place, measure?: Measure): Promise<Record<string, number>>;
+  /** Count per city, optionally for one speciality, descending. */
+  countsByCity(specialty?: SpecialtyKey, measure?: Measure): Promise<PlaceCount[]>;
+  /** Indexable count per locality key within a city, optionally for one speciality. */
+  countsByLocality(citySlug: string, specialty?: SpecialtyKey): Promise<Record<string, number>>;
+  /** Indexable count per (locality key, speciality key) within a city — one query for a city hub. */
+  countsByLocalitySpecialty(citySlug: string): Promise<Array<{ localityKey: string; specialty: string; n: number }>>;
+  countsByState(measure?: Measure): Promise<Record<string, number>>;
+  /** Published / indexable / claimed / practice counts, optionally within a place. */
+  totals(place?: Place): Promise<Totals>;
+  searchDoctors(query: string, place?: Place): Promise<DoctorView[]>;
   getNearby(doctor: DoctorView, limit?: number): Promise<DoctorView[]>;
-  getDoctorsByLocality(locality: LocalityKey): Promise<DoctorView[]>;
+  /** Indexable doctors with a photo or a claim first — the home page strip. */
+  getFeatured(limit: number, place?: Place): Promise<DoctorView[]>;
+  /** Slug + last verification date for every indexable doctor (sitemap). */
+  listIndexableSlugs(): Promise<Array<{ slug: string; lastVerifiedOn: string }>>;
+  /** Doctors a person has a relationship with (dashboard, account); by database id. */
+  getDoctorByDbId?(id: string): Promise<DoctorView | null>;
 };
 
 export function activeSourceName(): "db" | "seed" {
@@ -41,16 +88,21 @@ function source(): DataSource {
   return activeSourceName() === "db" ? dbSource : seedSource;
 }
 
-export const getAllDoctors = () => source().getAllDoctors();
 export const getDoctorBySlug = (slug: string) => source().getDoctorBySlug(slug);
 export const canonicalDoctorPath = (slug: string) => source().canonicalDoctorPath(slug);
 export const findByRegistration = (n: string) => source().findByRegistration(n);
-export const getDoctorsBySpecialty = (k: SpecialtyKey) => source().getDoctorsBySpecialty(k);
-export const getDoctorsBySpecialtyAndLocality = (k: SpecialtyKey, l: LocalityKey) => source().getDoctorsBySpecialtyAndLocality(k, l);
-export const countIndexable = (k: SpecialtyKey, l?: LocalityKey) => source().countIndexable(k, l);
-export const searchDoctors = (q: string) => source().searchDoctors(q);
+export const getListing = (k: SpecialtyKey, place: Place, limit?: number) => source().getListing(k, place, limit);
+export const countIndexable = (k: SpecialtyKey, place?: Place) => source().countIndexable(k, place);
+export const countsBySpecialty = (place?: Place, measure?: Measure) => source().countsBySpecialty(place, measure);
+export const countsByCity = (k?: SpecialtyKey, measure?: Measure) => source().countsByCity(k, measure);
+export const countsByLocality = (citySlug: string, k?: SpecialtyKey) => source().countsByLocality(citySlug, k);
+export const countsByLocalitySpecialty = (citySlug: string) => source().countsByLocalitySpecialty(citySlug);
+export const countsByState = (measure?: Measure) => source().countsByState(measure);
+export const totals = (place?: Place) => source().totals(place);
+export const searchDoctors = (q: string, place?: Place) => source().searchDoctors(q, place);
 export const getNearby = (d: DoctorView, limit?: number) => source().getNearby(d, limit);
-export const getDoctorsByLocality = (l: LocalityKey) => source().getDoctorsByLocality(l);
+export const getFeatured = (limit: number, place?: Place) => source().getFeatured(limit, place);
+export const listIndexableSlugs = () => source().listIndexableSlugs();
 
 /* Pure helpers, source-independent. */
 

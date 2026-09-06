@@ -8,8 +8,9 @@ import { CallButton, DirectionsButton, ViewBeacon } from "@/components/ContactAc
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
 import { TrustBadges } from "@/components/TrustBadges";
-import { canonicalDoctorPath, getAllDoctors, getDoctorBySlug, getNearby } from "@/lib/data";
-import { CITY, LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
+import { canonicalDoctorPath, getDoctorBySlug, getNearby } from "@/lib/data";
+import { SPECIALTIES } from "@/lib/data/taxonomy";
+import { hasDate, registrationLabel, registrationSource, registrationState } from "@/lib/verification";
 import { profileGate } from "@/lib/seo/gates";
 import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, doctorLd } from "@/lib/seo/structured-data";
@@ -18,8 +19,17 @@ import type { DoctorView } from "@/lib/types";
 
 type Params = { slug: string };
 
-export async function generateStaticParams(): Promise<Params[]> {
-  return (await getAllDoctors()).map((d) => ({ slug: d.slug }));
+/**
+ * Profiles render on demand and are cached for an hour. Tens of thousands
+ * of profiles make prerendering every one at build time pointless; the
+ * first visitor (or crawler) pays a single render, after which the page is
+ * static until a verification event or the hour passes.
+ */
+export const revalidate = 3600;
+export const dynamicParams = true;
+
+export function generateStaticParams(): Params[] {
+  return [];
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
@@ -27,13 +37,15 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const doctor = await resolve(slug);
 
   const specialty = SPECIALTIES[doctor.specialty];
-  const locality = doctor.localities[0] ? LOCALITIES[doctor.localities[0]]?.name : null;
+  const primary = doctor.practices[0];
+  const locality = primary?.localityName ?? null;
+  const cityName = primary?.city || "India";
   const degrees = doctor.qualifications.filter((q) => q.state === "verified").map((q) => q.degree).slice(0, 2).join(", ");
   const [firstName, ...rest] = doctor.name.split(/\s+/);
   return pageMeta({
-    title: `Dr ${doctor.name} – ${specialty.one} in ${CITY.name}`,
-    ogTitle: `Dr ${doctor.name}, ${specialty.one} in ${locality ? `${locality}, ` : ""}${CITY.name}`,
-    description: `Dr ${doctor.name}, ${specialty.one.toLowerCase()} in ${locality ? `${locality}, ` : ""}${CITY.name}. ${degrees ? `${degrees}. ` : ""}${doctor.yearsOfExperience}+ years. Registration checked ${doctor.registration.checkedOn}; qualifications and practice dated.`,
+    title: `Dr ${doctor.name} – ${specialty.one} in ${cityName}`,
+    ogTitle: `Dr ${doctor.name}, ${specialty.one} in ${locality && locality !== cityName ? `${locality}, ` : ""}${cityName}`,
+    description: `Dr ${doctor.name}, ${specialty.one.toLowerCase()} in ${locality && locality !== cityName ? `${locality}, ` : ""}${cityName}. ${degrees ? `${degrees}. ` : ""}${doctor.yearsOfExperience ? `${doctor.yearsOfExperience}+ years. ` : ""}${doctor.registration.checkedOn && doctor.registration.checkedOn !== "—" ? `Registration checked ${doctor.registration.checkedOn}; qualifications and practice dated.` : "Registration not yet checked against the council register."}`,
     path: paths.doctor(doctor.slug),
     index: doctor.indexable,
     type: "profile",
@@ -61,19 +73,21 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
 
   const specialty = SPECIALTIES[doctor.specialty];
   const gate = profileGate(doctor);
-  const listingPath = paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug);
+  const primary = doctor.practices[0];
+  const cityName = primary?.city || "India";
+  const listingPath = primary?.citySlug ? paths.citySpecialty(primary.stateSlug, primary.citySlug, specialty.slug) : paths.specialty(specialty.key);
 
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
-    { name: CITY.name, path: listingPath },
+    ...(primary?.citySlug ? [{ name: primary.city, path: `/doctors/${primary.stateSlug}/${primary.citySlug}` }] : []),
     { name: specialty.plural, path: listingPath },
     { name: `Dr ${doctor.name}` },
   ];
 
   const routeMeta: RouteMetaData = {
     route: "Doctor profile",
-    title: `Dr ${doctor.name} – ${specialty.one} in ${CITY.name} | The Doctor Index`,
-    h1: `Dr ${doctor.name}, ${specialty.one} in ${CITY.name}`,
+    title: `Dr ${doctor.name} – ${specialty.one} in ${cityName} | The Doctor Index`,
+    h1: `Dr ${doctor.name}, ${specialty.one} in ${cityName}`,
     canonical: absoluteUrl(paths.doctor(doctor.slug)),
     index: doctor.indexable,
     gate: { name: "Profile gate", checks: gate.checks },
@@ -127,7 +141,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               <div>
                 <h1>Dr {doctor.name}</h1>
                 <div className="role">
-                  {specialty.one} in {CITY.name}
+                  {specialty.one} in {cityName}
                   {doctor.subspecialties.length ? ` · ${doctor.subspecialties.join(", ")}` : ""}
                 </div>
                 <div style={{ marginTop: "10px" }}>
@@ -151,30 +165,35 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 </div>
 
                 <Row
-                  tone="ok"
-                  label="Medical registration verified"
-                  source={`${doctor.registration.council} · ${doctor.registration.number} · registered ${doctor.registration.registeredYear}`}
-                  when={doctor.registration.checkedOn}
+                  tone={registrationState(doctor) === "verified" ? "ok" : registrationState(doctor) === "submitted" ? "wait" : "none"}
+                  label={registrationState(doctor) === "verified" ? "Medical registration verified" : registrationLabel(doctor)}
+                  source={registrationSource(doctor)}
+                  when={registrationState(doctor) === "verified" ? doctor.registration.checkedOn : registrationState(doctor) === "submitted" ? "pending" : "—"}
                 />
+                {doctor.qualifications.length === 0 ? <Row tone="none" label="No qualification on record" source="Degrees appear here once supplied and checked against the awarding body" when="—" /> : null}
                 {doctor.qualifications.map((q) => (
                   <Row
                     key={`${q.degree}-${q.year}`}
                     tone={q.state === "verified" ? "ok" : "wait"}
                     label={q.state === "verified" ? "Qualification verified" : "Qualification submitted by doctor"}
-                    source={`${q.degree} · ${q.institution} · ${q.year}`}
+                    source={[q.degree, q.institution, q.year || null].filter(Boolean).join(" · ")}
                     when={q.state === "verified" ? doctor.registration.checkedOn : "pending"}
                   />
                 ))}
-                <Row
-                  tone={doctor.status === "stale" ? "none" : "ok"}
-                  label={
-                    doctor.status === "stale"
-                      ? "Practice not recently confirmed"
-                      : "Practice location confirmed"
-                  }
-                  source={`${doctor.practices[0].facility}, ${LOCALITIES[doctor.practices[0].locality].name}`}
-                  when={doctor.practices[0].confirmedOn}
-                />
+                {doctor.practices[0] ? (
+                  <Row
+                    tone={doctor.status === "stale" ? "none" : "ok"}
+                    label={
+                      doctor.status === "stale"
+                        ? hasDate(doctor.practices[0].confirmedOn) ? "Practice not recently confirmed" : "Practice not yet confirmed"
+                        : "Practice location confirmed"
+                    }
+                    source={`${doctor.practices[0].facility}, ${doctor.practices[0].localityName}`}
+                    when={doctor.practices[0].confirmedOn}
+                  />
+                ) : (
+                  <Row tone="none" label="Practice location not on record" source="No practice address has been supplied or confirmed" when="—" />
+                )}
                 <Row
                   tone={doctor.claimed ? "ok" : "none"}
                   label={doctor.claimed ? "Profile claimed by doctor" : "Profile not claimed"}
@@ -206,13 +225,12 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               <dl className="kv">
                 <dt>Experience</dt>
                 <dd>
-                  {doctor.yearsOfExperience} years — practice start year {doctor.practiceStartYear}{" "}
-                  supplied by the doctor and consistent with the career history below
+                  {doctor.practiceStartYear ? `${doctor.yearsOfExperience} years — practice start year ${doctor.practiceStartYear} supplied by the doctor${doctor.experience.length ? " and consistent with the career history below" : ""}` : "Not stated"}
                 </dd>
                 <dt>Registered since</dt>
-                <dd>{doctor.registration.registeredYear}</dd>
+                <dd>{doctor.registration.registeredYear || "Not stated"}</dd>
                 <dt>Languages</dt>
-                <dd>{doctor.languages.join(", ")}</dd>
+                <dd>{doctor.languages.join(", ") || "Not stated"}</dd>
                 <dt>Consultation</dt>
                 <dd>{doctor.modes.join(", ")}</dd>
               </dl>
@@ -331,7 +349,7 @@ function GateBanner({ doctor }: { doctor: DoctorView }) {
     return (
       <div className="notice alert" style={{ marginBottom: "18px" }}>
         <b>This profile is not indexed.</b> Quality score {doctor.qualityScore}/100 against a gate of
-        70, and the practice has not been reconfirmed since {doctor.practices[0].confirmedOn}. It stays
+        70{hasDate(doctor.practices[0]?.confirmedOn) ? `, and the practice has not been reconfirmed since ${doctor.practices[0]?.confirmedOn}` : ", and no practice location has been confirmed yet"}. It stays
         reachable by direct link and by search on this site, and carries <span className="mono">noindex</span>{" "}
         until it passes.
       </div>
@@ -455,7 +473,7 @@ function Nearby({ doctor, nearby }: { doctor: DoctorView; nearby: DoctorView[] }
                 Dr {d.name}
               </Link>
               <div className="s">
-                {d.practices[0].facility}, {LOCALITIES[d.practices[0].locality].name}
+                {d.practices[0] ? `${d.practices[0].facility}, ${d.practices[0].localityName}` : "Practice not on record"}
                 {d.subspecialties.length ? ` · ${d.subspecialties[0]}` : ""}
               </div>
             </div>
@@ -464,7 +482,7 @@ function Nearby({ doctor, nearby }: { doctor: DoctorView; nearby: DoctorView[] }
         ))}
       </div>
       <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
-        Ordered by shared locality, then the rest of {CITY.name}. Nobody pays to appear here.
+        Ordered by shared locality, then the rest of {doctor.practices[0]?.city || "the city"}. Nobody pays to appear here.
       </p>
     </section>
   );

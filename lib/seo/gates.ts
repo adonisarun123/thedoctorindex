@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import type { Doctor } from "@/lib/types";
+import { hasDate, registrationState } from "@/lib/verification";
 
 /**
  * Indexation gates (project plan §6).
@@ -47,8 +48,8 @@ export function profileGate(d: Doctor): GateResult {
   const checks = [
     {
       label: "Registration verified",
-      pass: true,
-      detail: `${d.registration.council} · checked ${d.registration.checkedOn}`,
+      pass: registrationState(d) === "verified",
+      detail: registrationState(d) === "verified" ? `${d.registration.council} · checked ${d.registration.checkedOn}` : registrationState(d) === "submitted" ? "Supplied, not yet checked against the register" : "No registration number on record",
     },
     {
       label: "Current practice confirmed",
@@ -56,7 +57,9 @@ export function profileGate(d: Doctor): GateResult {
       detail:
         d.status === "active"
           ? `Last confirmed ${d.practices[0]?.confirmedOn}`
-          : `Not reconfirmed since ${d.practices[0]?.confirmedOn}`,
+          : hasDate(d.practices[0]?.confirmedOn)
+            ? `Not reconfirmed since ${d.practices[0]?.confirmedOn}`
+            : "Never confirmed with the practice",
     },
     {
       label: "Quality score",

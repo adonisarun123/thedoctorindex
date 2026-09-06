@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ProfileDetailsForm } from "@/components/ProfileDetailsForm";
 import { RouteMeta } from "@/components/RouteMeta";
 import { getSessionUser } from "@/lib/auth/session";
+import { userPlace } from "@/lib/data/geo";
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { absoluteUrl } from "@/lib/site";
@@ -38,7 +39,7 @@ export default async function AccountSetup({ searchParams }: { searchParams: Pro
           <p style={{ color: "var(--ink-2)", fontSize: "14.5px", marginBottom: "18px" }}>
             {why} Signed in as <span className="mono">{user.email ?? user.phone}</span>. One account works for patients and doctors.
           </p>
-          <ProfileDetailsForm user={{ ...user, city: row?.city ?? null, marketingOptIn: row?.marketingOptIn ?? false }} next={next} />
+          <ProfileDetailsForm user={{ ...user, city: row?.city ?? null, ...(await userPlace(user.localityKey, row?.city ?? null)), marketingOptIn: row?.marketingOptIn ?? false }} next={next} />
           <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "14px" }}>
             Your name and contact details are never shown on the public site. They are shared only with a practice you choose to enquire with, and used to tell you the outcome of anything you submit.
           </p>

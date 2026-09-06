@@ -22,7 +22,7 @@ export interface DashboardContext {
 export async function getDashboardContext(): Promise<DashboardContext> {
   if (!process.env.DATABASE_URL) redirect("/dashboard/no-profile?reason=nodb");
   const { user, doctorId, asManager, scope } = await requireDoctor();
-  const doctor = await dbSource.getDoctorByDbId(doctorId);
+  const doctor = await dbSource.getDoctorByDbId!(doctorId);
   if (!doctor) redirect("/dashboard/no-profile");
   return { user, doctor, doctorId, asManager, scope };
 }

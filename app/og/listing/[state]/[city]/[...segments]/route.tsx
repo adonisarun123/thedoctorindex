@@ -11,9 +11,9 @@ export const revalidate = 86400;
  * the URL"), so the listing page points `og:image` at this handler instead.
  */
 export async function GET(_req: Request, ctx: { params: Promise<{ state: string; city: string; segments: string[] }> }) {
-  const r = resolveListing(await ctx.params);
+  const r = await resolveListing(await ctx.params);
   if (!r) return new Response("Not found", { status: 404 });
-  const n = await countIndexable(r.specialty.key, r.locality?.key);
+  const n = await countIndexable(r.specialty.key, r.locality ? { localityKey: r.locality.key } : { stateSlug: r.city.stateSlug, citySlug: r.city.slug });
   const img = ogCard({
     eyebrow: r.specialty.department,
     title: `Verified ${r.specialty.plural} in ${r.placeName}`,

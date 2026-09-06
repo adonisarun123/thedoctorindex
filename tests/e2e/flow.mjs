@@ -25,13 +25,25 @@ function latestOtpFor(email) {
 
 
 let __phoneSeq = 9800000000;
+/** Drives a PlacePicker (state → city → locality selects fed by /api/places). */
+async function pickPlace(page, prefix, stateSlug, citySlug, localityKey) {
+  const opt = (sel, value) => page.waitForFunction(({ sel, value }) => !!document.querySelector(`${sel} option[value="${value}"]`), { sel, value }, { timeout: 15000 });
+  await opt(`#${prefix}-state`, stateSlug);
+  await page.selectOption(`#${prefix}-state`, stateSlug);
+  await opt(`#${prefix}-city`, citySlug);
+  await page.selectOption(`#${prefix}-city`, citySlug);
+  if (localityKey) {
+    await opt(`#${prefix}-locality`, localityKey);
+    await page.selectOption(`#${prefix}-locality`, localityKey);
+  }
+}
 /** First-run registration step: fills name, mobile (email was the sign-in channel), locality, terms. */
 async function completeDetailsIfAsked(page, name) {
   await page.waitForLoadState("networkidle").catch(() => {});
   if (!page.url().includes("/account/setup")) return false;
   await page.fill("#fullName", name);
   await page.fill("#phone", String(__phoneSeq++));
-  await page.selectOption("#locality", "indiranagar");
+  await pickPlace(page, "home", "karnataka", "bengaluru", "indiranagar");
   await page.check('input[name="terms"]');
   await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/account/setup"), { timeout: 20000 }), page.click('form:has(#fullName) button[type=submit]')]);
   return true;
@@ -235,7 +247,7 @@ try {
   await admin.fill('input[name="q0_year"]', "2004");
   await admin.check('input[name="q0_verified"]');
   await admin.fill('input[name="facility"]', "Skin Clinic Koramangala");
-  await admin.selectOption('select[name="locality"]', "koramangala");
+  await pickPlace(admin, "practice", "karnataka", "bengaluru", "koramangala");
   await admin.fill('input[name="address"]', "5th Block, 80 Feet Road");
   await admin.fill('input[name="postal"]', "560095");
   await admin.fill('input[name="days"]', "Mon–Sat");
@@ -482,7 +494,7 @@ await signIn(claimant, "e2e.claimant@example.com", `/doctor/${unclaimed.slug}`);
   ok("registration: enquiry page refuses an unregistered account", direct.status() === 307 && String(direct.headers()["location"]).includes("/account/setup"), `${direct.status()} ${direct.headers()["location"]}`);
   await fresh.fill("#fullName", "Fresh Person");
   await fresh.fill("#phone", "9123456780");
-  await fresh.selectOption("#locality", "koramangala");
+  await pickPlace(fresh, "home", "karnataka", "bengaluru", "koramangala");
   ok("registration: terms checkbox is mandatory", (await fresh.locator('input[name="terms"]').getAttribute("required")) !== null && (await fresh.evaluate(() => !document.querySelector("form:has(#fullName)").checkValidity())));
   await fresh.check('input[name="terms"]');
   await Promise.all([fresh.waitForURL(/\/enquire/, { timeout: 20000 }), fresh.click('form:has(#fullName) button[type=submit]')]);
@@ -502,7 +514,7 @@ await signIn(claimant, "e2e.claimant@example.com", `/doctor/${unclaimed.slug}`);
   await Promise.all([dupePage.waitForURL(/\/account\/setup/, { timeout: 20000 }), dupePage.click("form:has(#code) button[type=submit]")]);
   await dupePage.fill("#fullName", "Dupe Person");
   await dupePage.fill("#phone", "9123456780");
-  await dupePage.selectOption("#locality", "koramangala");
+  await pickPlace(dupePage, "home", "karnataka", "bengaluru", "koramangala");
   await dupePage.check('input[name="terms"]');
   await dupePage.click('form:has(#fullName) button[type=submit]');
   await dupePage.waitForSelector(".notice.alert", { timeout: 15000 });

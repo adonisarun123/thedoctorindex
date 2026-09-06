@@ -334,7 +334,7 @@ export async function getDoctorAdmin(id: string) {
       registrations: true,
       qualifications: { orderBy: (q, { asc }) => [asc(q.sort)] },
       experience: { orderBy: (e, { asc }) => [asc(e.sort)] },
-      practices: { with: { facility: true }, orderBy: (p, { asc }) => [asc(p.sort)] },
+      practices: { with: { facility: { with: { locality: true } } }, orderBy: (p, { asc }) => [asc(p.sort)] },
       reviews: { with: { response: true, evidenceFiles: true }, orderBy: (r, { desc }) => [desc(r.submittedAt)] },
       changeRequests: { orderBy: (c, { desc }) => [desc(c.createdAt)] },
       checks: { orderBy: (c, { desc }) => [desc(c.checkedOn)] },

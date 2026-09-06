@@ -8,6 +8,7 @@ import { addPractice } from "@/lib/services/doctors";
 import { removeDoctorPhoto, setDoctorPhoto } from "@/lib/services/photos";
 import { reportReview, submitResponse } from "@/lib/services/reviews";
 import { inviteManager, revokeManager, submitChange } from "@/lib/services/workflow";
+import { localityFromForm } from "@/lib/services/places";
 
 export interface DashState {
   ok?: boolean;
@@ -123,7 +124,7 @@ export async function addPracticeAction(_prev: DashState, form: FormData): Promi
       ctx.doctorId,
       {
         facilityName: String(form.get("facility") ?? "").trim(),
-        localityKey: String(form.get("locality") ?? ""),
+        localityKey: (await localityFromForm(form)) ?? "",
         address: String(form.get("address") ?? "").trim(),
         postalCode: String(form.get("postal") ?? "").trim(),
         days: String(form.get("days") ?? "").trim(),

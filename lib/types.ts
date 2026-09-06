@@ -7,19 +7,14 @@
  * already written against these types.
  */
 
-export type SpecialtyKey =
-  | "cardiology"
-  | "dermatology"
-  | "orthopaedics"
-  | "paediatrics";
-
-export type LocalityKey =
-  | "indiranagar"
-  | "koramangala"
-  | "jayanagar"
-  | "whitefield"
-  | "hsr-layout"
-  | "malleshwaram";
+/**
+ * Speciality keys are the ids of the static registry in lib/data/specialties.ts
+ * (mirrored into the `specialties` table). Locality keys are database rows.
+ * Both were closed unions while only Bengaluru was open; they are open strings
+ * now that the taxonomy is data.
+ */
+export type SpecialtyKey = string;
+export type LocalityKey = string;
 
 export interface Specialty {
   key: SpecialtyKey;
@@ -44,20 +39,39 @@ export interface Specialty {
   guide: string;
   /** "When to consult" bullets shown on listing and speciality pages. */
   when: string[];
-  /** Date of the last substantive medical review of `guide` and `when`. */
+  /** Date of the last substantive medical review of `guide` and `when`; "" until reviewed. */
   reviewedOn: string;
+  /** Which register governs the practitioner. */
+  system: "modern" | "dental" | "ayush" | "allied" | "alternative";
+  /** Speciality strings used by imported datasets that map onto this entry. */
+  sourceLabels: string[];
 }
 
 export interface Locality {
+  /** Globally unique id, e.g. "indiranagar" (legacy) or "indore-vijay-nagar". */
   key: LocalityKey;
+  /** URL segment within its city, e.g. "vijay-nagar". Unique per city. */
+  slug: string;
   name: string;
   city: string;
   citySlug: string;
   state: string;
   stateSlug: string;
-  /** Approximate centroid, WGS84. */
-  lat: number;
-  lng: number;
+  /** Approximate centroid, WGS84; null until geocoded. */
+  lat: number | null;
+  lng: number | null;
+}
+
+export interface City {
+  slug: string;
+  name: string;
+  state: string;
+  stateSlug: string;
+}
+
+export interface State {
+  slug: string;
+  name: string;
 }
 
 /** Whether a claim on the profile has been checked, and against what. */
@@ -92,6 +106,13 @@ export interface Practice {
   facilityId?: string;
   facility: string;
   locality: LocalityKey;
+  /** Denormalised place names, filled by the data layer so components never look keys up. */
+  localityName: string;
+  localitySlug: string;
+  city: string;
+  citySlug: string;
+  state: string;
+  stateSlug: string;
   address: string;
   postalCode: string;
   days: string;
@@ -181,6 +202,8 @@ export interface DoctorView extends Doctor {
   lifecycle?: "draft" | "submitted" | "in_review" | "published" | "suspended" | "retired" | "archived";
   yearsOfExperience: number;
   localities: LocalityKey[];
+  /** Distinct city slugs the doctor practises in, primary first. */
+  citySlugs: string[];
   /** True when every hard indexation gate passes. See lib/seo/gates.ts. */
   indexable: boolean;
   /** True where at least one published review carries validated visit evidence. */

@@ -4,37 +4,28 @@ import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { HomeSearch } from "@/components/HomeSearch";
 import { RouteMeta } from "@/components/RouteMeta";
-import { countIndexable, getAllDoctors, getDoctorsByLocality } from "@/lib/data";
+import { countsByCity, countsBySpecialty, getFeatured, totals } from "@/lib/data";
+import { getGeo } from "@/lib/data/geo";
 import { GUIDES } from "@/lib/data/guides";
-import { CITY, LOCALITIES, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
 import { pageMeta } from "@/lib/seo/meta";
-import { SITE, absoluteUrl, paths } from "@/lib/site";
+import { HOME_CITY, SITE, absoluteUrl, paths } from "@/lib/site";
 
 export const metadata: Metadata = {
   ...pageMeta({ title: SITE.tagline, description: SITE.description, path: "/" }),
   title: { absolute: `${SITE.name} — ${SITE.tagline}` },
 };
 
+export const revalidate = 3600;
+
 export default async function HomePage() {
-  const all = await getAllDoctors();
-  const indexable = all.filter((d) => d.indexable).length;
-  const claimed = all.filter((d) => d.claimed).length;
-  const practices = all.reduce((n, d) => n + d.practices.length, 0);
-  const countBySpecialty = Object.fromEntries(await Promise.all(SPECIALTY_KEYS.map(async (k) => [k, await countIndexable(k)])));
-  const localityCounts = Object.fromEntries(
-    await Promise.all(
-      LOCALITY_KEYS.map(async (k) => {
-        const n = (await getDoctorsByLocality(k)).filter((d) => d.indexable).length;
-        const perSpecialty = await Promise.all(SPECIALTY_KEYS.map((sk) => countIndexable(sk, k)));
-        return [k, { n, open: perSpecialty.some((c) => c >= GATES.localitySpecialty) }];
-      }),
-    ),
-  ) as Record<string, { n: number; open: boolean }>;
-  const recentlyVerified = [...all]
-    .filter((d) => d.indexable && d.claimed)
-    .sort((a, b) => b.qualityScore - a.qualityScore)
-    .slice(0, 4);
+  const [t, countBySpecialty, listedBySpecialty, cityCounts, cityListed, geo, recentlyVerified] = await Promise.all([totals(), countsBySpecialty(), countsBySpecialty(undefined, "published"), countsByCity(), countsByCity(undefined, "published"), getGeo(), getFeatured(4)]);
+  const { indexable, claimed, practices } = t;
+  const topSpecialties = [...SPECIALTY_KEYS].sort((a, b) => (countBySpecialty[b] ?? 0) - (countBySpecialty[a] ?? 0) || (listedBySpecialty[b] ?? 0) - (listedBySpecialty[a] ?? 0)).slice(0, 8);
+  const verifiedByCity = new Map(cityCounts.map((c) => [`${c.stateSlug}/${c.citySlug}`, c.n]));
+  const topCities = cityListed.map((c) => ({ ...c, v: verifiedByCity.get(`${c.stateSlug}/${c.citySlug}`) ?? 0, city: geo.city(c.stateSlug, c.citySlug) })).filter((c) => c.city).sort((a, b) => b.v - a.v || b.n - a.n).slice(0, 8);
+  const statesOpen = new Set(cityListed.filter((c) => c.n > 0).map((c) => c.stateSlug)).size;
 
   return (
     <>
@@ -57,7 +48,7 @@ export default async function HomePage() {
       <section className="hero">
         <div className="wrap hero-grid">
           <div className="rise">
-            <span className="eyebrow">Bengaluru launch cluster · 4 specialities</span>
+            <span className="eyebrow">{statesOpen ? `${statesOpen} ${statesOpen === 1 ? "state" : "states"} · ` : ""}{SPECIALTY_KEYS.length} specialities · verified against the registers</span>
             <h1 style={{ marginTop: "12px" }}>Find a doctor, and see exactly what has been checked.</h1>
             <p className="lede">
               Every profile shows which claims were verified, against which source, and on what date.
@@ -67,10 +58,10 @@ export default async function HomePage() {
             <HomeSearch />
             <div className="quick">
               <span>Try:</span>
-              <Link className="chip" href={paths.citySpecialty(CITY.stateSlug, CITY.slug, "cardiologists")}>
-                Cardiologists in Bengaluru
+              <Link className="chip" href={paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, "cardiologists")}>
+                Cardiologists in {HOME_CITY.name}
               </Link>
-              <Link className="chip" href={paths.citySpecialty(CITY.stateSlug, CITY.slug, "paediatricians")}>
+              <Link className="chip" href={paths.specialty("paediatrics")}>
                 Paediatricians
               </Link>
               <Link className="chip" href={paths.doctor("shalini-prakash-e8c451")}>
@@ -114,18 +105,18 @@ export default async function HomePage() {
         <div className="wrap">
           <div className="section-head">
             <h2>Browse by department</h2>
-            <Link href={`/doctors/${CITY.stateSlug}/${CITY.slug}`} style={{ fontSize: "13.5px" }}>
-              All of {CITY.name} by speciality and locality →
+            <Link href="/specialties" style={{ fontSize: "13.5px" }}>
+              All {SPECIALTY_KEYS.length} specialities →
             </Link>
           </div>
           <div className="deptgrid">
-            {SPECIALTY_KEYS.map((k) => {
+            {topSpecialties.map((k) => {
               const s = SPECIALTIES[k];
               return (
-                <Link key={k} className="dept" href={paths.citySpecialty(CITY.stateSlug, CITY.slug, s.slug)}>
+                <Link key={k} className="dept" href={paths.specialty(k)}>
                   <div className="d">{s.department}</div>
                   <div className="n">{s.name}</div>
-                  <div className="c">{countBySpecialty[k]} verified in {CITY.name}</div>
+                  <div className="c">{(countBySpecialty[k] ?? 0).toLocaleString("en-IN")} verified · {(listedBySpecialty[k] ?? 0).toLocaleString("en-IN")} listed</div>
                 </Link>
               );
             })}
@@ -176,7 +167,7 @@ export default async function HomePage() {
             <div>
               <div className="section-head">
                 <h2>Recently verified</h2>
-                <span className="eyebrow">Claimed · quality ≥ 90</span>
+                <span className="eyebrow">Claimed and verified first</span>
               </div>
               <div className="rows">
                 {recentlyVerified.map((d) => (
@@ -187,7 +178,7 @@ export default async function HomePage() {
                         Dr {d.name}
                       </Link>
                       <div className="s">
-                        {SPECIALTIES[d.specialty].one} · {LOCALITIES[d.practices[0].locality].name} ·
+                        {SPECIALTIES[d.specialty].one} · {d.practices[0]?.localityName ?? "—"} ·
                         verified {d.lastVerifiedOn}
                       </div>
                     </div>
@@ -204,27 +195,26 @@ export default async function HomePage() {
 
             <div>
               <div className="section-head">
-                <h2>By locality</h2>
-                <span className="eyebrow">{CITY.name}</span>
+                <h2>By city</h2>
+                <Link href="/doctors" style={{ fontSize: "13.5px" }}>All states →</Link>
               </div>
               <div className="locgrid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                {LOCALITY_KEYS.map((k) => {
-                  const { n, open } = localityCounts[k];
-                  return (
-                    <Link
-                      key={k}
-                      className={`loc${open ? "" : " off"}`}
-                      href={`/doctors/${CITY.stateSlug}/${CITY.slug}#localities`}
-                    >
-                      <span className="n">{LOCALITIES[k].name}</span>
-                      <span className="c">{n} verified</span>
-                    </Link>
-                  );
-                })}
+                {topCities.map((c) => (
+                  <Link key={`${c.stateSlug}/${c.citySlug}`} className="loc" href={`/doctors/${c.stateSlug}/${c.citySlug}`}>
+                    <span className="n">{c.city!.name}</span>
+                    <span className="c">{c.v.toLocaleString("en-IN")} verified · {c.n.toLocaleString("en-IN")} listed</span>
+                  </Link>
+                ))}
+                {topCities.length === 0 ? (
+                  <Link className="loc off" href="/doctors">
+                    <span className="n">No city has profiles yet</span>
+                    <span className="c">browse states</span>
+                  </Link>
+                ) : null}
               </div>
               <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
-                A locality page opens for a speciality at {GATES.localitySpecialty} verified doctors.
-                Dashed localities are served but not yet indexed.
+                A city × speciality page enters search results at {GATES.citySpecialty} verified doctors, a locality page at {GATES.localitySpecialty}.
+                Every page is reachable by link meanwhile.
               </p>
             </div>
           </div>

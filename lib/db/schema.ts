@@ -189,6 +189,8 @@ export const localities = pgTable("localities", {
   citySlug: text("city_slug").notNull(),
   state: text("state").notNull(),
   stateSlug: text("state_slug").notNull(),
+  /** URL segment within the city; unique per (state, city). Legacy rows: slug = key. */
+  slug: text("slug").notNull(),
   lat: text("lat"),
   lng: text("lng"),
   active: boolean("active").notNull().default(true),
@@ -234,6 +236,10 @@ export const doctors = pgTable(
     phoneConsent: boolean("phone_consent").notNull().default(true),
     /** Where the record came from: self | staff | import | claim */
     source: text("source").notNull().default("self"),
+    /** Stable id within the source dataset (import de-duplication). */
+    sourceRef: text("source_ref"),
+    /** Where the record was read from, for provenance display and audit. */
+    sourceUrl: text("source_url"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

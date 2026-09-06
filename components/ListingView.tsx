@@ -8,16 +8,16 @@ import { NearMe } from "@/components/NearMe";
 import { FilterRail } from "@/components/FilterRail";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
-import { allLanguages, applyFilters, countIndexable, getDoctorsBySpecialty } from "@/lib/data";
-import { CITY, LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
+import { LISTING_CAP, LISTING_PAGE, allLanguages, applyFilters, countIndexable, countsByLocality, getListing } from "@/lib/data";
+import { getGeo } from "@/lib/data/geo";
 import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
 import { sortBy } from "@/lib/ranking";
 import { GATES } from "@/lib/seo/gates";
 import { breadcrumbLd, listingLd } from "@/lib/seo/structured-data";
 import { SITE, paths } from "@/lib/site";
-import type { ListingFilters, Locality, Specialty } from "@/lib/types";
+import type { City, ListingFilters, Locality, Specialty } from "@/lib/types";
 
-export function parseFilters(sp: Record<string, string | string[] | undefined>): ListingFilters {
+export function parseFilters(sp: Record<string, string | string[] | undefined>, validLocality: (key: string) => boolean): ListingFilters {
   const one = (k: string): string | undefined => {
     const v = sp[k];
     return Array.isArray(v) ? v[0] : v;
@@ -25,7 +25,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
   const locality = one("locality");
   const gender = one("gender");
   return {
-    locality: locality && locality in LOCALITIES ? (locality as ListingFilters["locality"]) : undefined,
+    locality: locality && validLocality(locality) ? locality : undefined,
     online: one("online") === "1",
     gender: gender === "F" || gender === "M" ? gender : undefined,
     language: one("language") || undefined,
@@ -38,60 +38,70 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
 
 export async function ListingView({
   specialty,
+  city,
   locality,
   searchParams,
   routeMeta,
 }: {
   specialty: Specialty;
+  city: City;
   locality: Locality | null;
   searchParams: Record<string, string | string[] | undefined>;
   routeMeta: RouteMetaData;
 }) {
-  const filters = parseFilters(searchParams);
+  const geo = await getGeo();
+  const cityLocalities = geo.localitiesIn(city.slug).filter((l) => l.stateSlug === city.stateSlug);
+  const localityKeySet = new Set(cityLocalities.map((l) => l.key));
+  const filters = parseFilters(searchParams, (k) => localityKeySet.has(k));
   const sortParam = (Array.isArray(searchParams.sort) ? searchParams.sort[0] : searchParams.sort) ?? "relevance";
   const sortMode: "relevance" | "experience" | "reviews" =
     sortParam === "experience" || sortParam === "reviews" ? sortParam : "relevance";
 
-  const base = await getDoctorsBySpecialty(specialty.key);
-  const scoped = locality ? base.filter((d) => d.localities.includes(locality.key)) : base;
+  const place = locality ? { localityKey: locality.key } : { stateSlug: city.stateSlug, citySlug: city.slug };
+  const scoped = await getListing(specialty.key, place);
   const filtered = applyFilters(scoped, filters);
   const ctx = { specialty: specialty.key, locality: locality?.key ?? filters.locality };
+  const cityPath = paths.citySpecialty(city.stateSlug, city.slug, specialty.slug);
+  const canonicalPath = locality ? paths.localitySpecialty(city.stateSlug, city.slug, locality.slug, specialty.slug) : cityPath;
   const near = parseNear(searchParams.near);
-  const results = near ? sortByDistance(filtered, near) : sortBy(filtered, sortMode, ctx);
+  const ordered = near ? sortByDistance(filtered, near) : sortBy(filtered, sortMode, ctx);
+  const pageNo = Math.max(1, Math.min(Math.ceil(ordered.length / LISTING_PAGE) || 1, Number(Array.isArray(searchParams.page) ? searchParams.page[0] : searchParams.page) || 1));
+  const results = ordered.slice((pageNo - 1) * LISTING_PAGE, pageNo * LISTING_PAGE);
+  const pageCount = Math.ceil(ordered.length / LISTING_PAGE);
+  const pageHref = (n: number) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(searchParams)) if (k !== "page" && typeof v === "string" && v) qs.set(k, v);
+    if (n > 1) qs.set("page", String(n));
+    const q = qs.toString();
+    return q ? `${canonicalPath}?${q}` : canonicalPath;
+  };
 
-  const canonicalPath = locality
-    ? paths.localitySpecialty(locality.stateSlug, locality.citySlug, locality.key, specialty.slug)
-    : paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug);
 
-  const placeName = locality ? `${locality.name}, ${locality.city}` : CITY.name;
+  const placeName = locality ? `${locality.name}, ${city.name}` : city.name;
   const heading = `${specialty.plural} in ${placeName}`;
 
-  const indexableHere = await countIndexable(specialty.key, locality?.key);
+  const indexableHere = await countIndexable(specialty.key, place);
   const threshold = locality ? GATES.localitySpecialty : GATES.citySpecialty;
   const belowThreshold = indexableHere < threshold;
 
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
-    { name: CITY.state, path: paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug) },
-    { name: CITY.name, path: paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug) },
-    ...(locality
-      ? [{ name: locality.name, path: canonicalPath }]
-      : []),
-    { name: specialty.plural },
+    { name: city.state, path: `/doctors/${city.stateSlug}` },
+    { name: city.name, path: `/doctors/${city.stateSlug}/${city.slug}` },
+    ...(locality ? [{ name: specialty.plural, path: cityPath }, { name: locality.name }] : [{ name: specialty.plural }]),
   ];
 
   // Localities that clear the supply gate get a crawlable link from this page.
   // Ones that do not are simply absent — we never link into a thin page.
-  const localityKeys = Object.keys(LOCALITIES) as Array<keyof typeof LOCALITIES>;
-  const localityCounts = locality ? [] : await Promise.all(localityKeys.map((k) => countIndexable(specialty.key, k)));
-  const localityLinks = locality ? [] : localityKeys.filter((_, i) => localityCounts[i] >= GATES.localityLinkMin);
+  const localityCounts = locality ? {} : await countsByLocality(city.slug, specialty.key);
+  const localityLinks = locality ? [] : cityLocalities.filter((l) => (localityCounts[l.key] ?? 0) >= GATES.localityLinkMin);
 
   return (
     <>
       <RouteMeta data={routeMeta} />
       <JsonLd
         data={[
-          listingLd(specialty, placeName, canonicalPath, results),
+          listingLd(specialty, placeName, canonicalPath, results, { city: city.name, state: city.state }),
           breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path }))),
         ]}
       />
@@ -99,7 +109,7 @@ export async function ListingView({
 
       <div className="wrap">
         <div className="listing">
-          <FilterRail languages={allLanguages(base)} />
+          <FilterRail languages={allLanguages(scoped)} localities={cityLocalities.map((l) => ({ key: l.key, name: l.name }))} cityName={city.name} />
 
           <div>
             {belowThreshold ? (
@@ -115,7 +125,7 @@ export async function ListingView({
               <div>
                 <h1 style={{ fontSize: "1.75rem" }}>{heading}</h1>
                 <div className="count">
-                  {results.length} of {scoped.length} profiles shown · {indexableHere} pass the index
+                  {ordered.length === results.length ? `${results.length} of ${scoped.length}${scoped.length >= LISTING_CAP ? "+" : ""} profiles shown` : `Showing ${(pageNo - 1) * LISTING_PAGE + 1}–${(pageNo - 1) * LISTING_PAGE + results.length} of ${ordered.length}${scoped.length >= LISTING_CAP ? "+" : ""} profiles`} · {indexableHere} pass the index
                   gate · data checked to {SITE.dataSnapshot}
                 </div>
               </div>
@@ -128,11 +138,20 @@ export async function ListingView({
             </div>
 
             {results.length > 0 ? (
-              <div className="rows">
-                {results.map((d) => (
-                  <DoctorRow key={d.slug} doctor={d} ctx={ctx} distance={near ? nearestKm(d, near) : null} />
-                ))}
-              </div>
+              <>
+                <div className="rows">
+                  {results.map((d) => (
+                    <DoctorRow key={d.slug} doctor={d} ctx={ctx} distance={near ? nearestKm(d, near) : null} />
+                  ))}
+                </div>
+                {pageCount > 1 ? (
+                  <nav className="quick" aria-label="More results" style={{ marginTop: "14px", justifyContent: "space-between" }}>
+                    {pageNo > 1 ? <Link className="btn quiet" href={pageHref(pageNo - 1)} rel="prev">← Previous {LISTING_PAGE}</Link> : <span />}
+                    <span className="mono" style={{ fontSize: "12.5px", color: "var(--muted)" }}>Page {pageNo} of {pageCount}</span>
+                    {pageNo < pageCount ? <Link className="btn quiet" href={pageHref(pageNo + 1)} rel="next">Next {Math.min(LISTING_PAGE, ordered.length - pageNo * LISTING_PAGE)} →</Link> : <span />}
+                  </nav>
+                ) : null}
+              </>
             ) : (
               <div className="rows">
                 <div className="zero">
@@ -157,6 +176,7 @@ export async function ListingView({
               </div>
             )}
 
+            {specialty.guide ? (
             <div className="panel pad" style={{ marginTop: "22px" }}>
               <h2 style={{ fontSize: "1.22rem", marginBottom: "8px" }}>
                 When to consult {specialty.aOne}
@@ -181,23 +201,23 @@ export async function ListingView({
                 not advice about your situation.
               </p>
             </div>
+            ) : (
+            <div className="panel pad" style={{ marginTop: "22px" }}>
+              <h2 style={{ fontSize: "1.22rem", marginBottom: "8px" }}>About {specialty.name.toLowerCase()}</h2>
+              <p style={{ fontSize: "14.5px", color: "var(--ink-2)", maxWidth: "66ch" }}>
+                Guidance on when to consult {specialty.aOne} is being written and medically reviewed. Until it is signed off this page is
+                kept out of search results; the profiles themselves are complete and usable.
+              </p>
+            </div>
+            )}
 
             {localityLinks.length > 0 ? (
               <div className="panel pad" style={{ marginTop: "14px" }}>
                 <div className="eyebrow">Localities with enough verified supply</div>
                 <div className="quick" style={{ marginTop: "10px" }}>
-                  {localityLinks.map((k) => (
-                    <Link
-                      key={k}
-                      className="chip"
-                      href={paths.localitySpecialty(
-                        LOCALITIES[k].stateSlug,
-                        LOCALITIES[k].citySlug,
-                        k,
-                        specialty.slug,
-                      )}
-                    >
-                      {LOCALITIES[k].name}
+                  {localityLinks.map((l) => (
+                    <Link key={l.key} className="chip" href={paths.localitySpecialty(city.stateSlug, city.slug, l.slug, specialty.slug)}>
+                      {l.name}
                     </Link>
                   ))}
                 </div>

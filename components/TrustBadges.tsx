@@ -1,4 +1,5 @@
 import type { DoctorView } from "@/lib/types";
+import { hasDate, registrationLabel, registrationState } from "@/lib/verification";
 
 /**
  * Verification labels.
@@ -9,19 +10,20 @@ import type { DoctorView } from "@/lib/types";
  * /policies/verification, and the two must be changed together.
  */
 export function TrustBadges({ doctor }: { doctor: DoctorView }) {
-  const qualificationsPending = doctor.qualifications.some((q) => q.state === "submitted");
+  const reg = registrationState(doctor);
+  const qualsVerified = doctor.qualifications.length > 0 && doctor.qualifications.every((q) => q.state === "verified");
+  const qualsNone = doctor.qualifications.length === 0;
   const stale = doctor.status === "stale";
+  const confirmedOn = doctor.practices[0]?.confirmedOn;
 
   return (
     <div className="badges">
-      <span className="badge ok">Registration verified</span>
-      <span className={`badge ${qualificationsPending ? "wait" : "ok"}`}>
-        {qualificationsPending ? "Qualification partly pending" : "Qualification verified"}
+      <span className={`badge ${reg === "verified" ? "ok" : reg === "submitted" ? "wait" : "neut"}`}>{registrationLabel(doctor)}</span>
+      <span className={`badge ${qualsVerified ? "ok" : qualsNone ? "neut" : "wait"}`}>
+        {qualsVerified ? "Qualification verified" : qualsNone ? "No qualification on record" : doctor.qualifications.some((q) => q.state === "verified") ? "Qualification partly pending" : "Qualification not yet checked"}
       </span>
       <span className={`badge ${stale ? "warn" : "ok"}`}>
-        {stale
-          ? `Practice not confirmed since ${doctor.practices[0]?.confirmedOn}`
-          : "Practice confirmed"}
+        {stale ? (hasDate(confirmedOn) ? `Practice not confirmed since ${confirmedOn}` : "Practice not yet confirmed") : "Practice confirmed"}
       </span>
       <span className={`badge ${doctor.claimed ? "ok" : "neut"}`}>
         {doctor.claimed ? "Claimed by doctor" : "Unclaimed"}

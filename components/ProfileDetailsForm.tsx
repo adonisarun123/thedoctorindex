@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { saveProfileDetailsAction } from "@/app/account/actions";
 import { ActionForm } from "@/components/ActionForm";
-import { LOCALITIES, LOCALITY_KEYS } from "@/lib/data/taxonomy";
+import { PlacePicker } from "@/components/PlacePicker";
 import { paths } from "@/lib/site";
 
 export interface ProfileDetailsUser {
@@ -11,6 +11,8 @@ export interface ProfileDetailsUser {
   displayName: string | null;
   localityKey: string | null;
   city?: string | null;
+  stateSlug?: string | null;
+  citySlug?: string | null;
   marketingOptIn?: boolean;
   profileComplete: boolean;
 }
@@ -52,19 +54,8 @@ export function ProfileDetailsForm({ user, next, submitLabel }: { user: ProfileD
       </div>
       <div className="two">
         <div className="field">
-          <label htmlFor="locality">Your locality</label>
-          <select id="locality" name="locality" defaultValue={user.localityKey ?? (user.city ? "elsewhere" : "")} required>
-            <option value="" disabled>Choose…</option>
-            {LOCALITY_KEYS.map((k) => (
-              <option key={k} value={k}>{LOCALITIES[k].name}, {LOCALITIES[k].city}</option>
-            ))}
-            <option value="elsewhere">Somewhere else</option>
-          </select>
+          <PlacePicker level="locality" idPrefix="home" initial={{ stateSlug: user.stateSlug ?? undefined, citySlug: user.citySlug ?? undefined, localityKey: user.localityKey ?? undefined }} labels={{ state: "Your state", city: "Your city / district", locality: "Your locality (optional)" }} />
           <div className="hint">Used to order results near you. Never shown publicly.</div>
-        </div>
-        <div className="field">
-          <label htmlFor="city">City (if somewhere else)</label>
-          <input id="city" name="city" type="text" autoComplete="address-level2" defaultValue={user.localityKey ? "" : (user.city ?? "")} placeholder="Mysuru" />
         </div>
       </div>
       {first ? (

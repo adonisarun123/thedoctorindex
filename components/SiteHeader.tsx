@@ -7,8 +7,8 @@ import { Suspense, useEffect, useState } from "react";
 import { AccountMenu } from "@/components/AccountMenu";
 import { HeaderSearch } from "@/components/HeaderSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { CITY, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
-import { SITE, paths } from "@/lib/site";
+import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { SITE, paths, HOME_CITY } from "@/lib/site";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -55,9 +55,9 @@ export function SiteHeader() {
 
       <div id="mobnav" className={`mobnav${open ? " open" : ""}`}>
         <div className="wrap">
-          <div className="h">Browse {CITY.name}</div>
+          <div className="h">Browse {HOME_CITY.name}</div>
           {SPECIALTY_KEYS.map((k) => (
-            <Link key={k} href={paths.citySpecialty(CITY.stateSlug, CITY.slug, SPECIALTIES[k].slug)}>
+            <Link key={k} href={paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, SPECIALTIES[k].slug)}>
               {SPECIALTIES[k].plural}
             </Link>
           ))}

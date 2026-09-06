@@ -7,7 +7,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
 import { countIndexable } from "@/lib/data";
 import { GUIDES, guideBySlug } from "@/lib/data/guides";
-import { CITY, SPECIALTIES } from "@/lib/data/taxonomy";
+import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { breadcrumbLd, guideLd, isoDate } from "@/lib/seo/structured-data";
 import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
@@ -97,11 +97,11 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
             <div className="panel pad" style={{ marginTop: "30px" }}>
               <div className="eyebrow">Find {specialty.aOne}</div>
               <p style={{ marginTop: "8px", marginBottom: "12px" }}>
-                {countIndexable(specialty.key)} verified {specialty.plural.toLowerCase()} in {CITY.name},
+                {countIndexable(specialty.key)} verified {specialty.plural.toLowerCase()} across India,
                 each with registration, qualifications and current practice checked and dated.
               </p>
-              <Link className="btn" href={paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug)} style={{ display: "inline-block" }}>
-                {specialty.plural} in {CITY.name}
+              <Link className="btn" href={paths.specialty(specialty.key)} style={{ display: "inline-block" }}>
+                Find {specialty.plural.toLowerCase()} by city
               </Link>
             </div>
           ) : null}

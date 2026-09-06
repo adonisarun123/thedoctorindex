@@ -7,9 +7,9 @@ import { RouteInspector } from "@/components/RouteInspector";
 import { SiteHeader } from "@/components/SiteHeader";
 import { THEME_BOOT_SCRIPT } from "@/components/ThemeToggle";
 import { activeSourceName } from "@/lib/data";
-import { SPECIALTIES, SPECIALTY_KEYS, CITY } from "@/lib/data/taxonomy";
+import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { env } from "@/lib/env";
-import { SITE, absoluteUrl, paths } from "@/lib/site";
+import { SITE, absoluteUrl, paths, HOME_CITY } from "@/lib/site";
 import { organizationLd, webSiteLd } from "@/lib/seo/structured-data";
 
 /*
@@ -161,12 +161,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <li><Link href="/doctors">All locations</Link></li>
                   <li><Link href="/specialties">All specialities</Link></li>
                   <li><Link href="/health-guides">Health guides</Link></li>
-                  {SPECIALTY_KEYS.map((k) => (
+                  {SPECIALTY_KEYS.filter((k) => SPECIALTIES[k].guide).map((k) => (
                     <li key={k}>
                       <Link
-                        href={paths.citySpecialty(CITY.stateSlug, CITY.slug, SPECIALTIES[k].slug)}
+                        href={paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, SPECIALTIES[k].slug)}
                       >
-                        {SPECIALTIES[k].plural} in {CITY.name}
+                        {SPECIALTIES[k].plural} in {HOME_CITY.name}
                       </Link>
                     </li>
                   ))}

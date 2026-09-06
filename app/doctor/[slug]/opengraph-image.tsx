@@ -1,13 +1,16 @@
-import { getAllDoctors, getDoctorBySlug } from "@/lib/data";
-import { CITY, SPECIALTIES } from "@/lib/data/taxonomy";
+import { getDoctorBySlug } from "@/lib/data";
+import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { OG_CONTENT_TYPE, OG_SIZE, ogCard } from "@/lib/seo/og";
 import { SITE } from "@/lib/site";
 
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
-export async function generateStaticParams() {
-  return (await getAllDoctors()).map((d) => ({ slug: d.slug }));
+export const revalidate = 3600;
+export const dynamicParams = true;
+
+export function generateStaticParams() {
+  return [];
 }
 
 /**
@@ -23,17 +26,17 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const initials = d.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
   const verifiedDegrees = d.qualifications.filter((q) => q.state === "verified").map((q) => q.degree);
   const chips = [
-    `Reg. ${d.registration.council} · checked ${d.registration.checkedOn}`,
+    d.registration.checkedOn && d.registration.checkedOn !== "—" ? `Reg. ${d.registration.council} · checked ${d.registration.checkedOn}` : "Registration not yet checked",
     verifiedDegrees.length ? verifiedDegrees.slice(0, 2).join(", ") : "Qualification submitted",
     `${d.yearsOfExperience}+ years`,
-    d.practices[0] ? d.practices[0].facility : CITY.name,
+    d.practices[0] ? d.practices[0].facility : "India",
   ];
   return ogCard({
-    eyebrow: `${sp.one} · ${CITY.name}`,
+    eyebrow: `${sp.one} · ${d.practices[0]?.city || "India"}`,
     title: `Dr ${d.name}`,
     subtitle: d.subspecialties.length ? d.subspecialties.slice(0, 3).join(" · ") : sp.name,
     chips,
     initials,
-    kicker: d.claimed ? "Verified · claimed profile" : "Verified profile",
+    kicker: d.claimed ? "Verified · claimed profile" : d.indexable ? "Verified profile" : "Profile · verification pending",
   });
 }

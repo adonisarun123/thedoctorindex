@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 
 import { photoAdminAction, addPracticeAdminAction, addQualificationAdminAction, mergeDoctorAction, registrationCheckAction, qualificationStateAction, setStatusAction, updateDoctorFieldsAction, updatePracticeAdminAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
-import { LOCALITIES, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { PlacePicker } from "@/components/PlacePicker";
+import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
@@ -104,10 +105,8 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
                 <div className="qm" style={{ marginBottom: "8px" }}>
                   <span className="mono">{p.id.slice(0, 8)}</span> · {p.active ? "active" : "removed"} · confirmed {p.confirmedOn ? toDisplay(p.confirmedOn) : p.facility.confirmedOn ? `${toDisplay(p.facility.confirmedOn)} (facility)` : "never"} · fee checked {p.feeCheckedOn ? toDisplay(p.feeCheckedOn) : "never"}
                 </div>
-                <div className="two" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
-                  <div className="field"><label>Facility</label><input type="text" name="facility" defaultValue={p.facility.name} /></div>
-                  <div className="field"><label>Locality</label><select name="locality" defaultValue={p.facility.localityKey}>{LOCALITY_KEYS.map((k) => <option key={k} value={k}>{LOCALITIES[k].name}</option>)}</select></div>
-                </div>
+                <div className="field"><label>Facility</label><input type="text" name="facility" defaultValue={p.facility.name} /></div>
+                <PlacePicker idPrefix={`practice-${p.id.slice(0, 8)}`} initial={{ stateSlug: p.facility.locality?.stateSlug, citySlug: p.facility.locality?.citySlug, localityKey: p.facility.localityKey }} required={false} />
                 <div className="two" style={{ gridTemplateColumns: "1.6fr 140px" }}>
                   <div className="field"><label>Address</label><input type="text" name="address" defaultValue={p.facility.address} /></div>
                   <div className="field"><label>PIN</label><input type="text" name="postal" defaultValue={p.facility.postalCode ?? ""} /></div>
@@ -131,10 +130,8 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
               <summary style={{ cursor: "pointer", fontSize: "13.5px", color: "var(--accent)" }}>Add a practice</summary>
               <ActionForm action={addPracticeAdminAction} submitLabel="Add practice" variant="outline" resetOnSuccess style={{ marginTop: "10px" }}>
                 <input type="hidden" name="doctorId" value={d.id} />
-                <div className="two" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
-                  <div className="field"><label>Facility</label><input type="text" name="facility" required /></div>
-                  <div className="field"><label>Locality</label><select name="locality" defaultValue={LOCALITY_KEYS[0]}>{LOCALITY_KEYS.map((k) => <option key={k} value={k}>{LOCALITIES[k].name}</option>)}</select></div>
-                </div>
+                <div className="field"><label>Facility</label><input type="text" name="facility" required /></div>
+                <PlacePicker idPrefix="practice-new" />
                 <div className="two" style={{ gridTemplateColumns: "1.6fr 140px" }}>
                   <div className="field"><label>Address</label><input type="text" name="address" required /></div>
                   <div className="field"><label>PIN</label><input type="text" name="postal" /></div>

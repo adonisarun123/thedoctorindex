@@ -98,7 +98,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
                 slug: doctor.slug,
                 name: doctor.name,
                 specialtyOne: specialty.one,
-                practices: doctor.practices.map((p) => ({ id: p.id, facility: p.facility, locality: LOCALITIES[p.locality].name })),
+                practices: doctor.practices.map((p) => ({ id: p.id, facility: p.facility, locality: p.localityName })),
                 contact: user ? { name: user.displayName ?? "", phone: user.phone ?? "" } : null,
                 reviews: doctor.reviews.map((r) => ({ id: r.id, author: r.author, visitMonth: r.visitMonth })),
               }}

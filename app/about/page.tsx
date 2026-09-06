@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
-import { getAllDoctors } from "@/lib/data";
+import { totals } from "@/lib/data";
 import { breadcrumbLd } from "@/lib/seo/structured-data";
 import { pageMeta } from "@/lib/seo/meta";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
@@ -16,7 +16,7 @@ export const metadata: Metadata = pageMeta({
 });
 
 export default async function AboutPage() {
-  const all = await getAllDoctors();
+  const t = await totals();
   const crumbs = [{ name: "Home", path: paths.home() }, { name: "About" }];
   return (
     <>
@@ -76,9 +76,9 @@ export default async function AboutPage() {
 
           <h2>Where we are</h2>
           <p>
-            Bengaluru first, four specialities, {all.filter((d) => d.indexable).length} indexable
-            profiles. Doctors anywhere in India can create a profile today; cities open to search as
-            verified supply reaches the threshold for their pages to be useful.
+            {t.published.toLocaleString("en-IN")} published profiles across {t.cities.toLocaleString("en-IN")} cities, of which{" "}
+            {t.indexable.toLocaleString("en-IN")} have passed every verification gate. Doctors anywhere in India can create a
+            profile today; a city opens to search as verified supply reaches the threshold for its pages to be useful.
           </p>
 
           <h2>Commitments that do not change</h2>

@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { CITY, resolveLocalityQuery, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
-import { paths } from "@/lib/site";
+import { resolveSpecialtyQuery } from "@/lib/data/taxonomy";
+import { HOME_CITY, paths } from "@/lib/site";
 
 /**
  * Two-part search. A patient-language synonym ("skin doctor") resolves to the
@@ -43,21 +43,16 @@ export function HeaderSearch() {
   );
 }
 
+/**
+ * Specialities resolve client-side (the registry is static); places are data,
+ * so a location goes to /search?loc=, where the server resolves it against
+ * the geography registry and redirects to the listing when both match.
+ */
 export function resolveDestination(query: string, location: string): string {
   const specialty = resolveSpecialtyQuery(query);
-  const locality = resolveLocalityQuery(location) ?? resolveLocalityQuery(query);
-
-  if (specialty && locality) {
-    return paths.localitySpecialty(
-      locality.stateSlug,
-      locality.citySlug,
-      locality.key,
-      specialty.slug,
-    );
-  }
-  if (specialty) {
-    return paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug);
-  }
+  const loc = location.trim();
+  if (loc) return `${paths.search(query.trim())}&loc=${encodeURIComponent(loc)}`;
+  if (specialty) return paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, specialty.slug);
   if (query.trim()) return paths.search(query.trim());
   return paths.home();
 }

@@ -6,7 +6,8 @@ import { ActionForm } from "@/components/ActionForm";
 import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
-import { LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
+import { getGeo } from "@/lib/data/geo";
+import { SPECIALTIES } from "@/lib/data/taxonomy";
 import type { SubmissionPayload } from "@/lib/services/workflow";
 import { findDuplicateByRegistration } from "@/lib/services/workflow";
 import { requireStaff } from "@/lib/auth/session";
@@ -14,6 +15,7 @@ import { requireStaff } from "@/lib/auth/session";
 export const metadata = { title: "New profile submissions" };
 
 export default async function AdminSubmissions({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const localityNames = Object.fromEntries((await getGeo()).localities.map((l) => [l.key, `${l.name}, ${l.city}`]));
   await requireStaff();
   const sp = await searchParams;
   const showAll = sp.all === "1";
@@ -58,7 +60,7 @@ export default async function AdminSubmissions({ searchParams }: { searchParams:
               <dt>Practice start</dt><dd>{p.practiceStartYear ?? "—"}</dd>
               <dt>Languages / modes</dt><dd>{p.languages?.join(", ") || "—"} · {p.modes?.join(", ") || "—"}</dd>
               <dt>Qualifications</dt><dd>{p.qualifications?.length ? p.qualifications.map((q) => `${q.degree} · ${q.institution}${q.year ? ` · ${q.year}` : ""}`).join("; ") : "—"}</dd>
-              <dt>Practice</dt><dd>{p.practice ? `${p.practice.facilityName}, ${LOCALITIES[p.practice.localityKey as keyof typeof LOCALITIES]?.name ?? p.practice.localityKey} · ${p.practice.address} · ${p.practice.days} ${p.practice.hours} · ₹${p.practice.feeInr ?? "—"} · ${p.practice.phone}` : "—"}</dd>
+              <dt>Practice</dt><dd>{p.practice ? `${p.practice.facilityName}, ${localityNames[p.practice.localityKey] ?? p.practice.localityKey} · ${p.practice.address} · ${p.practice.days} ${p.practice.hours} · ₹${p.practice.feeInr ?? "—"} · ${p.practice.phone}` : "—"}</dd>
               <dt>Services</dt><dd>{p.services?.join(", ") || "—"}</dd>
               <dt>Introduction</dt><dd className="qb">{p.about || "—"}</dd>
               <dt>Consents</dt><dd className="mono" style={{ fontSize: "11.5px" }}>publish {p.consents?.publish ? "✓" : "✗"} · photo {p.consents?.photo ? "✓" : "✗"} · phone {p.consents?.phone ? "✓" : "✗"} · accurate {p.consents?.accurate ? "✓" : "✗"}</dd>
