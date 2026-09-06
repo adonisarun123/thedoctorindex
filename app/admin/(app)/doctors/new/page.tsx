@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { createDoctorAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
-import { LOCALITIES, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { PlacePicker } from "@/components/PlacePicker";
+import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { requireStaff } from "@/lib/auth/session";
 
 export const metadata = { title: "Create profile" };
@@ -68,10 +69,8 @@ export default async function AdminNewDoctor() {
         ))}
 
         <h3>First practice (optional — add more from the profile page)</h3>
-        <div className="two" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
-          <div className="field"><label>Facility name</label><input type="text" name="facility" placeholder="Apollo Hospitals, Bannerghatta Road" /></div>
-          <div className="field"><label>Locality</label><select name="locality" defaultValue={LOCALITY_KEYS[0]}>{LOCALITY_KEYS.map((k) => <option key={k} value={k}>{LOCALITIES[k].name}</option>)}</select></div>
-        </div>
+        <div className="field"><label>Facility name</label><input type="text" name="facility" placeholder="Apollo Hospitals, Bannerghatta Road" /></div>
+        <PlacePicker idPrefix="practice" required={false} />
         <div className="two" style={{ gridTemplateColumns: "1.6fr 140px" }}>
           <div className="field"><label>Address</label><input type="text" name="address" /></div>
           <div className="field"><label>PIN code</label><input type="text" name="postal" inputMode="numeric" pattern="[0-9]{6}" /></div>

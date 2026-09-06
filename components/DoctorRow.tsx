@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { CallButton, DirectionsButton } from "@/components/ContactActions";
 import { TrustBadges } from "@/components/TrustBadges";
-import { LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
+import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { formatKm } from "@/lib/geo";
 import { rank, type RankingContext } from "@/lib/ranking";
 import { paths } from "@/lib/site";
@@ -16,7 +16,7 @@ function inr(n: number): string {
 export function DoctorRow({ doctor, ctx, distance = null }: { doctor: DoctorView; ctx: RankingContext; distance?: { km: number; practiceIndex: number; approximate: boolean } | null }) {
   const specialty = SPECIALTIES[doctor.specialty];
   // With a visitor location, lead with the nearest practice.
-  const practice = doctor.practices[distance?.practiceIndex ?? 0];
+  const practice = doctor.practices[distance?.practiceIndex ?? 0] ?? null;
   const score = rank(doctor, ctx);
 
   return (
@@ -31,15 +31,21 @@ export function DoctorRow({ doctor, ctx, distance = null }: { doctor: DoctorView
           {doctor.subspecialties.length ? ` · ${doctor.subspecialties.join(", ")}` : ""}
         </div>
         <div className="meta">
-          {doctor.yearsOfExperience} yrs since practice start · {doctor.languages.join(", ")}
+          {doctor.practiceStartYear ? `${doctor.yearsOfExperience} yrs since practice start` : "Experience not stated"}{doctor.languages.length ? ` · ${doctor.languages.join(", ")}` : ""}
           <br />
           {distance ? (
             <span className="dist" title={distance.approximate ? "Straight-line distance to the locality centre; the clinic itself is not yet geocoded" : "Straight-line distance to the clinic"}>
               {formatKm(distance.km)}{distance.approximate ? "~" : ""} away ·{" "}
             </span>
           ) : null}
-          {practice.facility}, {LOCALITIES[practice.locality].name} ·{" "}
-          {practice.feeInr !== null ? inr(practice.feeInr) : "Fee not confirmed"} ·{" "}
+          {practice ? (
+            <>
+              {practice.facility}, {practice.localityName} ·{" "}
+              {practice.feeInr !== null ? inr(practice.feeInr) : "Fee not confirmed"} ·{" "}
+            </>
+          ) : (
+            <>Practice location not yet on record · </>
+          )}
           {doctor.modes.join(" / ")}
         </div>
         <TrustBadges doctor={doctor} />
@@ -77,8 +83,12 @@ export function DoctorRow({ doctor, ctx, distance = null }: { doctor: DoctorView
         <Link className="btn solid" href={paths.doctor(doctor.slug)}>
           View profile
         </Link>
-        <CallButton practiceId={practice.id} variant="outline" />
-        <DirectionsButton practiceId={practice.id} variant="quiet" />
+        {practice ? (
+          <>
+            <CallButton practiceId={practice.id} variant="outline" />
+            <DirectionsButton practiceId={practice.id} variant="quiet" />
+          </>
+        ) : null}
       </div>
     </article>
   );

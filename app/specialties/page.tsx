@@ -4,9 +4,9 @@ import Link from "next/link";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
-import { countIndexable } from "@/lib/data";
+import { countsBySpecialty } from "@/lib/data";
 import { guideForSpecialty } from "@/lib/data/guides";
-import { CITY, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
 import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
@@ -31,7 +31,10 @@ const PLANNED = [
   { dept: "Diabetes & hormones", name: "Endocrinology" },
 ];
 
-export default function SpecialtiesIndexPage() {
+export const revalidate = 3600;
+
+export default async function SpecialtiesIndexPage() {
+  const [counts, listed] = await Promise.all([countsBySpecialty(), countsBySpecialty(undefined, "published")]);
   const crumbs = [{ name: "Home", path: paths.home() }, { name: "Specialities" }];
   return (
     <>
@@ -58,7 +61,7 @@ export default function SpecialtiesIndexPage() {
         <div className="doc" style={{ maxWidth: "none" }}>
           <span className="eyebrow">Browse by speciality</span>
           <h1 style={{ marginTop: "10px" }}>Specialities</h1>
-          <div className="upd">4 open · modern-medicine (NMC / State Medical Council) practitioners only in this phase</div>
+          <div className="upd">{SPECIALTY_KEYS.length} specialities · {SPECIALTY_KEYS.filter((k) => SPECIALTIES[k].guide).length} with medically reviewed guidance · modern medicine, dental, AYUSH and allied health, each labelled by its register</div>
 
           <div className="guidegrid">
             {SPECIALTY_KEYS.map((k) => {
@@ -70,10 +73,10 @@ export default function SpecialtiesIndexPage() {
                   <Link className="t" href={paths.specialty(k)} style={{ color: "var(--ink)" }}>
                     {s.name}
                   </Link>
-                  <div className="d">{s.guide.split(". ")[0]}.</div>
+                  <div className="d">{s.guide ? `${s.guide.split(". ")[0]}.` : `${s.plural} listed by city; guidance under review.`}</div>
                   <div className="quick" style={{ marginTop: "4px" }}>
-                    <Link className="chip" href={paths.citySpecialty(CITY.stateSlug, CITY.slug, s.slug)}>
-                      {countIndexable(k)} verified in {CITY.name}
+                    <Link className="chip" href={paths.specialty(k)}>
+                      {counts[k] ?? 0} verified · {listed[k] ?? 0} listed
                     </Link>
                     {guide ? (
                       <Link className="chip" href={`/health-guides/${guide.slug}`}>

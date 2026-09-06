@@ -30,6 +30,18 @@ export const SITE = {
   emergencyNumber: env.emergencyNumber,
 } as const;
 
+/**
+ * The launch city: header and footer quick links, the default place for a
+ * search without a location, and the example city in editorial copy. Any
+ * other city is reached through the geography registry (lib/data/geo.ts).
+ */
+export const HOME_CITY = {
+  name: env.defaultCityName,
+  slug: env.defaultCitySlug,
+  state: env.defaultStateName,
+  stateSlug: env.defaultStateSlug,
+} as const;
+
 /** Build an absolute URL for canonicals, sitemaps and JSON-LD. */
 export function absoluteUrl(path: string): string {
   if (!path.startsWith("/")) path = `/${path}`;

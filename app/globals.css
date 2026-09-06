@@ -535,6 +535,8 @@ footer.site { border-top: 1px solid var(--hair); background: var(--surface); pad
 .loc:hover { border-color: var(--accent); text-decoration: none; }
 .loc .n { font-weight: 600; font-size: 15px; }
 .loc .c { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.loc { flex-wrap: wrap; min-width: 0; }
+.loc .n { min-width: 0; overflow-wrap: anywhere; }
 .loc.off { color: var(--muted); border-style: dashed; }
 .loc.off:hover { border-color: var(--hair-strong); }
 

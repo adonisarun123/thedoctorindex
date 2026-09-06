@@ -53,6 +53,8 @@ export const env = {
   defaultCountry: str("NEXT_PUBLIC_DEFAULT_COUNTRY", "IN"),
   defaultStateSlug: str("NEXT_PUBLIC_DEFAULT_STATE_SLUG", "karnataka"),
   defaultCitySlug: str("NEXT_PUBLIC_DEFAULT_CITY_SLUG", "bengaluru"),
+  defaultStateName: str("NEXT_PUBLIC_DEFAULT_STATE_NAME", "Karnataka"),
+  defaultCityName: str("NEXT_PUBLIC_DEFAULT_CITY_NAME", "Bengaluru"),
   locale: str("NEXT_PUBLIC_LOCALE", "en-IN"),
   timezone: str("NEXT_PUBLIC_TIMEZONE", "Asia/Kolkata"),
   currency: str("NEXT_PUBLIC_CURRENCY", "INR"),

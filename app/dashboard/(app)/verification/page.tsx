@@ -35,7 +35,7 @@ export default async function DashboardVerification() {
           <Row key={`${q.degree}-${q.year}`} tone={q.state === "verified" ? "ok" : "wait"} label={q.state === "verified" ? "Qualification verified" : "Qualification submitted — pending"} source={`${q.degree} · ${q.institution} · ${q.year || ""}`} when={q.state === "verified" ? doctor.registration.checkedOn : "pending"} />
         ))}
         {doctor.practices.map((p) => (
-          <Row key={p.id} tone="ok" label="Practice location confirmed" source={`${p.facility}, ${LOCALITIES[p.locality].name}`} when={p.confirmedOn} />
+          <Row key={p.id} tone="ok" label="Practice location confirmed" source={`${p.facility}, ${p.localityName}`} when={p.confirmedOn} />
         ))}
         <Row tone={doctor.claimed ? "ok" : "wait"} label={doctor.claimed ? "Profile claimed" : "Claim pending"} source="You control the editable fields" when={doctor.lastVerifiedOn} />
         {doctor.hprVerified ? <Row tone="ok" label="HPR ID verified" source="Healthcare Professionals Registry · secondary signal" when={doctor.registration.checkedOn} /> : null}

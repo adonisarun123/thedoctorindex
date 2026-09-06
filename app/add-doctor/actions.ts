@@ -5,6 +5,7 @@ import { findByRegistration } from "@/lib/data";
 import { track } from "@/lib/services/events";
 import { createSubmission, type SubmissionPayload } from "@/lib/services/workflow";
 import type { DoctorView } from "@/lib/types";
+import { localityFromForm } from "@/lib/services/places";
 
 /**
  * Duplicate check, run on the server so the directory never ships to the
@@ -42,7 +43,7 @@ export async function submitProfileAction(_prev: SubmitState, form: FormData): P
       practice: form.get("facility")
         ? {
             facilityName: String(form.get("facility")),
-            localityKey: String(form.get("locality")),
+            localityKey: (await localityFromForm(form)) ?? "",
             address: String(form.get("address") ?? ""),
             postalCode: String(form.get("postal") ?? ""),
             days: String(form.get("days") ?? ""),

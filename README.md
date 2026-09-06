@@ -39,10 +39,21 @@ banner says so on every page; remove it when real records land.
 npm install
 cp .env.example .env.local      # then set the variables below
 npm run db:migrate              # apply lib/db/migrations to DATABASE_URL
-npm run db:seed                 # taxonomy, 24 fictional doctors, bootstrap admin
+npm run db:seed                 # DEV ONLY: taxonomy + 24 fictional doctors + bootstrap admin
 npm run dev                     # http://localhost:3000
 npm run build && npm start      # production
 npm run typecheck               # tsc --noEmit
+```
+
+Production database (no fictional records):
+
+```bash
+npm run db:migrate              # schema
+npm run db:taxonomy             # speciality registry + launch-city localities, nothing else
+npm run db:staff -- you@domain  # first super administrator, no fictional data
+npm run db:import:drdata -- --file data/private/drdata.csv --dry   # check the mapping report
+npm run db:import:drdata -- --file data/private/drdata.csv         # load, published + unverified
+npm run db:maintenance          # SEO route allowlist, retention jobs
 ```
 
 Minimum `.env.local` for a database-backed run:
@@ -224,23 +235,47 @@ degrade to read-only notices rather than crash.
 
 `lib/types.ts` mirrors the plan's schema (§14); `lib/db/schema.ts` is its relational form.
 
+### Geography and specialities
+
+Specialities are a static registry (`lib/data/specialties.ts`, 43 entries, mirrored into the
+`specialties` table by `npm run db:taxonomy`). Four carry medically reviewed guidance and can
+index; the rest are open for profiles and browsing but their hub and listing pages stay `noindex`
+until a reviewer signs the text off — the gate reads `specialty.guide`, not a flag.
+
+Geography is data: `localities` rows carry state → city → locality, and `lib/data/geo.ts` builds the
+registry (states, cities, lookups) from them, cached a minute in-process. Opening a city is a data
+change. Forms use `components/PlacePicker.tsx` (state → city → locality selects fed by
+`/api/places`); a place typed as "another city/locality" is created on first use by
+`lib/services/places.ts`. `NEXT_PUBLIC_DEFAULT_*` names the launch city for header/footer links.
+
+At scale (tens of thousands of profiles) nothing loads "all doctors": listings are one capped
+query per (speciality, place) hydrated by primary key (`lib/data/db-source.ts`), counts are GROUP BY
+queries over the same indexable predicate the gates use, and doctor/city/state pages render on
+demand with hourly revalidation instead of being prerendered.
+
 ### Importing doctors in bulk
 
-`npm run db:import -- --file data/your.csv --source "Karnataka Medical Council register" [--dry] [--publish]`
-loads records from a CSV (template and column reference: `data/import-template.csv`,
-`scripts/import-doctors.ts`). Provenance is mandatory: every row needs a `source_url`, the dataset
-name is written to `doctors.source` as `import:<name>`, and each row's URL goes into the audit log.
-Rows import as **drafts** with registration and qualifications in the `submitted` state; staff
-verify them in `/admin/doctors` against the council register before publishing, exactly as for a
-doctor's own submission. Duplicates (same council + registration number) are skipped and reported.
+Two importers, both provenance-first, both idempotent:
+
+- `npm run db:import -- --file your.csv --source "<dataset>" [--dry] [--publish]` — generic CSV
+  (template: `data/import-template.csv`). Every row needs a `source_url`; rows import as drafts.
+- `npm run db:import:drdata -- --file data/private/drdata.csv [--dry] [--limit N] [--status draft]` —
+  the DrData archive export. Maps DrData specialities onto the registry (`sourceLabels`), creates
+  the geography it needs, and publishes each record **unclaimed and unverified**: registration
+  and qualifications are stored as supplied in the `submitted` state with no checked-on date, so
+  every page says "not yet checked" and the indexation gates keep the profile out of search
+  results until staff verify it in `/admin/doctors`. `doctors.source = "import:drdata"`,
+  `source_ref` = DrData id, `source_url` = DrData profile URL, plus an audit row per record carrying
+  the archive's own QA flags. Re-running skips records already present. Runs the full archive
+  in under a minute locally; a few minutes over a remote connection.
+
+`data/private/` is git-ignored: datasets never enter the repository.
 
 What may be imported: State Medical Council and NMC Indian Medical Register lookups, hospital and
-clinic websites with their permission, and records doctors submit themselves. Aggregator sites
-(Practo, Justdial, Lybrate and similar) are not a permitted source — their terms prohibit
-scraping, the data is unverified, and importing it would contradict the verification promise on
-every page of this site.
-
----
+clinic websites with their permission, your own archives, and records doctors submit themselves.
+Aggregator sites (Practo, Justdial, Lybrate and similar) are not a permitted source — their terms
+prohibit scraping, the data is unverified, and importing it would contradict the verification
+promise on every page of this site.
 
 ## Deliberate product decisions carried into the code
 

@@ -5,10 +5,11 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
-import { countIndexable } from "@/lib/data";
-import { CITY, SPECIALTY_KEYS, specialtyByKey } from "@/lib/data/taxonomy";
+import { countIndexable, countsByCity } from "@/lib/data";
+import { getGeo } from "@/lib/data/geo";
+import { SPECIALTY_KEYS, specialtyByKey } from "@/lib/data/taxonomy";
 import { withOverride } from "@/lib/seo/override";
-import { listingGate } from "@/lib/seo/gates";
+import { GATES, listingGate } from "@/lib/seo/gates";
 import { breadcrumbLd, specialtyLd } from "@/lib/seo/structured-data";
 import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
@@ -37,8 +38,12 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   const specialty = specialtyByKey((await params).specialty);
   if (!specialty) notFound();
 
-  const count = await countIndexable(specialty.key);
-  const gate = await withOverride(paths.specialty(specialty.key), listingGate("national", count, true));
+  const [count, cityCounts, geo] = await Promise.all([countIndexable(specialty.key), countsByCity(specialty.key), getGeo()]);
+  const openCities = cityCounts
+    .filter((c) => c.n >= GATES.citySpecialty)
+    .map((c) => ({ ...c, city: geo.city(c.stateSlug, c.citySlug) }))
+    .filter((c) => c.city);
+  const gate = await withOverride(paths.specialty(specialty.key), listingGate("national", count, Boolean(specialty.guide)));
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
     { name: "Specialities" },
@@ -68,7 +73,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   return (
     <>
       <RouteMeta data={routeMeta} />
-      <JsonLd data={[specialtyLd(specialty, count, [paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug)]), breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path })))]} />
+      <JsonLd data={[specialtyLd(specialty, count, openCities.map((c) => paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug))), breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path })))]} />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">
@@ -79,24 +84,34 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
             {count} verified {specialty.plural.toLowerCase()} indexed · Bengaluru only in this build
           </div>
 
-          <p>{specialty.guide}</p>
-
-          <h2>Reasons people consult this speciality</h2>
-          <ul>
-            {specialty.when.map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-          </ul>
+          {specialty.guide ? (
+            <>
+              <p>{specialty.guide}</p>
+              <h2>Reasons people consult this speciality</h2>
+              <ul>
+                {specialty.when.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p>
+              Guidance on when to consult {specialty.aOne} is being written and medically reviewed. Until it is signed off, this hub and
+              its city pages stay out of search results; the profiles themselves are complete and reachable.
+            </p>
+          )}
 
           <h2>Cities with verified supply</h2>
           <p>
-            City pages open when the cluster passes its inventory gate. Only {CITY.name} qualifies in
-            this build.
+            A city page opens when it has at least {GATES.citySpecialty} verified {specialty.plural.toLowerCase()} with confirmed practice details.
+            {openCities.length === 0 ? " No city has reached that yet." : ""}
           </p>
           <div className="quick">
-            <Link className="chip" href={paths.citySpecialty(CITY.stateSlug, CITY.slug, specialty.slug)}>
-              {CITY.name} · {count} verified
-            </Link>
+            {openCities.map((c) => (
+              <Link key={`${c.stateSlug}/${c.citySlug}`} className="chip" href={paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug)}>
+                {c.city!.name} · {c.n} verified
+              </Link>
+            ))}
           </div>
 
           <h2>Also called</h2>
@@ -105,9 +120,11 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
             intent do not get their own URL.
           </p>
 
-          <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
-            Medically reviewed · last substantive review {specialty.reviewedOn}.
-          </p>
+          {specialty.reviewedOn ? (
+            <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
+              Medically reviewed · last substantive review {specialty.reviewedOn}.
+            </p>
+          ) : null}
         </div>
       </div>
     </>

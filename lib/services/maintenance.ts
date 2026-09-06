@@ -56,7 +56,15 @@ export async function runMaintenance(actorUserId: string | null = null): Promise
 
   // Freshness decays daily: recompute quality for published profiles so the
   // gates, sitemaps and dashboard checklists move together.
-  const published = await db.select({ id: s.doctors.id }).from(s.doctors).where(eq(s.doctors.status, "published"));
+  // Only profiles whose score can decay with time — those carrying a dated
+  // confirmation or fee — need recomputing; an unverified import cannot change
+  // by the calendar alone, and there may be tens of thousands of those.
+  const published = (await db.execute(sql`
+    select distinct d.id from doctors d
+    join doctor_practices p on p.doctor_id = d.id and p.active
+    join facilities f on f.id = p.facility_id
+    where d.status = 'published' and (p.confirmed_on is not null or f.confirmed_on is not null or p.fee_checked_on is not null)
+  `)) as unknown as Array<{ id: string }>;
   for (const d of published) await recomputeQuality(d.id);
   const seoRoutes = await recomputeSeoRoutes();
 

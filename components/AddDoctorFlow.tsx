@@ -5,7 +5,8 @@ import { useActionState, useState } from "react";
 
 import { submitProfileAction, type SubmitState } from "@/app/add-doctor/actions";
 import { TrustBadges } from "@/components/TrustBadges";
-import { LOCALITIES, LOCALITY_KEYS, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { PlacePicker } from "@/components/PlacePicker";
+import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
 
@@ -93,7 +94,7 @@ export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string)
                 <div className="meta">
                   {match.registration.council} · {match.registration.number}
                   <br />
-                  {match.practices[0]?.facility}, {match.practices[0] ? LOCALITIES[match.practices[0].locality].name : ""}
+                  {match.practices[0]?.facility}, {match.practices[0] ? match.practices[0].localityName : ""}
                 </div>
                 <TrustBadges doctor={match} />
               </div>
@@ -202,14 +203,8 @@ export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string)
 
           <div style={{ borderTop: "1px solid var(--hair)", paddingTop: "16px", marginTop: "8px" }}>
             <div className="eyebrow" style={{ marginBottom: "10px" }}>First practice location</div>
-            <div className="two">
-              <div className="field"><label htmlFor="facility">Clinic or hospital</label><input id="facility" name="facility" type="text" placeholder="Indiranagar Cardiac Centre" /></div>
-              <div className="field"><label htmlFor="locality">Locality</label>
-                <select id="locality" name="locality" defaultValue={LOCALITY_KEYS[0]}>
-                  {LOCALITY_KEYS.map((k) => (<option key={k} value={k}>{LOCALITIES[k].name}, {LOCALITIES[k].city}</option>))}
-                </select>
-              </div>
-            </div>
+            <div className="field"><label htmlFor="facility">Clinic or hospital</label><input id="facility" name="facility" type="text" placeholder="Indiranagar Cardiac Centre" /></div>
+            <PlacePicker idPrefix="practice" required={false} />
             <div className="field"><label htmlFor="address">Address</label><input id="address" name="address" type="text" placeholder="2nd Floor, 100 Feet Road" /></div>
             <div className="two" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
               <div className="field"><label htmlFor="postal">PIN</label><input id="postal" name="postal" type="text" placeholder="560038" /></div>

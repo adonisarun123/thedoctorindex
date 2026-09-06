@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -8,9 +9,10 @@ import { RouteMeta } from "@/components/RouteMeta";
 import { NearMe } from "@/components/NearMe";
 import { searchDoctors } from "@/lib/data";
 import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
-import { CITY, SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { resolvePlaceQuery } from "@/lib/data/geo";
+import { SPECIALTIES, SPECIALTY_KEYS, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { privateMeta } from "@/lib/seo/meta";
-import { absoluteUrl, paths } from "@/lib/site";
+import { absoluteUrl, paths, HOME_CITY } from "@/lib/site";
 
 /**
  * Internal search results. Never indexed (plan §6): every profile is also
@@ -30,8 +32,17 @@ export default async function SearchPage({
   const sp = await searchParams;
   const raw = Array.isArray(sp.q) ? sp.q[0] : sp.q;
   const query = (raw ?? "").trim();
+  const locRaw = (Array.isArray(sp.loc) ? sp.loc[0] : sp.loc ?? "").trim();
   const near = parseNear(sp.near);
-  const found = await searchDoctors(query);
+
+  // A place plus a speciality is a listing page, not a search result.
+  const place = locRaw ? await resolvePlaceQuery(locRaw) : null;
+  const specialty = resolveSpecialtyQuery(query);
+  if (place && specialty) {
+    redirect(place.locality ? paths.localitySpecialty(place.stateSlug, place.citySlug, place.locality.slug, specialty.slug) : paths.citySpecialty(place.stateSlug, place.citySlug, specialty.slug));
+  }
+  const scope = place ? (place.locality ? { localityKey: place.locality.key } : { stateSlug: place.stateSlug, citySlug: place.citySlug }) : undefined;
+  const found = await searchDoctors(query || (place ? place.name : ""), scope);
   const results = near ? sortByDistance(found, near) : found;
 
   return (
@@ -55,7 +66,7 @@ export default async function SearchPage({
 
       <div className="wrap" style={{ paddingTop: "22px" }}>
         <h1 style={{ fontSize: "1.75rem" }}>
-          {query ? <>Results for “{query}”</> : "Search"}
+          {query ? <>Results for “{query}”{place ? <> in {place.name}</> : null}</> : place ? <>Doctors in {place.name}</> : "Search"}
         </h1>
         <div className="resulthead" style={{ marginBottom: "14px" }}>
           <div className="count mono" style={{ color: "var(--muted)" }}>
@@ -85,7 +96,7 @@ export default async function SearchPage({
                   <Link
                     key={k}
                     className="chip"
-                    href={paths.citySpecialty(CITY.stateSlug, CITY.slug, SPECIALTIES[k].slug)}
+                    href={paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, SPECIALTIES[k].slug)}
                   >
                     {SPECIALTIES[k].plural}
                   </Link>

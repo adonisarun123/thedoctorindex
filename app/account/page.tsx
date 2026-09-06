@@ -7,6 +7,7 @@ import { signOutAction } from "@/app/sign-in/actions";
 import { ProfileDetailsForm } from "@/components/ProfileDetailsForm";
 import { RouteMeta } from "@/components/RouteMeta";
 import { requireUser } from "@/lib/auth/session";
+import { userPlace } from "@/lib/data/geo";
 import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
@@ -36,6 +37,7 @@ export default async function AccountPage() {
     db.select({ city: s.users.city, marketingOptIn: s.users.marketingOptIn, termsAcceptedAt: s.users.termsAcceptedAt }).from(s.users).where(eq(s.users.id, user.id)).limit(1),
   ]);
   const profileRow = extra[0];
+  const homePlace = await userPlace(user.localityKey, profileRow?.city ?? null);
   const isDoctor = user.role === "doctor" || managed.length > 0;
   const isStaff = user.role === "staff" && user.staffRoles.length > 0;
 
@@ -64,7 +66,7 @@ export default async function AccountPage() {
 
         <section style={{ marginBottom: "22px" }}>
           <div className="chart-head"><span className="t">Your details</span><span className="m">{profileRow?.termsAcceptedAt ? `terms accepted ${toDisplay(profileRow.termsAcceptedAt)}` : ""}</span></div>
-          <ProfileDetailsForm user={{ ...user, city: profileRow?.city ?? null, marketingOptIn: profileRow?.marketingOptIn ?? false }} />
+          <ProfileDetailsForm user={{ ...user, city: profileRow?.city ?? null, ...homePlace, marketingOptIn: profileRow?.marketingOptIn ?? false }} />
         </section>
 
         <section style={{ marginBottom: "22px" }}>

@@ -1,4 +1,4 @@
-import type { Doctor } from "@/lib/types";
+import type { Doctor, Practice } from "@/lib/types";
 
 /**
  * SEED DATA — ENTIRELY FICTIONAL.
@@ -12,7 +12,11 @@ import type { Doctor } from "@/lib/types";
  * with a fetch against the directory API is a one-file change: everything
  * downstream consumes lib/data/index.ts, not this file.
  */
-export const SEED_DOCTORS: Array<Omit<Doctor, "slug">> = [
+/** Fixture practices carry only the locality key; the seed source fills in place names. */
+export type SeedPractice = Omit<Practice, "localityName" | "localitySlug" | "city" | "citySlug" | "state" | "stateSlug">;
+export type SeedDoctor = Omit<Doctor, "slug" | "practices"> & { practices: SeedPractice[] };
+
+export const SEED_DOCTORS: SeedDoctor[] = [
   {
     id: "d8f4c2",
     name: "Anita Sharma",

@@ -14,6 +14,7 @@ import { removeDoctorPhoto, setDoctorPhoto } from "@/lib/services/photos";
 import { moderateResponse, moderateReview, resolveReviewReport, validateEvidence } from "@/lib/services/reviews";
 import { recomputeSeoRoutes, setSeoOverride } from "@/lib/services/seo";
 import { decideChange, decideClaim, decideSubmission } from "@/lib/services/workflow";
+import { localityFromForm } from "@/lib/services/places";
 
 export interface AdminState {
   ok?: boolean;
@@ -154,7 +155,7 @@ export async function createDoctorAction(_p: AdminState, f: FormData): Promise<A
         registration: { number: str(f, "registration"), council: str(f, "council"), registeredYear: Number(str(f, "regYear")) || null, verified: f.get("regVerified") === "on" },
         qualifications: [0, 1, 2].map((i) => ({ degree: str(f, `q${i}_degree`), institution: str(f, `q${i}_inst`), year: Number(str(f, `q${i}_year`)) || null, verified: f.get(`q${i}_verified`) === "on" })).filter((q) => q.degree && q.institution),
         experience: [0, 1].map((i) => ({ role: str(f, `e${i}_role`), place: str(f, `e${i}_place`), fromYear: Number(str(f, `e${i}_from`)) || 0, toYear: Number(str(f, `e${i}_to`)) || null })).filter((e) => e.role && e.place && e.fromYear),
-        practices: str(f, "facility") ? [{ facilityName: str(f, "facility"), localityKey: str(f, "locality"), address: str(f, "address"), postalCode: str(f, "postal"), days: str(f, "days"), hours: str(f, "hours"), feeInr: Number(str(f, "fee")) || null, phone: str(f, "phone"), confirmed: f.get("practiceConfirmed") === "on" }] : [],
+        practices: str(f, "facility") ? [{ facilityName: str(f, "facility"), localityKey: (await localityFromForm(f)) ?? "", address: str(f, "address"), postalCode: str(f, "postal"), days: str(f, "days"), hours: str(f, "hours"), feeInr: Number(str(f, "fee")) || null, phone: str(f, "phone"), confirmed: f.get("practiceConfirmed") === "on" }] : [],
         status: f.get("publish") === "on" ? "published" : "draft",
         source: str(f, "source") || "staff",
       },
@@ -209,10 +210,10 @@ export async function updatePracticeAdminAction(_p: AdminState, f: FormData): Pr
     const pid = str(f, "practiceId");
     const facilityId = str(f, "facilityId");
     const fee = str(f, "fee");
-    const pairs: Array<[string, unknown]> = [[`practice.${pid}.days`, str(f, "days")], [`practice.${pid}.hours`, str(f, "hours")], [`practice.${pid}.phone`, str(f, "phone")], [`practice.${pid}.feeInr`, fee ? Number(fee) : null], [`facility.${facilityId}.name`, str(f, "facility")], [`facility.${facilityId}.address`, str(f, "address")], [`facility.${facilityId}.postalCode`, str(f, "postal")], [`facility.${facilityId}.localityKey`, str(f, "locality")]];
-    if (f.has("geo")) pairs.push([`facility.${facilityId}.geo`, str(f, "geo")]);
     // Only write fields that changed, so an unchanged address does not wipe a geocode.
     const [cur] = await getDb().query.doctorPractices.findMany({ where: eq(s.doctorPractices.id, pid), with: { facility: true }, limit: 1 });
+    const pairs: Array<[string, unknown]> = [[`practice.${pid}.days`, str(f, "days")], [`practice.${pid}.hours`, str(f, "hours")], [`practice.${pid}.phone`, str(f, "phone")], [`practice.${pid}.feeInr`, fee ? Number(fee) : null], [`facility.${facilityId}.name`, str(f, "facility")], [`facility.${facilityId}.address`, str(f, "address")], [`facility.${facilityId}.postalCode`, str(f, "postal")], [`facility.${facilityId}.localityKey`, (await localityFromForm(f)) ?? cur?.facility.localityKey ?? ""]];
+    if (f.has("geo")) pairs.push([`facility.${facilityId}.geo`, str(f, "geo")]);
     const current: Record<string, unknown> = cur ? { [`practice.${pid}.days`]: cur.days, [`practice.${pid}.hours`]: cur.hours, [`practice.${pid}.phone`]: cur.phone ?? "", [`practice.${pid}.feeInr`]: cur.feeInr, [`facility.${facilityId}.name`]: cur.facility.name, [`facility.${facilityId}.address`]: cur.facility.address, [`facility.${facilityId}.postalCode`]: cur.facility.postalCode ?? "", [`facility.${facilityId}.localityKey`]: cur.facility.localityKey, [`facility.${facilityId}.geo`]: cur.facility.lat && cur.facility.lng ? `${cur.facility.lat},${cur.facility.lng}` : "" } : {};
     for (const [field, value] of pairs) {
       if (field in current && JSON.stringify(current[field] ?? "") === JSON.stringify(value ?? "")) continue;
@@ -230,7 +231,7 @@ export async function addPracticeAdminAction(_p: AdminState, f: FormData): Promi
   try {
     const u = await requireStaff("verification_officer", "content_editor");
     const doctorId = str(f, "doctorId");
-    await addPractice(doctorId, { facilityName: str(f, "facility"), localityKey: str(f, "locality"), address: str(f, "address"), postalCode: str(f, "postal"), days: str(f, "days"), hours: str(f, "hours"), feeInr: Number(str(f, "fee")) || null, phone: str(f, "phone") }, u.id, f.get("confirm") === "on");
+    await addPractice(doctorId, { facilityName: str(f, "facility"), localityKey: (await localityFromForm(f)) ?? "", address: str(f, "address"), postalCode: str(f, "postal"), days: str(f, "days"), hours: str(f, "hours"), feeInr: Number(str(f, "fee")) || null, phone: str(f, "phone") }, u.id, f.get("confirm") === "on");
     return done("Practice added.", [`/admin/doctors/${doctorId}`]);
   } catch (e) {
     return fail(e);

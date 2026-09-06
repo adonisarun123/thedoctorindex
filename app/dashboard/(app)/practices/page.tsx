@@ -2,7 +2,7 @@ import { addPracticeAction, confirmPracticeAction, removePracticeAction, savePra
 import { ActionForm } from "@/components/ActionForm";
 import { env } from "@/lib/env";
 import { getDashboardContext } from "@/lib/dashboard";
-import { LOCALITIES, LOCALITY_KEYS } from "@/lib/data/taxonomy";
+import { PlacePicker } from "@/components/PlacePicker";
 
 export const metadata = { title: "Practices & fees" };
 
@@ -72,14 +72,8 @@ export default async function DashboardPractices() {
           <section className="panel pad">
             <div className="chart-head"><span className="t">Add a practice</span></div>
             <ActionForm action={addPracticeAction} submitLabel="Add practice" variant="outline" resetOnSuccess>
-              <div className="two">
-                <div className="field"><label htmlFor="facility">Clinic or hospital</label><input id="facility" name="facility" type="text" required /></div>
-                <div className="field"><label htmlFor="locality">Locality</label>
-                  <select id="locality" name="locality" defaultValue={LOCALITY_KEYS[0]}>
-                    {LOCALITY_KEYS.map((k) => (<option key={k} value={k}>{LOCALITIES[k].name}, {LOCALITIES[k].city}</option>))}
-                  </select>
-                </div>
-              </div>
+              <div className="field"><label htmlFor="facility">Clinic or hospital</label><input id="facility" name="facility" type="text" required /></div>
+              <PlacePicker idPrefix="practice" />
               <div className="field"><label htmlFor="new-address">Address</label><input id="new-address" name="address" type="text" required /></div>
               <div className="two" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
                 <div className="field"><label htmlFor="postal">PIN</label><input id="postal" name="postal" type="text" /></div>

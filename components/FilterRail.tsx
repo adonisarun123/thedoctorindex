@@ -3,7 +3,6 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 
-import { LOCALITIES, LOCALITY_KEYS } from "@/lib/data/taxonomy";
 
 /**
  * Filters are query parameters on the canonical listing URL, applied on the
@@ -15,7 +14,7 @@ import { LOCALITIES, LOCALITY_KEYS } from "@/lib/data/taxonomy";
  *    noindex,follow for it (see lib/seo/gates.ts). We never expose an unlimited
  *    crawlable parameter space.
  */
-export function FilterRail({ languages }: { languages: string[] }) {
+export function FilterRail({ languages, localities, cityName }: { languages: string[]; localities: Array<{ key: string; name: string }>; cityName: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -54,10 +53,10 @@ export function FilterRail({ languages }: { languages: string[] }) {
           onChange={(e) => set("locality", e.target.value || null)}
           aria-label="Locality"
         >
-          <option value="">All of Bengaluru</option>
-          {LOCALITY_KEYS.map((k) => (
-            <option key={k} value={k}>
-              {LOCALITIES[k].name}
+          <option value="">All of {cityName}</option>
+          {localities.map((l) => (
+            <option key={l.key} value={l.key}>
+              {l.name}
             </option>
           ))}
         </select>

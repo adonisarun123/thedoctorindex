@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 
 import { normalizeIdentifier } from "@/lib/auth/hash";
 import { getSessionUser } from "@/lib/auth/session";
-import { LOCALITIES } from "@/lib/data/taxonomy";
+import { getGeo } from "@/lib/data/geo";
+import { localityFromForm } from "@/lib/services/places";
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
@@ -47,10 +48,10 @@ export async function saveProfileDetailsAction(_prev: ProfileState, form: FormDa
   const email = normalizeIdentifier(emailIn);
   if (!email || email.kind !== "email") return { error: "Enter a valid email address." };
 
-  const localityKey = str("locality");
-  const city = str("city");
-  if (!localityKey && !city) return { error: "Tell us where you are — pick a locality, or type your city." };
-  if (localityKey && !(localityKey in LOCALITIES) && localityKey !== "elsewhere") return { error: "Choose a locality from the list." };
+  const localityKey = await localityFromForm(form).catch(() => null);
+  const cityTyped = str("placeCity") || str("city");
+  if (!localityKey && !cityTyped) return { error: "Tell us where you are — choose your state and city." };
+  const place = localityKey ? (await getGeo()).locality(localityKey) : null;
 
   const first = !user.profileComplete;
   if (first && form.get("terms") !== "on") return { error: "You need to accept the terms of use and privacy notice to continue." };
@@ -71,8 +72,8 @@ export async function saveProfileDetailsAction(_prev: ProfileState, form: FormDa
         displayName: fullName,
         phone: phone.value,
         email: email.value,
-        localityKey: localityKey && localityKey !== "elsewhere" ? localityKey : null,
-        city: localityKey && localityKey !== "elsewhere" ? LOCALITIES[localityKey as keyof typeof LOCALITIES].city : city || null,
+        localityKey: localityKey ?? null,
+        city: place?.city ?? cityTyped ?? null,
         marketingOptIn: form.get("marketing") === "on",
         ...(first ? { termsAcceptedAt: new Date(), profileCompletedAt: new Date() } : {}),
       })
@@ -80,7 +81,7 @@ export async function saveProfileDetailsAction(_prev: ProfileState, form: FormDa
   } catch (e) {
     return { error: e instanceof Error && /unique/i.test(e.message) ? "That mobile number or email is already registered to another account." : "Could not save your details. Try again." };
   }
-  await audit({ actorUserId: user.id, actorRole: user.role, action: first ? "user.registered" : "user.profile_updated", entityType: "user", entityId: user.id, after: { locality: localityKey || city, termsAccepted: first || undefined } });
+  await audit({ actorUserId: user.id, actorRole: user.role, action: first ? "user.registered" : "user.profile_updated", entityType: "user", entityId: user.id, after: { locality: localityKey || cityTyped, termsAccepted: first || undefined } });
   revalidatePath("/account");
   if (first) redirect(next);
   return { ok: true, message: "Details saved." };

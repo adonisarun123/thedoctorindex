@@ -5,88 +5,8 @@ import type { Locality, LocalityKey, Specialty, SpecialtyKey } from "@/lib/types
  * canonical slug, its patient-language aliases, and original medically reviewed
  * guidance before any page for it can be indexed.
  */
-export const SPECIALTIES: Record<SpecialtyKey, Specialty> = {
-  cardiology: {
-    key: "cardiology",
-    name: "Cardiology",
-    plural: "Cardiologists",
-    one: "Cardiologist",
-    aOne: "a cardiologist",
-    slug: "cardiologists",
-    department: "Heart & Vascular",
-    aliases: ["heart specialist", "heart doctor", "cardiac specialist", "heart"],
-    guide:
-      "Cardiologists diagnose and treat conditions of the heart and blood vessels — chest pain, palpitations, blood pressure that is hard to control, heart failure and rhythm problems. A referral from a physician is common but not required. Emergency chest pain is not a directory matter: call 108.",
-    when: [
-      "Chest pain or tightness on exertion",
-      "Palpitations or a racing heartbeat",
-      "Breathlessness that is new or worsening",
-      "Blood pressure that stays high on treatment",
-      "Follow-up after an angioplasty, bypass or heart attack",
-    ],
-    reviewedOn: "12 Aug 2026",
-  },
-  dermatology: {
-    key: "dermatology",
-    name: "Dermatology",
-    plural: "Dermatologists",
-    one: "Dermatologist",
-    aOne: "a dermatologist",
-    slug: "dermatologists",
-    department: "Skin & Hair",
-    aliases: ["skin specialist", "skin doctor", "hair doctor", "skin"],
-    guide:
-      "Dermatologists treat conditions of the skin, hair and nails — from acne, eczema and psoriasis to hair loss and skin growths that change in size or colour. Many concerns are settled in one or two consultations.",
-    when: [
-      "A mole or growth that changes shape, size or colour",
-      "Acne that has not responded to over-the-counter treatment",
-      "Persistent rash, itching or scaling",
-      "Sudden or patchy hair loss",
-      "Recurring skin infections",
-    ],
-    reviewedOn: "12 Aug 2026",
-  },
-  orthopaedics: {
-    key: "orthopaedics",
-    name: "Orthopaedics",
-    plural: "Orthopaedic surgeons",
-    one: "Orthopaedic surgeon",
-    aOne: "an orthopaedic surgeon",
-    slug: "orthopaedic-surgeons",
-    department: "Bones & Joints",
-    aliases: ["bone specialist", "bone doctor", "joint pain", "ortho", "orthopedics"],
-    guide:
-      "Orthopaedic surgeons manage injuries and disorders of bones, joints, ligaments and the spine. Not every consultation ends in surgery — a large share of orthopaedic care is physiotherapy, injection and load management.",
-    when: [
-      "Joint pain that limits walking, standing or sleep",
-      "An injury with swelling or an inability to bear weight",
-      "Back or neck pain radiating into a limb",
-      "Sports injuries that keep recurring",
-      "A second opinion before a planned joint replacement",
-    ],
-    reviewedOn: "12 Aug 2026",
-  },
-  paediatrics: {
-    key: "paediatrics",
-    name: "Paediatrics",
-    plural: "Paediatricians",
-    one: "Paediatrician",
-    aOne: "a paediatrician",
-    slug: "paediatricians",
-    department: "Child Health",
-    aliases: ["child specialist", "children doctor", "kids doctor", "child doctor", "pediatrics"],
-    guide:
-      "Paediatricians care for infants, children and adolescents — growth and development, immunisation, common infections and long-term childhood conditions. Most families choose a paediatrician close to home for continuity.",
-    when: [
-      "Routine immunisation and growth monitoring",
-      "Fever, cough or a stomach upset that is not settling",
-      "Concerns about feeding, weight or developmental milestones",
-      "Recurrent ear, throat or chest infections",
-      "Adolescent health and school-related concerns",
-    ],
-    reviewedOn: "12 Aug 2026",
-  },
-};
+export { SPECIALTIES } from "@/lib/data/specialties";
+import { SPECIALTIES } from "@/lib/data/specialties";
 
 export const SPECIALTY_KEYS = Object.keys(SPECIALTIES) as SpecialtyKey[];
 
@@ -109,8 +29,8 @@ export function specialtyByKey(key: string): Specialty | null {
 }
 
 /**
- * Location hierarchy. Only Bengaluru is open in this build; the shape is
- * country > state > city > locality so additional cities are data, not code.
+ * Seed-mode geography: the six Bengaluru localities the fixture doctors use.
+ * With a database the `localities` table is the registry (lib/data/geo.ts).
  */
 export const LOCALITIES: Record<LocalityKey, Locality> = {
   indiranagar: mk("indiranagar", "Indiranagar", 12.9784, 77.6408),
@@ -129,6 +49,7 @@ export const LOCALITIES: Record<LocalityKey, Locality> = {
 function mk(key: LocalityKey, name: string, lat: number, lng: number): Locality {
   return {
     key,
+    slug: key,
     name,
     city: "Bengaluru",
     citySlug: "bengaluru",
@@ -140,17 +61,6 @@ function mk(key: LocalityKey, name: string, lat: number, lng: number): Locality 
 }
 
 export const LOCALITY_KEYS = Object.keys(LOCALITIES) as LocalityKey[];
-
-export const CITY = {
-  name: "Bengaluru",
-  slug: "bengaluru",
-  state: "Karnataka",
-  stateSlug: "karnataka",
-} as const;
-
-export function localityBySlug(slug: string): Locality | null {
-  return (LOCALITIES as Record<string, Locality>)[slug] ?? null;
-}
 
 /**
  * Maps a free-text patient query onto one canonical speciality. Synonyms with
@@ -171,15 +81,6 @@ export function resolveSpecialtyQuery(query: string): Specialty | null {
       return s;
     }
     if (s.aliases.some((a) => a.includes(q) || q.includes(a))) return s;
-  }
-  return null;
-}
-
-export function resolveLocalityQuery(query: string): Locality | null {
-  const q = query.trim().toLowerCase();
-  if (!q) return null;
-  for (const key of LOCALITY_KEYS) {
-    if (LOCALITIES[key].name.toLowerCase().includes(q)) return LOCALITIES[key];
   }
   return null;
 }
