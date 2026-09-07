@@ -26,14 +26,14 @@ export function generateStaticParams(): Params[] {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const specialty = specialtyByKey((await params).specialty);
   if (!specialty) return { title: "Not found", robots: { index: false, follow: false } };
-  const count = await countIndexable(specialty.key);
+  const [count, eligible] = await Promise.all([countIndexable(specialty.key), countIndexable(specialty.key, undefined, "eligible")]);
   return pageMeta({
     title: `${specialty.name}: verified ${specialty.plural.toLowerCase()} in India`,
     ogTitle: `${specialty.name} — when to consult ${specialty.aOne}, and verified ${specialty.plural.toLowerCase()} in India`,
     description: `When to consult ${specialty.aOne}, reviewed ${specialty.reviewedOn}, plus ${count} verified ${specialty.plural.toLowerCase()} with registration, qualification and practice checked.`,
     path: paths.specialty(specialty.key),
     image: "segment",
-    index: (await withOverride(paths.specialty(specialty.key), listingGate("national", count, true))).indexable,
+    index: (await withOverride(paths.specialty(specialty.key), listingGate("national", eligible, true))).indexable,
   });
 }
 
@@ -41,8 +41,10 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   const specialty = specialtyByKey((await params).specialty);
   if (!specialty) notFound();
 
-  const [count, cityCounts, listedCounts, geo] = await Promise.all([countIndexable(specialty.key), countsByCity(specialty.key), countsByCity(specialty.key, "published"), getGeo()]);
-  const openCities = cityCounts
+  const [count, eligible, cityCounts, eligibleCounts, listedCounts, geo] = await Promise.all([countIndexable(specialty.key), countIndexable(specialty.key, undefined, "eligible"), countsByCity(specialty.key), countsByCity(specialty.key, "eligible"), countsByCity(specialty.key, "published"), getGeo()]);
+  // Cities that clear the gate get a crawlable link from this hub, counted the
+  // same way the gate and the sitemap count them.
+  const openCities = eligibleCounts
     .filter((c) => c.n >= GATES.citySpecialty)
     .map((c) => ({ ...c, city: geo.city(c.stateSlug, c.citySlug) }))
     .filter((c) => c.city);
@@ -63,7 +65,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   }
   const stateGroups = [...byState.values()].sort((a, b) => b.listed - a.listed || a.state.name.localeCompare(b.state.name));
   const fmt = (n: number) => n.toLocaleString("en-IN");
-  const gate = await withOverride(paths.specialty(specialty.key), listingGate("national", count, Boolean(specialty.guide)));
+  const gate = await withOverride(paths.specialty(specialty.key), listingGate("national", eligible, Boolean(specialty.guide)));
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
     { name: "Specialities" },

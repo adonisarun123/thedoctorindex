@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { state, city } = await params;
   const c = (await getGeo()).city(state, city);
   if (!c) return { title: "Not found", robots: { index: false, follow: false } };
-  const n = Object.values(await countsBySpecialty({ stateSlug: state, citySlug: city })).reduce((a, b) => a + b, 0);
+  const n = Object.values(await countsBySpecialty({ stateSlug: state, citySlug: city }, "eligible")).reduce((a, b) => a + b, 0);
   return pageMeta({
     title: `Verified doctors in ${c.name}`,
     ogTitle: `Verified doctors in ${c.name} by speciality and locality`,
@@ -48,7 +48,7 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
   if (!c) notFound();
 
   const place = { stateSlug: state, citySlug: city };
-  const [countBySpecialty, listedBySpecialty, perLocality, t] = await Promise.all([countsBySpecialty(place), countsBySpecialty(place, "published"), countsByLocalitySpecialty(city), totals(place)]);
+  const [countBySpecialty, listedBySpecialty, perLocality, t] = await Promise.all([countsBySpecialty(place), countsBySpecialty(place, "published"), countsByLocalitySpecialty(city, "eligible"), totals(place)]);
   const verified = t.indexable;
   const openSpecialties = SPECIALTY_KEYS.filter((k) => (listedBySpecialty[k] ?? 0) > 0).sort((a, b) => (countBySpecialty[b] ?? 0) - (countBySpecialty[a] ?? 0) || (listedBySpecialty[b] ?? 0) - (listedBySpecialty[a] ?? 0));
   const localities = geo.localitiesIn(city).filter((l) => l.stateSlug === state);

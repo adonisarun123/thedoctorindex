@@ -9,7 +9,7 @@ import { getDb } from "@/lib/db/client";
 import { daysBetween, toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { isProfileIndexable } from "@/lib/seo/gates";
-import type { DataSource, Measure, Place, PlaceCount, Totals } from "@/lib/data/index";
+import type { DataSource, Measure, Place, PlaceCount, PlaceSpecialtyCount, Totals } from "@/lib/data/index";
 import type { DoctorView, Locality, SpecialtyKey } from "@/lib/types";
 
 /**
@@ -256,7 +256,16 @@ const PUBLISHED_JOIN = sql`
   where d.status = 'published'
 `;
 
-const joinFor = (m: Measure | undefined) => (m === "published" ? PUBLISHED_JOIN : INDEXABLE_JOIN);
+/**
+ * The pool the current index mode publishes. In "all" mode every published
+ * profile with a practice carries index,follow, so the browse pages above them
+ * must be gated on that same pool — otherwise 24,000 indexed profiles sit
+ * under state, city and speciality pages that are all noindex and absent from
+ * the sitemap.
+ */
+const ELIGIBLE_JOIN = env.gates.profileIndexMode === "all" ? PUBLISHED_JOIN : INDEXABLE_JOIN;
+
+const joinFor = (m: Measure | undefined) => (m === "published" ? PUBLISHED_JOIN : m === "eligible" ? ELIGIBLE_JOIN : INDEXABLE_JOIN);
 
 export const dbSource: DataSource = {
   async getDoctorBySlug(slug: string): Promise<DoctorView | null> {
@@ -291,9 +300,9 @@ export const dbSource: DataSource = {
     const where = Object.keys(place).length ? sql`${published()} and ${eq(s.doctors.specialtyKey, specialty)} and ${inPlaceSubquery(place, sql`${s.doctors.id}`)}` : sql`${published()} and ${eq(s.doctors.specialtyKey, specialty)}`;
     return views(where, limit);
   },
-  async countIndexable(specialty: SpecialtyKey, place?: Place): Promise<number> {
+  async countIndexable(specialty: SpecialtyKey, place?: Place, measure?: Measure): Promise<number> {
     const rows = (await getDb().execute(sql`
-      select count(distinct d.id)::int as n ${INDEXABLE_JOIN} and d.specialty_key = ${specialty} ${placeSql(place)}
+      select count(distinct d.id)::int as n ${joinFor(measure)} and d.specialty_key = ${specialty} ${placeSql(place)}
     `)) as unknown as Array<{ n: number }>;
     return Number(rows[0]?.n ?? 0);
   },
@@ -311,19 +320,33 @@ export const dbSource: DataSource = {
     `)) as unknown as PlaceCount[];
     return rows.map((r) => ({ ...r, n: Number(r.n) }));
   },
-  async countsByLocality(citySlug: string, specialty?: SpecialtyKey): Promise<Record<string, number>> {
+  async countsByLocality(citySlug: string, specialty?: SpecialtyKey, measure?: Measure): Promise<Record<string, number>> {
     const rows = (await getDb().execute(sql`
-      select f.locality_key as k, count(distinct d.id)::int as n ${INDEXABLE_JOIN} and l.city_slug = ${citySlug}
+      select f.locality_key as k, count(distinct d.id)::int as n ${joinFor(measure)} and l.city_slug = ${citySlug}
       ${specialty ? sql`and d.specialty_key = ${specialty}` : sql``}
       group by f.locality_key
     `)) as unknown as Array<{ k: string; n: number }>;
     return Object.fromEntries(rows.map((r) => [r.k, Number(r.n)]));
   },
-  async countsByLocalitySpecialty(citySlug: string) {
+  async countsByLocalitySpecialty(citySlug: string, measure?: Measure) {
     const rows = (await getDb().execute(sql`
-      select f.locality_key as "localityKey", d.specialty_key as specialty, count(distinct d.id)::int as n ${INDEXABLE_JOIN} and l.city_slug = ${citySlug}
+      select f.locality_key as "localityKey", d.specialty_key as specialty, count(distinct d.id)::int as n ${joinFor(measure)} and l.city_slug = ${citySlug}
       group by f.locality_key, d.specialty_key
     `)) as unknown as Array<{ localityKey: string; specialty: string; n: number }>;
+    return rows.map((r) => ({ ...r, n: Number(r.n) }));
+  },
+  async countsByCitySpecialty(measure?: Measure): Promise<PlaceSpecialtyCount[]> {
+    const rows = (await getDb().execute(sql`
+      select l.state_slug as "stateSlug", l.city_slug as "citySlug", d.specialty_key as specialty, count(distinct d.id)::int as n ${joinFor(measure)}
+      group by l.state_slug, l.city_slug, d.specialty_key
+    `)) as unknown as PlaceSpecialtyCount[];
+    return rows.map((r) => ({ ...r, n: Number(r.n) }));
+  },
+  async countsByLocalityAll(measure?: Measure): Promise<PlaceSpecialtyCount[]> {
+    const rows = (await getDb().execute(sql`
+      select l.state_slug as "stateSlug", l.city_slug as "citySlug", f.locality_key as "localityKey", d.specialty_key as specialty, count(distinct d.id)::int as n ${joinFor(measure)}
+      group by l.state_slug, l.city_slug, f.locality_key, d.specialty_key
+    `)) as unknown as PlaceSpecialtyCount[];
     return rows.map((r) => ({ ...r, n: Number(r.n) }));
   },
   async countsByState(measure?: Measure): Promise<Record<string, number>> {
@@ -382,9 +405,8 @@ export const dbSource: DataSource = {
   async listIndexableSlugs(): Promise<Array<{ slug: string; lastVerifiedOn: string }>> {
     // Mirrors isProfileIndexable(): every published profile with an active
     // practice in "all" mode, verified supply only in "verified" mode.
-    const join = env.gates.profileIndexMode === "all" ? PUBLISHED_JOIN : INDEXABLE_JOIN;
     const rows = (await getDb().execute(sql`
-      select d.slug, d.last_verified_on as lv ${join} group by d.id, d.slug, d.last_verified_on order by d.slug
+      select d.slug, d.last_verified_on as lv ${ELIGIBLE_JOIN} group by d.id, d.slug, d.last_verified_on order by d.slug
     `)) as unknown as Array<{ slug: string; lv: string | null }>;
     return rows.map((r) => ({ slug: r.slug, lastVerifiedOn: toDisplay(r.lv) }));
   },

@@ -18,6 +18,7 @@
     "db:geocode": "tsx scripts/geocode.ts",
     "db:import": "tsx --require ./scripts/server-only-shim.cjs scripts/import-doctors.ts",
     "db:taxonomy": "tsx scripts/taxonomy.ts",
+    "seo:sitemap": "tsx --require ./scripts/server-only-shim.cjs scripts/sitemap-report.ts",
     "db:staff": "tsx scripts/staff.ts",
     "db:import:drdata": "tsx --require ./scripts/server-only-shim.cjs scripts/import-drdata.ts",
     "test": "tsx --require ./scripts/server-only-shim.cjs --test tests/unit/*.test.ts",

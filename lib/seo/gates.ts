@@ -19,6 +19,8 @@ import { hasDate, registrationState } from "@/lib/verification";
 export const GATES = {
   /** Which profiles are indexed: every published profile, or only verified ones. PROFILE_INDEX_MODE */
   profileIndexMode: env.gates.profileIndexMode,
+  /** Which browse pages may index: inventory thresholds alone, or verified supply plus reviewed guidance. LISTING_INDEX_MODE */
+  listingIndexMode: env.gates.listingIndexMode,
   /** Minimum quality score for a doctor profile to count as verified supply (and, in verified mode, to be indexed). GATE_PROFILE_QUALITY */
   profileQuality: env.gates.profileQuality,
   /** Minimum indexable doctors before a city × speciality page is indexed. GATE_CITY_SPECIALTY_MIN_DOCTORS */
@@ -112,9 +114,10 @@ export function listingGate(
         ? GATES.citySpecialty
         : GATES.nationalSpecialty;
 
+  const all = GATES.listingIndexMode === "all";
   const checks = [
     {
-      label: "Verified supply",
+      label: "Supply",
       pass: indexableCount >= threshold,
       detail: `${indexableCount} indexable doctors against a threshold of ${threshold}`,
     },
@@ -124,12 +127,16 @@ export function listingGate(
       detail: "Verified count, localities covered, fee range and practice availability",
     },
     {
-      label: "Original medically reviewed guidance",
+      // In "all" mode the guidance is still written and still shown on the
+      // page; it just no longer decides whether the page may index, so the 39
+      // specialities without a reviewed guide are not held out of the index.
+      label: all ? "Original medically reviewed guidance (shown, not required)" : "Original medically reviewed guidance",
       pass: hasOriginalGuidance,
       detail: "Speciality guidance written and reviewed for this page, not swapped city names",
     },
   ];
-  return { indexable: checks.every((c) => c.pass), checks };
+  const required = all ? checks.slice(0, 2) : checks;
+  return { indexable: required.every((c) => c.pass), checks };
 }
 
 /**

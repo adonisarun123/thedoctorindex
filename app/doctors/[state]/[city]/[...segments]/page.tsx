@@ -48,8 +48,12 @@ export async function generateMetadata({
 
   const sp = await searchParams;
   const { specialty, city, locality, canonicalPath, placeName } = resolved;
-  const indexableCount = await countIndexable(specialty.key, locality ? { localityKey: locality.key } : { stateSlug: city.stateSlug, citySlug: city.slug });
-  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", indexableCount, Boolean(specialty.guide)));
+  // Two counts, deliberately: `indexableCount` is verified supply and is what
+  // the copy calls verified; `eligibleCount` is the pool the current index mode
+  // publishes and is what the gate decides on.
+  const gatePlace = locality ? { localityKey: locality.key } : { stateSlug: city.stateSlug, citySlug: city.slug };
+  const [indexableCount, eligibleCount] = await Promise.all([countIndexable(specialty.key, gatePlace), countIndexable(specialty.key, gatePlace, "eligible")]);
+  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", eligibleCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 
   // "Verified", never "Best". "Best cardiologists in Bengaluru" needs a
@@ -76,8 +80,12 @@ export default async function ListingPage({
 
   const sp = await searchParams;
   const { specialty, city, locality, canonicalPath, placeName } = resolved;
-  const indexableCount = await countIndexable(specialty.key, locality ? { localityKey: locality.key } : { stateSlug: city.stateSlug, citySlug: city.slug });
-  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", indexableCount, Boolean(specialty.guide)));
+  // Two counts, deliberately: `indexableCount` is verified supply and is what
+  // the copy calls verified; `eligibleCount` is the pool the current index mode
+  // publishes and is what the gate decides on.
+  const gatePlace = locality ? { localityKey: locality.key } : { stateSlug: city.stateSlug, citySlug: city.slug };
+  const [indexableCount, eligibleCount] = await Promise.all([countIndexable(specialty.key, gatePlace), countIndexable(specialty.key, gatePlace, "eligible")]);
+  const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", eligibleCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 
   const routeMeta: RouteMetaData = {

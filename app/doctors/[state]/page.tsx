@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { state } = await params;
   const st = (await getGeo()).state(state);
   if (!st) return { title: "Not found", robots: { index: false, follow: false } };
-  const n = (await countsByState())[st.slug] ?? 0;
+  const n = (await countsByState("eligible"))[st.slug] ?? 0;
   return pageMeta({
     title: `Verified doctors in ${st.name}`,
     description: `Cities in ${st.name} with verified, currently practising doctors: registration, qualification and practice checked separately and dated on every profile.`,

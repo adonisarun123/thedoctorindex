@@ -35,12 +35,32 @@ export interface Place {
   localityKey?: string;
 }
 
-/** Which doctors a count includes: those passing every gate, or every published one. */
-export type Measure = "indexable" | "published";
+/**
+ * Which doctors a count includes.
+ *   indexable — verified supply: quality gate cleared, practice confirmed
+ *               inside the freshness window. What a page means when it says
+ *               "verified", whatever the index mode.
+ *   published — every published profile with an active practice.
+ *   eligible  — the pool the current PROFILE_INDEX_MODE actually indexes:
+ *               "published" in "all" mode, "indexable" in "verified" mode.
+ *               Listing gates and the sitemap count this one, so a browse page
+ *               is submitted exactly when the profiles under it are.
+ */
+export type Measure = "indexable" | "published" | "eligible";
 
 export interface PlaceCount {
   stateSlug: string;
   citySlug: string;
+  n: number;
+}
+
+/** One (place x speciality) combination and how many doctors it holds. */
+export interface PlaceSpecialtyCount {
+  stateSlug: string;
+  citySlug: string;
+  /** Absent on the city-level rollup. */
+  localityKey?: string;
+  specialty: string;
   n: number;
 }
 
@@ -65,16 +85,20 @@ export type DataSource = {
   findByRegistration(registrationNumber: string): Promise<DoctorView | null>;
   /** Published doctors of one speciality in a place, best-first, capped at LISTING_CAP. */
   getListing(specialty: SpecialtyKey, place: Place, limit?: number): Promise<DoctorView[]>;
-  countIndexable(specialty: SpecialtyKey, place?: Place): Promise<number>;
+  countIndexable(specialty: SpecialtyKey, place?: Place, measure?: Measure): Promise<number>;
   /** Count per speciality key within a place (missing key = 0). */
   countsBySpecialty(place?: Place, measure?: Measure): Promise<Record<string, number>>;
   /** Count per city, optionally for one speciality, descending. */
   countsByCity(specialty?: SpecialtyKey, measure?: Measure): Promise<PlaceCount[]>;
   /** Indexable count per locality key within a city, optionally for one speciality. */
-  countsByLocality(citySlug: string, specialty?: SpecialtyKey): Promise<Record<string, number>>;
+  countsByLocality(citySlug: string, specialty?: SpecialtyKey, measure?: Measure): Promise<Record<string, number>>;
   /** Indexable count per (locality key, speciality key) within a city — one query for a city hub. */
-  countsByLocalitySpecialty(citySlug: string): Promise<Array<{ localityKey: string; specialty: string; n: number }>>;
+  countsByLocalitySpecialty(citySlug: string, measure?: Measure): Promise<Array<{ localityKey: string; specialty: string; n: number }>>;
   countsByState(measure?: Measure): Promise<Record<string, number>>;
+  /** Every (city x speciality) combination in one query — the sitemap builds 40,000 URLs from this, not from a query per city. */
+  countsByCitySpecialty(measure?: Measure): Promise<PlaceSpecialtyCount[]>;
+  /** Every (locality x speciality) combination, site-wide, in one query. */
+  countsByLocalityAll(measure?: Measure): Promise<PlaceSpecialtyCount[]>;
   /** Published / indexable / claimed / practice counts, optionally within a place. */
   totals(place?: Place): Promise<Totals>;
   searchDoctors(query: string, place?: Place): Promise<DoctorView[]>;
@@ -125,12 +149,14 @@ export const getDoctorBySlug = cached("getDoctorBySlug", async (slug: string) =>
 export const canonicalDoctorPath = cached("canonicalDoctorPath", async (slug: string) => (await source()).canonicalDoctorPath(slug));
 export const findByRegistration = async (n: string) => (await source()).findByRegistration(n);
 export const getListing = cached("getListing", async (k: SpecialtyKey, place: Place, limit?: number) => (await source()).getListing(k, place, limit));
-export const countIndexable = cached("countIndexable", async (k: SpecialtyKey, place?: Place) => (await source()).countIndexable(k, place));
+export const countIndexable = cached("countIndexable", async (k: SpecialtyKey, place?: Place, measure?: Measure) => (await source()).countIndexable(k, place, measure));
 export const countsBySpecialty = cached("countsBySpecialty", async (place?: Place, measure?: Measure) => (await source()).countsBySpecialty(place, measure));
 export const countsByCity = cached("countsByCity", async (k?: SpecialtyKey, measure?: Measure) => (await source()).countsByCity(k, measure));
-export const countsByLocality = cached("countsByLocality", async (citySlug: string, k?: SpecialtyKey) => (await source()).countsByLocality(citySlug, k));
-export const countsByLocalitySpecialty = cached("countsByLocalitySpecialty", async (citySlug: string) => (await source()).countsByLocalitySpecialty(citySlug));
+export const countsByLocality = cached("countsByLocality", async (citySlug: string, k?: SpecialtyKey, measure?: Measure) => (await source()).countsByLocality(citySlug, k, measure));
+export const countsByLocalitySpecialty = cached("countsByLocalitySpecialty", async (citySlug: string, measure?: Measure) => (await source()).countsByLocalitySpecialty(citySlug, measure));
 export const countsByState = cached("countsByState", async (measure?: Measure) => (await source()).countsByState(measure));
+export const countsByCitySpecialty = cached("countsByCitySpecialty", async (measure?: Measure) => (await source()).countsByCitySpecialty(measure));
+export const countsByLocalityAll = cached("countsByLocalityAll", async (measure?: Measure) => (await source()).countsByLocalityAll(measure));
 export const totals = cached("totals", async (place?: Place) => (await source()).totals(place));
 export const searchDoctors = async (q: string, place?: Place) => (await source()).searchDoctors(q, place);
 export const getNearby = async (d: DoctorView, limit?: number) => (await source()).getNearby(d, limit);

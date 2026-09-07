@@ -2,7 +2,7 @@ import { lookupRedirect } from "@/lib/seo/redirects";
 import { SEED_DOCTORS, type SeedDoctor } from "@/lib/data/doctors";
 import { LOCALITIES, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { isProfileIndexable, isProfileVerified } from "@/lib/seo/gates";
-import type { DataSource, Measure, Place, PlaceCount, Totals } from "@/lib/data/index";
+import type { DataSource, Measure, Place, PlaceCount, PlaceSpecialtyCount, Totals } from "@/lib/data/index";
 import type { Doctor, DoctorView, Practice, SpecialtyKey } from "@/lib/types";
 import { registrationTier } from "@/lib/verification";
 
@@ -43,8 +43,9 @@ function inPlace(d: DoctorView, place?: Place): boolean {
   return d.practices.some((p) => (!place.localityKey || p.locality === place.localityKey) && (!place.citySlug || p.citySlug === place.citySlug) && (!place.stateSlug || p.stateSlug === place.stateSlug));
 }
 
-/** Verified supply (the "indexable" measure), or everything published; index mode does not change these counts. */
-const indexable = (place?: Place, specialty?: SpecialtyKey, measure: Measure = "indexable") => ALL.filter((d) => (measure === "published" || isProfileVerified(d)) && (!specialty || d.specialty === specialty) && inPlace(d, place));
+/** Verified supply ("indexable"), everything published ("published"), or whatever the current index mode publishes ("eligible"). */
+const matches = (d: DoctorView, measure: Measure) => (measure === "published" ? true : measure === "eligible" ? isProfileIndexable(d) : isProfileVerified(d));
+const indexable = (place?: Place, specialty?: SpecialtyKey, measure: Measure = "indexable") => ALL.filter((d) => matches(d, measure) && (!specialty || d.specialty === specialty) && inPlace(d, place));
 
 export const seedSource: DataSource = {
   async getDoctorBySlug(slug: string): Promise<DoctorView | null> {
@@ -65,8 +66,8 @@ export const seedSource: DataSource = {
       .sort((a, b) => registrationTier(b) - registrationTier(a) || b.qualityScore - a.qualityScore || a.name.localeCompare(b.name))
       .slice(0, limit);
   },
-  async countIndexable(specialty: SpecialtyKey, place?: Place): Promise<number> {
-    return indexable(place, specialty).length;
+  async countIndexable(specialty: SpecialtyKey, place?: Place, measure?: Measure): Promise<number> {
+    return indexable(place, specialty, measure).length;
   },
   async countsBySpecialty(place?: Place, measure?: Measure): Promise<Record<string, number>> {
     const out: Record<string, number> = {};
@@ -85,17 +86,42 @@ export const seedSource: DataSource = {
     }
     return [...map.values()].sort((a, b) => b.n - a.n);
   },
-  async countsByLocality(citySlug: string, specialty?: SpecialtyKey): Promise<Record<string, number>> {
+  async countsByLocality(citySlug: string, specialty?: SpecialtyKey, measure?: Measure): Promise<Record<string, number>> {
     const out: Record<string, number> = {};
-    for (const d of indexable({ citySlug }, specialty)) for (const l of d.localities) out[l] = (out[l] ?? 0) + 1;
+    for (const d of indexable({ citySlug }, specialty, measure)) for (const l of d.localities) out[l] = (out[l] ?? 0) + 1;
     return out;
   },
-  async countsByLocalitySpecialty(citySlug: string) {
+  async countsByLocalitySpecialty(citySlug: string, measure?: Measure) {
     const map = new Map<string, { localityKey: string; specialty: string; n: number }>();
-    for (const d of indexable({ citySlug })) {
+    for (const d of indexable({ citySlug }, undefined, measure)) {
       for (const l of d.localities) {
         const k = `${l}|${d.specialty}`;
         const cur = map.get(k) ?? { localityKey: l, specialty: d.specialty, n: 0 };
+        cur.n++;
+        map.set(k, cur);
+      }
+    }
+    return [...map.values()];
+  },
+  async countsByCitySpecialty(measure?: Measure): Promise<PlaceSpecialtyCount[]> {
+    const map = new Map<string, PlaceSpecialtyCount>();
+    for (const d of indexable(undefined, undefined, measure)) {
+      for (const key of new Set(d.practices.map((p) => `${p.stateSlug}/${p.citySlug}`))) {
+        const [stateSlug, citySlug] = key.split("/");
+        const k = `${key}|${d.specialty}`;
+        const cur = map.get(k) ?? { stateSlug, citySlug, specialty: d.specialty, n: 0 };
+        cur.n++;
+        map.set(k, cur);
+      }
+    }
+    return [...map.values()];
+  },
+  async countsByLocalityAll(measure?: Measure): Promise<PlaceSpecialtyCount[]> {
+    const map = new Map<string, PlaceSpecialtyCount>();
+    for (const d of indexable(undefined, undefined, measure)) {
+      for (const p of d.practices) {
+        const k = `${p.stateSlug}/${p.citySlug}/${p.locality}|${d.specialty}`;
+        const cur = map.get(k) ?? { stateSlug: p.stateSlug, citySlug: p.citySlug, localityKey: p.locality, specialty: d.specialty, n: 0 };
         cur.n++;
         map.set(k, cur);
       }

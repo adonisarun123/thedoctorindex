@@ -70,6 +70,15 @@ export const env = {
      * verified meaning in both modes.
      */
     profileIndexMode: (str("PROFILE_INDEX_MODE", "all") === "verified" ? "verified" : "all") as "all" | "verified",
+    /**
+     * Which browse pages (state, city, city x speciality, locality x
+     * speciality, national speciality) may index and go into the sitemap.
+     * "all": the inventory thresholds below decide, counted over the same pool
+     * the profile index mode publishes. "verified": verified supply plus
+     * original reviewed guidance. Defaults to whatever PROFILE_INDEX_MODE is,
+     * so the corpus and the pages that lead to it stay in step.
+     */
+    listingIndexMode: (str("LISTING_INDEX_MODE", str("PROFILE_INDEX_MODE", "all")) === "verified" ? "verified" : "all") as "all" | "verified",
     profileQuality: num("GATE_PROFILE_QUALITY", 70),
     citySpecialty: num("GATE_CITY_SPECIALTY_MIN_DOCTORS", 3),
     localitySpecialty: num("GATE_LOCALITY_SPECIALTY_MIN_DOCTORS", 5),
