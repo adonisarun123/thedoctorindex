@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 
 import { photoAdminAction, addPracticeAdminAction, addQualificationAdminAction, mergeDoctorAction, registrationCheckAction, qualificationStateAction, setStatusAction, updateDoctorFieldsAction, updatePracticeAdminAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
+import { RankingBreakdown } from "@/components/RankingBreakdown";
 import { PlacePicker } from "@/components/PlacePicker";
+import { getDoctorBySlug } from "@/lib/data";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
@@ -28,11 +30,12 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
   const sp = await searchParams;
   const d = await getDoctorAdmin(id);
   if (!d) notFound();
-  const [quality, analytics, audit, mergedInto] = await Promise.all([
+  const [quality, analytics, audit, mergedInto, publicView] = await Promise.all([
     recomputeQuality(d.id),
     doctorAnalytics(d.id),
     getDb().query.auditLogs.findMany({ where: eq(s.auditLogs.entityId, d.id), orderBy: [desc(s.auditLogs.createdAt)], limit: 40 }),
     d.mergedIntoId ? getDb().query.doctors.findFirst({ where: eq(s.doctors.id, d.mergedIntoId), columns: { id: true, name: true } }) : Promise.resolve(null),
+    getDoctorBySlug(d.slug).catch(() => null),
   ]);
   const reg = d.registrations.find((r) => r.isPrimary) ?? d.registrations[0];
   const activePractices = d.practices.filter((p) => p.active);
@@ -159,6 +162,8 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
               </div>
             ))}
           </section>
+
+          {publicView ? <RankingBreakdown doctor={publicView} /> : null}
 
           {/* Audit trail */}
           <section className="panel pad">

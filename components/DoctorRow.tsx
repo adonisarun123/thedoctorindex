@@ -5,7 +5,6 @@ import { CallButton, DirectionsButton } from "@/components/ContactActions";
 import { TrustBadges } from "@/components/TrustBadges";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { formatKm } from "@/lib/geo";
-import { rank, type RankingContext } from "@/lib/ranking";
 import { paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
 
@@ -13,11 +12,10 @@ function inr(n: number): string {
   return `₹${n.toLocaleString("en-IN")}`;
 }
 
-export function DoctorRow({ doctor, ctx, distance = null }: { doctor: DoctorView; ctx: RankingContext; distance?: { km: number; practiceIndex: number; approximate: boolean } | null }) {
+export function DoctorRow({ doctor, distance = null }: { doctor: DoctorView; distance?: { km: number; practiceIndex: number; approximate: boolean } | null }) {
   const specialty = SPECIALTIES[doctor.specialty];
   // With a visitor location, lead with the nearest practice.
   const practice = doctor.practices[distance?.practiceIndex ?? 0] ?? null;
-  const score = rank(doctor, ctx);
 
   return (
     <article className="row">
@@ -50,25 +48,6 @@ export function DoctorRow({ doctor, ctx, distance = null }: { doctor: DoctorView
         </div>
         <TrustBadges doctor={doctor} />
 
-        <details className="why">
-          <summary>Why this position</summary>
-          <table>
-            <tbody>
-              <tr><td>Query &amp; speciality relevance</td><td>{score.relevance} / 35</td></tr>
-              <tr><td>Location match</td><td>{score.location} / 20</td></tr>
-              <tr><td>Registration &amp; active practice</td><td>{score.verification} / 15</td></tr>
-              <tr><td>Profile completeness</td><td>{score.completeness} / 10</td></tr>
-              <tr><td>Freshness &amp; contactability</td><td>{score.freshness} / 10</td></tr>
-              <tr><td>Review confidence</td><td>{score.reviewConfidence} / 10</td></tr>
-            </tbody>
-          </table>
-          <div className="bar">
-            <i style={{ width: `${score.total}%` }} />
-          </div>
-          <div style={{ fontSize: "11.5px", color: "var(--muted)", marginTop: "6px" }}>
-            Payment is not an input. <Link href={paths.policy("ranking")}>Full methodology</Link>
-          </div>
-        </details>
       </div>
       <div className="act">
         <div className="rating">

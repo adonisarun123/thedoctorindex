@@ -23,7 +23,6 @@ export const SITE = {
   socialLinks: env.socialLinks,
   twitterHandle: env.twitterHandle,
   /** Date the seed dataset was last reconciled. Shown as the data freshness date. */
-  dataSnapshot: "04 Sep 2026",
   /** Published grievance contact. Required before the platform accepts reviews. */
   grievanceEmail: env.grievanceEmail,
   supportEmail: env.supportEmail,
