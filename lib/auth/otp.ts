@@ -35,23 +35,40 @@ export async function requestOtp(
 
   const code = generateOtp();
   const ttl = Number(process.env.OTP_TTL_SECONDS ?? 600);
-  await getDb().insert(otpCodes).values({
+  const [inserted] = await getDb().insert(otpCodes).values({
     identifier: id.value,
     codeHash: sha256(code, PEPPER()),
     purpose,
     expiresAt: new Date(Date.now() + ttl * 1000),
     ipHash: ipHash(ip),
-  });
+  }).returning({ id: otpCodes.id });
 
   const minutes = Math.round(ttl / 60);
-  if (id.kind === "email") {
-    await sendEmail({
-      to: id.value,
-      subject: `${code} is your Doctor Index code`,
-      text: `Your one-time password is ${code}. It expires in ${minutes} minutes.\n\nIf you did not request this, ignore this email.`,
-    });
-  } else {
-    await sendSms(id.value, `${code} is your Doctor Index code. Valid ${minutes} min.`);
+  const sent =
+    id.kind === "email"
+      ? await sendEmail({
+          to: id.value,
+          subject: `${code} is your Doctor Index code`,
+          text: `Your one-time password is ${code}. It expires in ${minutes} minutes.\n\nIf you did not request this, ignore this email.`,
+        })
+      : await sendSms(id.value, `${code} is your Doctor Index code. Valid ${minutes} min.`);
+
+  /**
+   * Never advance to the code screen for a code that was not actually sent.
+   * With no provider configured the mailer falls back to the server log and
+   * reports `delivered: false` in production; sending the user to "enter the
+   * code we just sent you" in that state is a dead end they cannot escape.
+   */
+  if (!sent.delivered) {
+    console.error(`[otp] undelivered ${id.kind} code · provider=${sent.provider} · purpose=${purpose}`);
+    await getDb().delete(otpCodes).where(eq(otpCodes.id, inserted.id));
+    return {
+      ok: false,
+      error:
+        id.kind === "email"
+          ? "We could not send the code by email just now. Try again in a few minutes, or write to " + (process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@thedoctorindex.in") + "."
+          : "Codes by SMS are not available yet. Use an email address instead.",
+    };
   }
   return { ok: true, kind: id.kind, identifier: id.value };
 }
