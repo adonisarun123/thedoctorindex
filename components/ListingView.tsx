@@ -80,7 +80,8 @@ export async function ListingView({
   const placeName = locality ? `${locality.name}, ${city.name}` : city.name;
   const heading = `${specialty.plural} in ${placeName}`;
 
-  const indexableHere = await countIndexable(specialty.key, place);
+  // The banner tracks the gate, so it is counted the same way the gate is.
+  const indexableHere = await countIndexable(specialty.key, place, "eligible");
   const threshold = locality ? GATES.localitySpecialty : GATES.citySpecialty;
   const belowThreshold = indexableHere < threshold;
 
@@ -93,7 +94,7 @@ export async function ListingView({
 
   // Localities that clear the supply gate get a crawlable link from this page.
   // Ones that do not are simply absent — we never link into a thin page.
-  const localityCounts = locality ? {} : await countsByLocality(city.slug, specialty.key);
+  const localityCounts = locality ? {} : await countsByLocality(city.slug, specialty.key, "eligible");
   const localityLinks = locality ? [] : cityLocalities.filter((l) => (localityCounts[l.key] ?? 0) >= GATES.localityLinkMin);
 
   return (

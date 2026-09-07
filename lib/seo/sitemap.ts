@@ -1,10 +1,10 @@
 import { GUIDES } from "@/lib/data/guides";
 import { POLICIES } from "@/lib/data/policies";
-import { countIndexable, countsByCity, countsByLocality, countsByState, listIndexableSlugs } from "@/lib/data";
+import { countsByCity, countsByCitySpecialty, countsByLocalityAll, countsBySpecialty, countsByState, listIndexableSlugs } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { withOverride } from "@/lib/seo/override";
-import { GATES, listingGate } from "@/lib/seo/gates";
+import { listingGate, type GateResult } from "@/lib/seo/gates";
 import { absoluteUrl, paths } from "@/lib/site";
 import { DOCTORS_PER_FILE, doctorFileCount, doctorFilePath, latestLastmod, toIsoDate, type SitemapEntry } from "@/lib/seo/sitemap-xml";
 
@@ -50,44 +50,60 @@ export async function indexEntries(): Promise<SitemapEntry[]> {
 
 /**
  * Browse pages: every state and city that exists as data, then each
- * (place × speciality) listing that clears its inventory gate. One GROUP BY
- * per speciality rather than one query per page, so this scales to
- * hundreds of cities.
+ * (place x speciality) listing that clears its inventory gate. Counts use the
+ * "eligible" measure — the same pool the profile index mode publishes — so the
+ * browse pages are submitted exactly when the profiles beneath them are.
+ *
+ * Five grouped queries, not one per combination: at 24,000 profiles the old
+ * per-city loop was several hundred round trips and took minutes, which a
+ * serverless route does not have.
  */
 export async function directoryEntries(): Promise<SitemapEntry[]> {
-  const geo = await getGeo();
+  const [geo, stateCounts, cityTotals, nationalCounts, byCitySpecialty, byLocalitySpecialty] = await Promise.all([
+    getGeo(),
+    countsByState("eligible"),
+    countsByCity(undefined, "eligible"),
+    countsBySpecialty(undefined, "eligible"),
+    countsByCitySpecialty("eligible"),
+    countsByLocalityAll("eligible"),
+  ]);
+
   const entries: SitemapEntry[] = [
     { loc: absoluteUrl(paths.home()) },
     { loc: absoluteUrl("/doctors") },
     { loc: absoluteUrl("/specialties") },
   ];
-  const stateCounts = await countsByState();
   for (const st of geo.states) if ((stateCounts[st.slug] ?? 0) > 0) entries.push({ loc: absoluteUrl(`/doctors/${st.slug}`) });
-  const cityTotals = await countsByCity();
   for (const c of cityTotals) if (c.n > 0 && geo.city(c.stateSlug, c.citySlug)) entries.push({ loc: absoluteUrl(`/doctors/${c.stateSlug}/${c.citySlug}`) });
+
+  // Gate decisions can be overridden per route by staff; the override table is
+  // cached, so asking per candidate costs nothing extra.
+  const keep = async (path: string, gate: GateResult) => (await withOverride(path, gate)).indexable;
 
   for (const key of SPECIALTY_KEYS) {
     const specialty = SPECIALTIES[key];
     const hasGuide = Boolean(specialty.guide);
-    const national = await countIndexable(key);
-    if ((await withOverride(paths.specialty(key), listingGate("national", national, hasGuide))).indexable) {
+    if (await keep(paths.specialty(key), listingGate("national", nationalCounts[key] ?? 0, hasGuide))) {
       entries.push({ loc: absoluteUrl(paths.specialty(key)) });
     }
-    const cities = await countsByCity(key);
-    for (const c of cities) {
-      if (!geo.city(c.stateSlug, c.citySlug)) continue;
-      const cityPath = paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug);
-      if ((await withOverride(cityPath, listingGate("city", c.n, hasGuide))).indexable) entries.push({ loc: absoluteUrl(cityPath) });
-      if (c.n < GATES.localitySpecialty) continue;
-      const byLocality = await countsByLocality(c.citySlug, key);
-      for (const [locKey, n] of Object.entries(byLocality)) {
-        const loc = geo.locality(locKey);
-        if (!loc || loc.stateSlug !== c.stateSlug) continue;
-        const locPath = paths.localitySpecialty(c.stateSlug, c.citySlug, loc.slug, specialty.slug);
-        if ((await withOverride(locPath, listingGate("locality", n, hasGuide))).indexable) entries.push({ loc: absoluteUrl(locPath) });
-      }
-    }
   }
+
+  for (const r of byCitySpecialty) {
+    const specialty = SPECIALTIES[r.specialty];
+    if (!specialty || !geo.city(r.stateSlug, r.citySlug)) continue;
+    const path = paths.citySpecialty(r.stateSlug, r.citySlug, specialty.slug);
+    if (await keep(path, listingGate("city", r.n, Boolean(specialty.guide)))) entries.push({ loc: absoluteUrl(path) });
+  }
+
+  for (const r of byLocalitySpecialty) {
+    const specialty = SPECIALTIES[r.specialty];
+    if (!specialty || !r.localityKey) continue;
+    const loc = geo.locality(r.localityKey);
+    if (!loc || loc.stateSlug !== r.stateSlug || loc.citySlug !== r.citySlug) continue;
+    const path = paths.localitySpecialty(r.stateSlug, r.citySlug, loc.slug, specialty.slug);
+    if (await keep(path, listingGate("locality", r.n, Boolean(specialty.guide)))) entries.push({ loc: absoluteUrl(path) });
+  }
+
   return entries;
 }
 
