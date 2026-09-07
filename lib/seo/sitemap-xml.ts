@@ -25,11 +25,12 @@ export function toIsoDate(display: string): string | undefined {
 
 /**
  * The protocol caps a sitemap at 50,000 URLs and 50 MB. Doctor profiles are
- * served in files of SITEMAP_MAX_URLS_PER_FILE (default 45,000): the first is
+ * served in files of SITEMAP_MAX_URLS_PER_FILE (default 10,000, so a
+ * 24,000-profile index is three files Google can re-read cheaply): the first is
  * /sitemaps/doctors.xml (the URL Search Console already knows), the rest
  * /sitemaps/doctors/2, /3 … The index lists however many exist right now.
  */
-export const DOCTORS_PER_FILE = Math.min(50_000, Math.max(1_000, Number(process.env.SITEMAP_MAX_URLS_PER_FILE ?? 45_000) || 45_000));
+export const DOCTORS_PER_FILE = Math.min(50_000, Math.max(1_000, Number(process.env.SITEMAP_MAX_URLS_PER_FILE ?? 10_000) || 10_000));
 
 export function doctorFileCount(total: number): number {
   return Math.max(1, Math.ceil(total / DOCTORS_PER_FILE));

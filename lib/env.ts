@@ -61,6 +61,15 @@ export const env = {
 
   /* --- indexation gates (plan §6) ---------------------------------------- */
   gates: {
+    /**
+     * Which profiles carry index,follow and go into the sitemap.
+     * "all": every published profile with a practice on record (the operating
+     * choice since Sep 2026 — get the corpus indexed, verification shown on
+     * the page). "verified": only profiles that pass the quality gate with a
+     * freshly confirmed practice. Listing gates and "verified" counts keep the
+     * verified meaning in both modes.
+     */
+    profileIndexMode: (str("PROFILE_INDEX_MODE", "all") === "verified" ? "verified" : "all") as "all" | "verified",
     profileQuality: num("GATE_PROFILE_QUALITY", 70),
     citySpecialty: num("GATE_CITY_SPECIALTY_MIN_DOCTORS", 3),
     localitySpecialty: num("GATE_LOCALITY_SPECIALTY_MIN_DOCTORS", 5),
