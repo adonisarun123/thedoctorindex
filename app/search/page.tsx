@@ -80,7 +80,7 @@ export default async function SearchPage({
         {results.length ? (
           <div className="rows">
             {results.map((d) => (
-              <DoctorRow key={d.slug} doctor={d} ctx={{ query }} distance={near ? nearestKm(d, near) : null} />
+              <DoctorRow key={d.slug} doctor={d} distance={near ? nearestKm(d, near) : null} />
             ))}
           </div>
         ) : (

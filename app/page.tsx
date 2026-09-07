@@ -4,13 +4,13 @@ import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { HomeSearch } from "@/components/HomeSearch";
 import { RouteMeta } from "@/components/RouteMeta";
-import { countsByCity, countsBySpecialty, getFeatured, totals } from "@/lib/data";
+import { countsByCity, countsBySpecialty, getFeatured } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
 import { GUIDES } from "@/lib/data/guides";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
 import { pageMeta } from "@/lib/seo/meta";
-import { HOME_CITY, SITE, absoluteUrl, paths } from "@/lib/site";
+import { SITE, absoluteUrl, paths } from "@/lib/site";
 
 export const metadata: Metadata = {
   ...pageMeta({ title: SITE.tagline, description: SITE.description, path: "/" }),
@@ -20,12 +20,15 @@ export const metadata: Metadata = {
 export const revalidate = 3600;
 
 export default async function HomePage() {
-  const [t, countBySpecialty, listedBySpecialty, cityCounts, cityListed, geo, recentlyVerified] = await Promise.all([totals(), countsBySpecialty(), countsBySpecialty(undefined, "published"), countsByCity(), countsByCity(undefined, "published"), getGeo(), getFeatured(4)]);
-  const { indexable, claimed, practices } = t;
+  const [countBySpecialty, listedBySpecialty, cityCounts, cityListed, geo, recentlyVerified] = await Promise.all([countsBySpecialty(), countsBySpecialty(undefined, "published"), countsByCity(), countsByCity(undefined, "published"), getGeo(), getFeatured(4)]);
   const topSpecialties = [...SPECIALTY_KEYS].sort((a, b) => (countBySpecialty[b] ?? 0) - (countBySpecialty[a] ?? 0) || (listedBySpecialty[b] ?? 0) - (listedBySpecialty[a] ?? 0)).slice(0, 8);
   const verifiedByCity = new Map(cityCounts.map((c) => [`${c.stateSlug}/${c.citySlug}`, c.n]));
   const topCities = cityListed.map((c) => ({ ...c, v: verifiedByCity.get(`${c.stateSlug}/${c.citySlug}`) ?? 0, city: geo.city(c.stateSlug, c.citySlug) })).filter((c) => c.city).sort((a, b) => b.v - a.v || b.n - a.n).slice(0, 8);
   const statesOpen = new Set(cityListed.filter((c) => c.n > 0).map((c) => c.stateSlug)).size;
+  // The busiest city we actually have supply in, and its strongest speciality there.
+  const topCity = topCities[0] ?? null;
+  const cityBySpecialty = topCity ? await countsBySpecialty({ stateSlug: topCity.stateSlug, citySlug: topCity.citySlug }, "eligible") : {};
+  const topCitySpecialty = [...SPECIALTY_KEYS].sort((a, b) => (cityBySpecialty[b] ?? 0) - (cityBySpecialty[a] ?? 0))[0];
 
   return (
     <>
@@ -58,15 +61,23 @@ export default async function HomePage() {
             <HomeSearch />
             <div className="quick">
               <span>Try:</span>
-              <Link className="chip" href={paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, "cardiologists")}>
-                Cardiologists in {HOME_CITY.name}
-              </Link>
-              <Link className="chip" href={paths.specialty("paediatrics")}>
-                Paediatricians
-              </Link>
-              <Link className="chip" href={paths.doctor("shalini-prakash-e8c451")}>
-                A full profile
-              </Link>
+              {/* Chips are built from what the directory actually holds, so none of them
+                  can point at an empty listing or a profile that no longer exists. */}
+              {topCity ? (
+                <Link className="chip" href={paths.citySpecialty(topCity.stateSlug, topCity.citySlug, SPECIALTIES[topCitySpecialty].slug)}>
+                  {SPECIALTIES[topCitySpecialty].plural} in {topCity.city!.name}
+                </Link>
+              ) : null}
+              {topSpecialties[0] ? (
+                <Link className="chip" href={paths.specialty(SPECIALTIES[topSpecialties[0]].slug)}>
+                  {SPECIALTIES[topSpecialties[0]].plural}
+                </Link>
+              ) : null}
+              {recentlyVerified[0] ? (
+                <Link className="chip" href={paths.doctor(recentlyVerified[0].slug)}>
+                  A full profile
+                </Link>
+              ) : null}
               <Link className="chip" href="/health-guides/how-to-choose-a-specialist">
                 How to choose a specialist
               </Link>
@@ -74,29 +85,11 @@ export default async function HomePage() {
           </div>
 
           <div className="register rise rise-2">
-            <div className="rhead">
-              <span className="t">What each label means</span>
-              <span className="n">{SITE.dataSnapshot}</span>
-            </div>
             <LabelRow tone="ok" label="Medical registration verified" source="Matched on council + registration number in the state register" when="checked" />
             <LabelRow tone="ok" label="Qualification verified" source="Degree found in the awarding body's official record" when="checked" />
             <LabelRow tone="wait" label="Qualification submitted" source="Supplied by the doctor, verification still open" when="pending" />
             <LabelRow tone="ok" label="Practice location confirmed" source="Address and contact reconfirmed with the practice" when="checked" />
             <LabelRow tone="none" label="Unclaimed profile" source="Compiled from permitted sources; the doctor has not taken it over" when="—" />
-            <div className="statline">
-              <div>
-                <div className="v">{indexable}</div>
-                <div className="l">Indexable profiles</div>
-              </div>
-              <div>
-                <div className="v">{claimed}</div>
-                <div className="l">Claimed by doctor</div>
-              </div>
-              <div>
-                <div className="v">{practices}</div>
-                <div className="l">Confirmed practices</div>
-              </div>
-            </div>
           </div>
         </div>
       </section>

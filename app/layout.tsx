@@ -180,7 +180,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 Not for emergencies. If someone is in immediate danger, call {SITE.emergencyNumber}.
                 Information on this site is a directory, not medical advice.
               </span>
-              <span className="mono">Data snapshot {SITE.dataSnapshot}</span>
             </div>
           </div>
         </footer>

@@ -8,13 +8,13 @@ import { NearMe } from "@/components/NearMe";
 import { FilterRail } from "@/components/FilterRail";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
-import { LISTING_CAP, LISTING_PAGE, allLanguages, applyFilters, countIndexable, countsByLocality, getListing } from "@/lib/data";
+import { LISTING_CAP, LISTING_PAGE, allLanguages, applyFilters, countsByLocality, getListing } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
 import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
 import { sortBy } from "@/lib/ranking";
 import { GATES } from "@/lib/seo/gates";
 import { breadcrumbLd, listingLd } from "@/lib/seo/structured-data";
-import { SITE, paths } from "@/lib/site";
+import { paths } from "@/lib/site";
 import type { City, ListingFilters, Locality, Specialty } from "@/lib/types";
 
 export function parseFilters(sp: Record<string, string | string[] | undefined>, validLocality: (key: string) => boolean): ListingFilters {
@@ -80,11 +80,6 @@ export async function ListingView({
   const placeName = locality ? `${locality.name}, ${city.name}` : city.name;
   const heading = `${specialty.plural} in ${placeName}`;
 
-  // The banner tracks the gate, so it is counted the same way the gate is.
-  const indexableHere = await countIndexable(specialty.key, place, "eligible");
-  const threshold = locality ? GATES.localitySpecialty : GATES.citySpecialty;
-  const belowThreshold = indexableHere < threshold;
-
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
     { name: city.state, path: `/doctors/${city.stateSlug}` },
@@ -113,21 +108,12 @@ export async function ListingView({
           <FilterRail languages={allLanguages(scoped)} localities={cityLocalities.map((l) => ({ key: l.key, name: l.name }))} cityName={city.name} />
 
           <div>
-            {belowThreshold ? (
-              <div className="notice" style={{ marginBottom: "16px" }}>
-                <b>This page is live but not indexed.</b> A {locality ? "locality" : "city"} ×
-                speciality page needs at least {threshold} verified doctors with confirmed addresses
-                before it enters the sitemap. This one has {indexableHere}. Patients reaching it from
-                a link see the full page; search engines are told not to index it.
-              </div>
-            ) : null}
 
             <div className="resulthead">
               <div>
                 <h1 style={{ fontSize: "1.75rem" }}>{heading}</h1>
                 <div className="count">
-                  {ordered.length === results.length ? `${results.length} of ${scoped.length}${scoped.length >= LISTING_CAP ? "+" : ""} profiles shown` : `Showing ${(pageNo - 1) * LISTING_PAGE + 1}–${(pageNo - 1) * LISTING_PAGE + results.length} of ${ordered.length}${scoped.length >= LISTING_CAP ? "+" : ""} profiles`} · {indexableHere} pass the index
-                  gate · data checked to {SITE.dataSnapshot}
+                  {ordered.length === results.length ? `${results.length} of ${scoped.length}${scoped.length >= LISTING_CAP ? "+" : ""} profiles shown` : `Showing ${(pageNo - 1) * LISTING_PAGE + 1}–${(pageNo - 1) * LISTING_PAGE + results.length} of ${ordered.length}${scoped.length >= LISTING_CAP ? "+" : ""} profiles`}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
@@ -142,7 +128,7 @@ export async function ListingView({
               <>
                 <div className="rows">
                   {results.map((d) => (
-                    <DoctorRow key={d.slug} doctor={d} ctx={ctx} distance={near ? nearestKm(d, near) : null} />
+                    <DoctorRow key={d.slug} doctor={d} distance={near ? nearestKm(d, near) : null} />
                   ))}
                 </div>
                 {pageCount > 1 ? (
