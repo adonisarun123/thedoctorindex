@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { revalidateDoctors } from "@/lib/data/revalidate";
 import { runMaintenance } from "@/lib/services/maintenance";
 
 export const dynamic = "force-dynamic";
@@ -17,5 +18,6 @@ export async function GET(req: Request) {
   if (!secret || auth !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!process.env.DATABASE_URL) return NextResponse.json({ error: "no database" }, { status: 503 });
   const report = await runMaintenance(null);
+  revalidateDoctors();
   return NextResponse.json(report);
 }

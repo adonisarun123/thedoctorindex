@@ -30,9 +30,9 @@
   --r: 4px;
   --measure: 1140px;
 
-  /* The var() fallbacks let this work either way: with the <link> to Google
-     Fonts that ships today, or with next/font self-hosting (which defines
-     --font-newsreader et al). See app/layout.tsx and the README. */
+  /* --font-newsreader / --font-plex-sans / --font-plex-mono are set on <html>
+     by next/font/local (app/layout.tsx); the literal families are a fallback
+     for markup rendered without the layout, e.g. social cards. */
   --font-display: var(--font-newsreader, "Newsreader"), Georgia, "Times New Roman", serif;
   --font-sans: var(--font-plex-sans, "IBM Plex Sans"), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-plex-mono, "IBM Plex Mono"), ui-monospace, SFMono-Regular, Menlo, monospace;

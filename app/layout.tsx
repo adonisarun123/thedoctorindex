@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -13,26 +14,37 @@ import { SITE, absoluteUrl, paths, HOME_CITY } from "@/lib/site";
 import { organizationLd, webSiteLd } from "@/lib/seo/structured-data";
 
 /*
- * Fonts.
- *
- * We load Newsreader / IBM Plex Sans / IBM Plex Mono over <link> so the build
- * has no network dependency on fonts.googleapis.com. For production, prefer
- * self-hosting via next/font — it removes the third-party request and improves
- * LCP. To switch, uncomment the block below, add the class names to <html>,
- * and delete the two <link> tags in <head>:
- *
- *   import { Newsreader, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
- *   const display = Newsreader({ subsets: ["latin"], weight: ["400","500","600"], variable: "--font-newsreader", display: "swap" });
- *   const sans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400","500","600","700"], variable: "--font-plex-sans", display: "swap" });
- *   const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400","500","600"], variable: "--font-plex-mono", display: "swap" });
- *
- * globals.css already reads --font-newsreader / --font-plex-sans /
- * --font-plex-mono with literal-family fallbacks, so both paths render the
- * same typefaces.
+ * Fonts are self-hosted: the four woff2 files in app/fonts/ (IBM Plex Sans
+ * variable, IBM Plex Mono 400/500, Newsreader variable — all SIL OFL) are
+ * served from this origin by next/font/local with size-adjusted fallbacks,
+ * so there is no request to fonts.googleapis.com / fonts.gstatic.com, no
+ * third-party resource for a crawler to fail on, and no layout shift while
+ * the font loads. globals.css reads the CSS variables set on <html>.
  */
-
-const FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap";
+const display = localFont({
+  src: [{ path: "./fonts/newsreader-var.woff2", weight: "400 700", style: "normal" }],
+  variable: "--font-newsreader",
+  display: "swap",
+  adjustFontFallback: "Times New Roman",
+  fallback: ["Georgia", "Times New Roman", "serif"],
+});
+const sans = localFont({
+  src: [{ path: "./fonts/ibm-plex-sans-var.woff2", weight: "400 700", style: "normal" }],
+  variable: "--font-plex-sans",
+  display: "swap",
+  adjustFontFallback: "Arial",
+  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+});
+const mono = localFont({
+  src: [
+    { path: "./fonts/ibm-plex-mono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-500.woff2", weight: "500", style: "normal" },
+  ],
+  variable: "--font-plex-mono",
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -78,19 +90,9 @@ const showDemoBanner = env.demoBanner ?? activeSourceName() === "seed";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-IN">
+    <html lang="en-IN" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* Fonts load without blocking first paint: preload the CSS, attach it
-            once fetched, and fall back to the system stack meanwhile
-            (display=swap). <noscript> keeps them for script-less clients. */}
-        <link rel="preload" as="style" href={FONT_HREF} />
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href=${JSON.stringify(FONT_HREF)};document.head.appendChild(l);})();` }} />
-        <noscript>
-          <link rel="stylesheet" href={FONT_HREF} />
-        </noscript>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationLd(), webSiteLd()]) }}

@@ -9,6 +9,8 @@ name: Enrich doctor profiles
 #   DATABASE_URL            Neon pooled URL (sslmode=require)
 #   DIRECT_URL              Neon direct URL (optional; preferred when set)
 #   GOOGLE_PLACES_API_KEY   optional — without it only the NMC step runs
+#   INDEXNOW_KEY            optional — maintenance pushes changed profile URLs to Bing/Yandex/Naver/Seznam
+#   CRON_SECRET             optional — lets the job drop the site's data cache after a run (POST /api/revalidate)
 # Variables (optional): ENRICH_BATCH (default 800), ENRICH_MINUTES (default 40), GOOGLE_PLACES_DAILY_CAP (default 1500)
 
 on:
@@ -50,6 +52,7 @@ jobs:
           GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
           GOOGLE_PLACES_DAILY_CAP: ${{ vars.GOOGLE_PLACES_DAILY_CAP || '1500' }}
           APP_ENV: production
+          NEXT_PUBLIC_SITE_URL: ${{ vars.SITE_URL || 'https://www.thedoctorindex.com' }}
         run: |
           npm run db:enrich -- \
             --batch "${{ github.event.inputs.batch || vars.ENRICH_BATCH || '800' }}" \
@@ -63,4 +66,17 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           DATABASE_SSL: require
           APP_ENV: production
+          NEXT_PUBLIC_SITE_URL: ${{ vars.SITE_URL || 'https://www.thedoctorindex.com' }}
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
         run: npm run db:maintenance
+      - name: Refresh the site's data cache
+        if: ${{ github.event.inputs.dry != 'true' }}
+        env:
+          SITE_URL: ${{ vars.SITE_URL || 'https://www.thedoctorindex.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -n "$CRON_SECRET" ]; then
+            curl -sS -X POST -H "Authorization: Bearer $CRON_SECRET" "$SITE_URL/api/revalidate" || echo "revalidate call failed (non-fatal)"
+          else
+            echo "CRON_SECRET not set; cache expires on its own within the hour"
+          fi

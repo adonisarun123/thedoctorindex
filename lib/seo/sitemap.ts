@@ -6,6 +6,9 @@ import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { withOverride } from "@/lib/seo/override";
 import { GATES, listingGate } from "@/lib/seo/gates";
 import { absoluteUrl, paths } from "@/lib/site";
+import { DOCTORS_PER_FILE, doctorFileCount, doctorFilePath, latestLastmod, toIsoDate, type SitemapEntry } from "@/lib/seo/sitemap-xml";
+
+export * from "@/lib/seo/sitemap-xml";
 
 /**
  * Sitemaps are split by page type — doctors, directory, editorial — so an
@@ -15,31 +18,31 @@ import { absoluteUrl, paths } from "@/lib/site";
  * robots meta tag on the page itself.
  */
 
-export interface SitemapEntry {
-  loc: string;
-  /** ISO date. Only ever set from a real substantive update. */
-  lastmod?: string;
-}
-
-const MONTHS: Record<string, string> = {
-  Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
-  Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
-};
-
-/** "29 Aug 2026" -> "2026-08-29". Returns undefined rather than guessing. */
-export function toIsoDate(display: string): string | undefined {
-  const m = /^(\d{2}) ([A-Za-z]{3}) (\d{4})$/.exec(display.trim());
-  if (!m) return undefined;
-  const month = MONTHS[m[2]];
-  if (!month) return undefined;
-  return `${m[3]}-${month}-${m[1]}`;
-}
-
 export async function doctorEntries(): Promise<SitemapEntry[]> {
   return (await listIndexableSlugs()).map((d) => ({
     loc: absoluteUrl(paths.doctor(d.slug)),
     lastmod: toIsoDate(d.lastVerifiedOn),
   }));
+}
+
+/** Entries for doctor file n (1-based; see sitemap-xml.ts), or null when n is beyond the last file. */
+export async function doctorEntriesFile(n: number): Promise<SitemapEntry[] | null> {
+  const all = await doctorEntries();
+  if (n < 1 || (n > 1 && n > doctorFileCount(all.length))) return null;
+  return all.slice((n - 1) * DOCTORS_PER_FILE, n * DOCTORS_PER_FILE);
+}
+
+/** Every sitemap the index should list, with the newest lastmod each carries. */
+export async function indexEntries(): Promise<SitemapEntry[]> {
+  const doctors = await doctorEntries();
+  const files = doctorFileCount(doctors.length);
+  const entries: SitemapEntry[] = [];
+  for (let n = 1; n <= files; n++) {
+    entries.push({ loc: absoluteUrl(doctorFilePath(n)), lastmod: latestLastmod(doctors.slice((n - 1) * DOCTORS_PER_FILE, n * DOCTORS_PER_FILE)) });
+  }
+  entries.push({ loc: absoluteUrl("/sitemaps/directory.xml") });
+  entries.push({ loc: absoluteUrl("/sitemaps/editorial.xml"), lastmod: latestLastmod(editorialEntries()) });
+  return entries;
 }
 
 /**
@@ -100,23 +103,3 @@ export function editorialEntries(): SitemapEntry[] {
     })),
   ];
 }
-
-export function renderUrlset(entries: SitemapEntry[]): string {
-  const urls = entries
-    .map(
-      (e) =>
-        `  <url>\n    <loc>${e.loc}</loc>${e.lastmod ? `\n    <lastmod>${e.lastmod}</lastmod>` : ""}\n  </url>`,
-    )
-    .join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
-}
-
-export function renderIndex(locs: string[]): string {
-  const items = locs.map((loc) => `  <sitemap>\n    <loc>${loc}</loc>\n  </sitemap>`).join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${items}\n</sitemapindex>\n`;
-}
-
-export const XML_HEADERS = {
-  "Content-Type": "application/xml; charset=utf-8",
-  "Cache-Control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
-} as const;

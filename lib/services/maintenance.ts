@@ -7,6 +7,7 @@ import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { recomputeQuality } from "@/lib/services/doctors";
 import { deleteFile } from "@/lib/services/files";
+import { absoluteUrl, paths } from "@/lib/site";
 import { recomputeSeoRoutes } from "@/lib/services/seo";
 
 /**
@@ -25,6 +26,8 @@ export interface MaintenanceReport {
   eventsDeleted: number;
   qualityRecomputed: number;
   seoRoutes: number;
+  /** URLs pushed to IndexNow this run (profiles verified in the last two days, plus the sitemap index). 0 without INDEXNOW_KEY. */
+  indexNowSubmitted: number;
   ms: number;
 }
 
@@ -68,6 +71,15 @@ export async function runMaintenance(actorUserId: string | null = null): Promise
   for (const d of published) await recomputeQuality(d.id);
   const seoRoutes = await recomputeSeoRoutes();
 
+  // Tell the IndexNow engines which profiles changed. Google reads the sitemaps' lastmod instead.
+  const changed = (await db.execute(sql`
+    select d.slug from doctors d
+    where d.status = 'published' and d.quality_score >= ${Number(process.env.GATE_PROFILE_QUALITY ?? 70)} and d.last_verified_on >= current_date - 2
+    limit 10000
+  `)) as unknown as Array<{ slug: string }>;
+  const { submitToIndexNow } = await import("@/lib/seo/indexnow");
+  const indexNow = await submitToIndexNow([absoluteUrl("/sitemap.xml"), ...changed.map((r) => absoluteUrl(paths.doctor(r.slug)))]);
+
   const report: MaintenanceReport = {
     evidencePurged: due.length,
     otpsDeleted: otps.length,
@@ -77,6 +89,7 @@ export async function runMaintenance(actorUserId: string | null = null): Promise
     eventsDeleted: ev.length,
     qualityRecomputed: published.length,
     seoRoutes,
+    indexNowSubmitted: indexNow.submitted,
     ms: Date.now() - t0,
   };
   await audit({ actorUserId, actorRole: actorUserId ? "staff" : "system", action: "maintenance.ran", entityType: "system", after: report });

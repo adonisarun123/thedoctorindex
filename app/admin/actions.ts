@@ -15,6 +15,7 @@ import { moderateResponse, moderateReview, resolveReviewReport, validateEvidence
 import { recomputeSeoRoutes, setSeoOverride } from "@/lib/services/seo";
 import { decideChange, decideClaim, decideSubmission } from "@/lib/services/workflow";
 import { localityFromForm } from "@/lib/services/places";
+import { revalidateDoctors } from "@/lib/data/revalidate";
 
 export interface AdminState {
   ok?: boolean;
@@ -26,6 +27,7 @@ function fail(e: unknown): AdminState {
   return { error: e instanceof Error ? e.message : "Something went wrong." };
 }
 function done(message: string, paths: string[] = ["/admin"]): AdminState {
+  revalidateDoctors();
   for (const p of paths) revalidatePath(p);
   revalidatePath("/", "layout");
   return { ok: true, message };

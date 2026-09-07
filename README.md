@@ -306,6 +306,27 @@ the script runs with `NODE_EXTRA_CA_CERTS` pointing at `lib/enrich/certs/` (trus
 relaxed). Profile pages are rebuilt from the record only: a summary sentence, a FAQ and FAQPage
 markup from `lib/seo/profile-content.ts`, `sameAs` to the Google listing — no generated prose.
 
+### Sitemaps and IndexNow
+
+`/sitemap.xml` is an index of `/sitemaps/doctors.xml` (indexable profiles, split into further files
+`/sitemaps/doctors/2…` under the protocol's 50,000-URL cap; `SITEMAP_MAX_URLS_PER_FILE`),
+`/sitemaps/directory.xml` (states, cities and the place × speciality listings that clear their gate)
+and `/sitemaps/editorial.xml`. Every file is regenerated hourly, so a profile that crosses the gate
+is listed within the hour; `lastmod` comes only from a real verification or review date, `loc` is
+entity-escaped, and the files carry the sitemaps.org 0.9 schema reference. Set `INDEXNOW_KEY` and
+maintenance pushes the sitemap index plus profiles verified in the last two days to Bing, Yandex,
+Naver and Seznam after every run (`/indexnow-key.txt` serves the key); Google reads `lastmod`.
+
+### Speed: region and data cache
+
+Functions run in Singapore (`vercel.json` → `regions: ["sin1"]`), the same region as the Neon
+database, so a query costs milliseconds rather than a transatlantic round trip. Every public read
+through `lib/data/index.ts` is stored in Next's data cache for an hour, keyed by its arguments and
+tagged `doctors`: a listing page still renders per request (its filters live in the query string)
+but reads the 200-profile pool, the counts and the locality links from the cache. Admin actions,
+the cron route and `POST /api/revalidate` (bearer `CRON_SECRET`; the enrichment job calls it after
+every run) drop the tag so changes show at once.
+
 ## Deliberate product decisions carried into the code
 
 - **"Verified", never "Best".** A best-of page needs a published methodology, a minimum review volume
@@ -354,8 +375,7 @@ Fonts stylesheet is preloaded and attached after first paint rather than render-
 
 ## Known gaps
 
-- **Fonts load from Google Fonts over `<link>`.** For production, switch to `next/font` self-hosting
-  — the block is written out in `app/layout.tsx` and `globals.css` already reads both.
+- **Fonts are self-hosted.** The four woff2 files in `app/fonts/` (SIL OFL) are served from this origin by `next/font/local`; nothing loads from Google Fonts.
 - **Geocoder untested against a live provider.** `scripts/geocode.ts` was written and dry-run, but
   the build environment could not reach Nominatim or Google; run `npm run db:geocode -- --dry`
   first on your side.
