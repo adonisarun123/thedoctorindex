@@ -296,6 +296,11 @@ export function listingLd(specialty: Specialty, placeName: string, canonicalPath
     about: aboutSpecialty(specialty),
     spatialCoverage: { "@type": "Place", name: placeName, address: { "@type": "PostalAddress", addressLocality: place.city, addressRegion: place.state, addressCountry: "IN" } },
     primaryImageOfPage: { "@type": "ImageObject", url: absoluteUrl(`/og/listing${canonicalPath.replace(/^\/doctors/, "")}`), width: 1200, height: 630 },
+    // A summary-page ItemList: position, url and name per entry, and nothing
+    // more. Each doctor's own page already carries the full Person node, so
+    // repeating it here only inflated the document — the same 50 doctors were
+    // serialised three times over (url, item.@id, item.url) into both the
+    // script tag and the RSC payload behind it.
     mainEntity: {
       "@type": "ItemList",
       itemListOrder: "https://schema.org/ItemListOrderDescending",
@@ -305,7 +310,6 @@ export function listingLd(specialty: Specialty, placeName: string, canonicalPath
         position: i + 1,
         url: absoluteUrl(paths.doctor(d.slug)),
         name: `Dr ${d.name}`,
-        item: { "@type": ["Person", "IndividualPhysician"], "@id": `${absoluteUrl(paths.doctor(d.slug))}#physician`, name: `Dr ${d.name}`, url: absoluteUrl(paths.doctor(d.slug)), jobTitle: specialty.one, ...(MEDICAL_SPECIALTY[specialty.key] ? { medicalSpecialty: MEDICAL_SPECIALTY[specialty.key] } : {}) },
       })),
     },
   };

@@ -135,7 +135,8 @@ async function source(): Promise<DataSource> {
  * server runtime with the database source; builds, scripts and tests read
  * straight through.
  */
-export const DATA_CACHE_TAG = "doctors";
+export { DATA_CACHE_TAG } from "@/lib/data/cache-tag";
+import { DATA_CACHE_TAG } from "@/lib/data/cache-tag";
 const DATA_CACHE_SECONDS = 3600;
 
 function cached<A extends unknown[], R>(name: string, fn: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
