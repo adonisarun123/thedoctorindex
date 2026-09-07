@@ -19,7 +19,7 @@ import { deleteFile } from "@/lib/services/files";
 const MAX_BYTES = Number(process.env.UPLOAD_MAX_BYTES ?? 10 * 1024 * 1024);
 const ALLOWED = new Set((process.env.UPLOAD_ALLOWED_MIME_IMAGES ?? "image/jpeg,image/png,image/webp,image/heic").split(",").map((x) => x.trim()));
 
-export async function setDoctorPhoto(doctorId: string, file: { mime: string; bytes: Buffer; filename: string }, actorUserId: string, actorRole: string, consent: boolean) {
+export async function setDoctorPhoto(doctorId: string, file: { mime: string; bytes: Buffer; filename: string }, actorUserId: string | null, actorRole: string, consent: boolean) {
   if (!ALLOWED.has(file.mime)) throw new Error("Upload a JPEG, PNG or WebP photograph.");
   if (!file.bytes.length) throw new Error("The file is empty.");
   if (file.bytes.length > MAX_BYTES) throw new Error(`Keep the photo under ${Math.round(MAX_BYTES / 1024 / 1024)} MB.`);
