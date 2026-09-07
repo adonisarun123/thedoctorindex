@@ -365,8 +365,7 @@ Fonts stylesheet is preloaded and attached after first paint rather than render-
 
 ## Known gaps
 
-- **Fonts load from Google Fonts over `<link>`.** For production, switch to `next/font` self-hosting
-  — the block is written out in `app/layout.tsx` and `globals.css` already reads both.
+- **Fonts are self-hosted.** The four woff2 files in `app/fonts/` (SIL OFL) are served from this origin by `next/font/local`; nothing loads from Google Fonts.
 - **Geocoder untested against a live provider.** `scripts/geocode.ts` was written and dry-run, but
   the build environment could not reach Nominatim or Google; run `npm run db:geocode -- --dry`
   first on your side.
