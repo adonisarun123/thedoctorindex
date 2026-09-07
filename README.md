@@ -306,6 +306,17 @@ the script runs with `NODE_EXTRA_CA_CERTS` pointing at `lib/enrich/certs/` (trus
 relaxed). Profile pages are rebuilt from the record only: a summary sentence, a FAQ and FAQPage
 markup from `lib/seo/profile-content.ts`, `sameAs` to the Google listing — no generated prose.
 
+### Sitemaps and IndexNow
+
+`/sitemap.xml` is an index of `/sitemaps/doctors.xml` (indexable profiles, split into further files
+`/sitemaps/doctors/2…` under the protocol's 50,000-URL cap; `SITEMAP_MAX_URLS_PER_FILE`),
+`/sitemaps/directory.xml` (states, cities and the place × speciality listings that clear their gate)
+and `/sitemaps/editorial.xml`. Every file is regenerated hourly, so a profile that crosses the gate
+is listed within the hour; `lastmod` comes only from a real verification or review date, `loc` is
+entity-escaped, and the files carry the sitemaps.org 0.9 schema reference. Set `INDEXNOW_KEY` and
+maintenance pushes the sitemap index plus profiles verified in the last two days to Bing, Yandex,
+Naver and Seznam after every run (`/indexnow-key.txt` serves the key); Google reads `lastmod`.
+
 ## Deliberate product decisions carried into the code
 
 - **"Verified", never "Best".** A best-of page needs a published methodology, a minimum review volume
