@@ -13,7 +13,9 @@ import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { hasDate, registrationLabel, registrationSource, registrationState } from "@/lib/verification";
 import { profileGate } from "@/lib/seo/gates";
 import { pageMeta } from "@/lib/seo/meta";
-import { breadcrumbLd, doctorLd } from "@/lib/seo/structured-data";
+import { breadcrumbLd, doctorLd, faqLd } from "@/lib/seo/structured-data";
+import { addressLine, buildFaq, facilityLabel, summarySentence, verificationLine } from "@/lib/seo/profile-content";
+import { GoogleListingCard } from "@/components/GoogleListing";
 import { absoluteUrl, paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
 
@@ -76,6 +78,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
   const primary = doctor.practices[0];
   const cityName = primary?.city || "India";
   const listingPath = primary?.citySlug ? paths.citySpecialty(primary.stateSlug, primary.citySlug, specialty.slug) : paths.specialty(specialty.key);
+  const faqs = buildFaq(doctor);
 
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
@@ -92,8 +95,8 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
     index: doctor.indexable,
     gate: { name: "Profile gate", checks: gate.checks },
     structuredData: doctor.claimed
-      ? "ProfilePage > mainEntity: Person, plus MedicalClinic per practice"
-      : "WebPage > mainEntity: Person, plus MedicalClinic per practice",
+      ? "ProfilePage > mainEntity: Person + IndividualPhysician, MedicalClinic per practice, FAQPage from the record"
+      : "WebPage > mainEntity: Person + IndividualPhysician, MedicalClinic per practice, FAQPage from the record",
     lastmod: doctor.lastVerifiedOn,
     notes: [
       {
@@ -101,6 +104,14 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
         text: doctor.claimed
           ? "ProfilePage is used only where the doctor is affiliated with and actively participates in the page. This profile is claimed, so it qualifies."
           : "This record is unclaimed, so the doctor takes no part in it and ProfilePage does not apply. It gets WebPage instead.",
+      },
+      {
+        label: "FAQ and summary",
+        text: "Every sentence is a template over fields the record holds — a missing fee reads \"not confirmed\", never a guess. The FAQPage markup is built from the same builders as the visible answers, so it cannot say more than the page.",
+      },
+      {
+        label: "Google listing",
+        text: doctor.googleListing ? "Matched by the enrichment worker; only the place ID is stored. Ratings are Google's and are linked, not copied, per the Places policy." : "No Google listing matched yet.",
       },
       {
         label: "Review markup",
@@ -120,7 +131,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
   return (
     <>
       <RouteMeta data={routeMeta} />
-      <JsonLd data={[doctorLd(doctor), breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path })))]} />
+      <JsonLd data={[doctorLd(doctor), faqLd(paths.doctor(doctor.slug), faqs), breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path })))]} />
       <Breadcrumbs items={crumbs} />
       <ViewBeacon doctorId={doctor.dbId} localityKey={doctor.localities[0]} />
 
@@ -151,9 +162,13 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
             </div>
 
             <div className="block">
-              <p style={{ fontSize: "15.5px", color: "var(--ink-2)", maxWidth: "64ch" }}>
-                {doctor.about}
+              <p className="lede" style={{ fontSize: "15.5px", color: "var(--ink-2)", maxWidth: "64ch", margin: 0 }}>
+                {summarySentence(doctor)}
               </p>
+              <p className="mono" style={{ fontSize: "11.5px", color: "var(--muted)", margin: "8px 0 0" }}>{verificationLine(doctor)}</p>
+              {doctor.about && doctor.about.trim().length >= 40 ? (
+                <p style={{ fontSize: "15px", color: "var(--ink-2)", maxWidth: "64ch", marginTop: "14px" }}>{doctor.about}</p>
+              ) : null}
             </div>
 
             <section className="block">
@@ -247,6 +262,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               </div>
             </section>
 
+            {doctor.services.length ? (
             <section className="block">
               <h2>Services and conditions managed</h2>
               <div className="taglist">
@@ -258,6 +274,22 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               </div>
               <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
                 Drawn from a controlled list. Free-text claims go to review before they appear here.
+              </p>
+            </section>
+            ) : null}
+
+            <section className="block" aria-labelledby="faq-h">
+              <h2 id="faq-h">Questions people ask about Dr {doctor.name}</h2>
+              <dl className="faq">
+                {faqs.map((f) => (
+                  <div className="faq-item" key={f.q}>
+                    <dt>{f.q}</dt>
+                    <dd>{f.a}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
+                Answers come from the verified record on this page, not from opinion. Where a fact has not been confirmed, the answer says so.
               </p>
             </section>
 
@@ -273,10 +305,10 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                   Practice {i + 1} of {doctor.practices.length}
                 </div>
                 <div className="f" style={{ marginTop: "6px" }}>
-                  {p.facility}
+                  {facilityLabel(p)}
                 </div>
                 <div className="a">
-                  {p.address} {p.postalCode}
+                  {addressLine(p).replace(new RegExp(`^${facilityLabel(p).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},\\s*`), "")}
                 </div>
                 <div className="h">
                   {p.days} {p.hours}
@@ -296,6 +328,8 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 </div>
               </div>
             ))}
+
+            {doctor.googleListing ? <GoogleListingCard listing={doctor.googleListing} doctorName={doctor.name} /> : null}
 
             <div className="panel pad">
               <div className="eyebrow">Keep this page honest</div>
@@ -463,7 +497,7 @@ function Nearby({ doctor, nearby }: { doctor: DoctorView; nearby: DoctorView[] }
   const specialty = SPECIALTIES[doctor.specialty];
   return (
     <section className="block">
-      <h2>Other verified {specialty.plural.toLowerCase()} nearby</h2>
+      <h2>Other {specialty.plural.toLowerCase()} nearby</h2>
       <div className="rows">
         {nearby.map((d) => (
           <div className="mini" key={d.slug}>
@@ -482,7 +516,7 @@ function Nearby({ doctor, nearby }: { doctor: DoctorView; nearby: DoctorView[] }
         ))}
       </div>
       <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
-        Ordered by shared locality, then the rest of {doctor.practices[0]?.city || "the city"}. Nobody pays to appear here.
+        Same locality first, then the rest of {doctor.practices[0]?.city || "the city"}; doctors with a registration on record come before those without. Nobody pays to appear here.
       </p>
     </section>
   );

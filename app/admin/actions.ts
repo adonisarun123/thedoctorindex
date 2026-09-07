@@ -9,7 +9,7 @@ import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { decideCorrection, resolveProfileReport, setEnquiryStatus } from "@/lib/services/cases";
-import { addPractice, addQualification, applyField, createDoctor, markRegistrationChecked, mergeDoctor, setDoctorStatus, setQualificationState } from "@/lib/services/doctors";
+import { addPractice, addQualification, applyField, createDoctor, markRegistrationChecked, mergeDoctor, recomputeQuality, setDoctorStatus, setQualificationState } from "@/lib/services/doctors";
 import { removeDoctorPhoto, setDoctorPhoto } from "@/lib/services/photos";
 import { moderateResponse, moderateReview, resolveReviewReport, validateEvidence } from "@/lib/services/reviews";
 import { recomputeSeoRoutes, setSeoOverride } from "@/lib/services/seo";
@@ -350,6 +350,64 @@ export async function setStaffAction(_p: AdminState, f: FormData): Promise<Admin
     }
     await audit({ actorUserId: u.id, actorRole: "staff", action: resetMfa ? "staff.mfa.reset_by_admin" : "staff.updated", entityType: "user", entityId: user.id, after: { email, roles, active } });
     return done("Staff member saved.", ["/admin/staff"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* Enrichment queue (NMC register matching) */
+export async function acceptRegisterCandidateAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const doctorId = str(f, "doctorId");
+    const number = str(f, "registrationNo");
+    const council = str(f, "council");
+    const year = Number(str(f, "year")) || null;
+    const registerName = str(f, "registerName");
+    if (!doctorId || !number || !council) throw new Error("candidate is incomplete");
+    const db = getDb();
+    const today = new Date().toISOString().slice(0, 10);
+    const norm = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    await db.transaction(async (tx) => {
+      const existing = await tx.query.medicalRegistrations.findMany({ where: eq(s.medicalRegistrations.doctorId, doctorId) });
+      const same = existing.find((r) => r.numberNormalized === norm(number) && r.councilNormalized === norm(council));
+      if (same) {
+        await tx.update(s.medicalRegistrations).set({ checkedOn: today, status: "active", source: "nmc-imr", registeredYear: same.registeredYear ?? year, isPrimary: true }).where(eq(s.medicalRegistrations.id, same.id));
+        for (const r of existing) if (r.id !== same.id) await tx.update(s.medicalRegistrations).set({ isPrimary: false }).where(eq(s.medicalRegistrations.id, r.id));
+      } else {
+        for (const r of existing) await tx.update(s.medicalRegistrations).set({ isPrimary: false }).where(eq(s.medicalRegistrations.id, r.id));
+        await tx.insert(s.medicalRegistrations).values({ doctorId, number, numberNormalized: norm(number), council, councilNormalized: norm(council), registeredYear: year, checkedOn: today, source: "nmc-imr", isPrimary: true });
+      }
+      await tx.insert(s.verificationChecks).values({ doctorId, kind: "registration", result: "verified", source: "nmc-imr", checkedByUserId: u.id, note: `${council} · ${number} · ${registerName} (chosen from register candidates)` });
+      await tx.update(s.doctors).set({ lastVerifiedOn: today, updatedAt: new Date() }).where(eq(s.doctors.id, doctorId));
+      await tx.update(s.doctorEnrichment).set({ nmcStatus: "confirmed", nmcCandidates: null, updatedAt: new Date() }).where(eq(s.doctorEnrichment.doctorId, doctorId));
+    });
+    await audit({ actorUserId: u.id, actorRole: "staff", action: "doctor.registration.verified", entityType: "doctor", entityId: doctorId, after: { council, number, year, registerName, source: "nmc-imr" }, reason: "Chosen from NMC register candidates" });
+    await recomputeQuality(doctorId);
+    return done("Registration recorded as verified.", ["/admin/enrichment", `/admin/doctors/${doctorId}`]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function dismissEnrichmentAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const doctorId = str(f, "doctorId");
+    await getDb().update(s.doctorEnrichment).set({ nmcStatus: "dismissed", nmcCandidates: null, updatedAt: new Date() }).where(eq(s.doctorEnrichment.doctorId, doctorId));
+    await audit({ actorUserId: u.id, actorRole: "staff", action: "doctor.registration.unmatched", entityType: "doctor", entityId: doctorId, reason: "No register candidate accepted" });
+    return done("Left unverified.", ["/admin/enrichment"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function resetEnrichmentAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    await requireStaff("verification_officer");
+    const doctorId = str(f, "doctorId");
+    await getDb().update(s.doctorEnrichment).set({ nmcStatus: "pending", googleStatus: sql`case when google_status = 'error' then 'pending' else google_status end`, attempts: 0, lastError: null, nmcCandidates: null, updatedAt: new Date() }).where(eq(s.doctorEnrichment.doctorId, doctorId));
+    return done("Queued for the next worker run.", ["/admin/enrichment"]);
   } catch (e) {
     return fail(e);
   }

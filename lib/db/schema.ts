@@ -611,6 +611,41 @@ export const auditLogs = pgTable(
   (t) => [index("audit_entity_idx").on(t.entityType, t.entityId, t.createdAt), index("audit_created_idx").on(t.createdAt)],
 );
 
+/**
+ * Enrichment state per doctor: the outcome of matching the profile against
+ * the NMC Indian Medical Register and against Google Places (scripts/enrich.ts).
+ * Only professional, public data is kept from the register; Google content is
+ * limited to the place ID and the fields needed to explain the match.
+ */
+export const doctorEnrichment = pgTable(
+  "doctor_enrichment",
+  {
+    doctorId: uuid("doctor_id").primaryKey().references(() => doctors.id, { onDelete: "cascade" }),
+    /** pending | confirmed (existing number found on the register) | matched (number filled from a unique match) | ambiguous | not_found | not_applicable | error */
+    nmcStatus: text("nmc_status").notNull().default("pending"),
+    /** Candidate register entries when ambiguous: [{ doctorId, registrationNo, council, name, year, degree, university, place }]. Staff-only. */
+    nmcCandidates: jsonb("nmc_candidates"),
+    nmcQuery: text("nmc_query"),
+    nmcCheckedAt: timestamp("nmc_checked_at", { withTimezone: true }),
+    /** pending | matched | no_match | skipped | error */
+    googleStatus: text("google_status").notNull().default("pending"),
+    googlePlaceId: text("google_place_id"),
+    googleMapsUri: text("google_maps_uri"),
+    googleName: text("google_name"),
+    googleAddress: text("google_address"),
+    googlePhone: text("google_phone"),
+    googleWebsite: text("google_website"),
+    /** Whether the Google listing's address agrees with the practice address on file (locality or pincode). */
+    googleAddressMatch: boolean("google_address_match"),
+    googleScore: integer("google_score"),
+    googleCheckedAt: timestamp("google_checked_at", { withTimezone: true }),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("doctor_enrichment_nmc_idx").on(t.nmcStatus), index("doctor_enrichment_google_idx").on(t.googleStatus)],
+);
+
 export const seoRoutes = pgTable(
   "seo_routes",
   {
@@ -679,6 +714,11 @@ export const doctorsRelations = relations(doctors, ({ one, many }) => ({
   changeRequests: many(profileChangeRequests),
   checks: many(verificationChecks),
   managers: many(doctorManagers),
+  enrichment: one(doctorEnrichment, { fields: [doctors.id], references: [doctorEnrichment.doctorId] }),
+}));
+
+export const doctorEnrichmentRelations = relations(doctorEnrichment, ({ one }) => ({
+  doctor: one(doctors, { fields: [doctorEnrichment.doctorId], references: [doctors.id] }),
 }));
 
 export const medicalRegistrationsRelations = relations(medicalRegistrations, ({ one }) => ({

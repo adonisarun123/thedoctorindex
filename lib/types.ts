@@ -210,6 +210,19 @@ export interface DoctorView extends Doctor {
   hasEvidenceReviews: boolean;
   /** Public photo URL when one was supplied with usage consent. */
   photoUrl?: string | null;
+  /** The doctor's or clinic's Google listing, when the enrichment worker matched one. Only the place ID is stored long-term; ratings are read live. */
+  googleListing?: GoogleListing | null;
+}
+
+export interface GoogleListing {
+  placeId: string;
+  mapsUri: string;
+  name: string;
+  address: string;
+  /** Whether the listing's address agrees with the practice address on file. */
+  addressMatch: boolean;
+  /** Display date of the match. */
+  checkedOn: string;
 }
 
 export interface RankingBreakdown {

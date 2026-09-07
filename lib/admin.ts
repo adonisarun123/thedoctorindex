@@ -18,7 +18,8 @@ export async function queueCounts(): Promise<Record<string, number>> {
       (select count(*) from doctors where status = 'draft')::int as drafts,
       (select count(*) from doctors where status = 'published' and quality_score < ${Number(process.env.GATE_PROFILE_QUALITY ?? 70)})::int as below_gate,
       (select count(*) from reviews where status = 'pending' and risk_score >= 40)::int as high_risk_reviews,
-      (select count(*) from review_reports where status = 'open' and priority = 'safety')::int + (select count(*) from profile_reports where status = 'open' and priority = 'safety')::int as safety
+      (select count(*) from review_reports where status = 'open' and priority = 'safety')::int + (select count(*) from profile_reports where status = 'open' and priority = 'safety')::int as safety,
+      (select count(*) from doctor_enrichment where nmc_status in ('ambiguous','number_mismatch','removed'))::int as enrichment_queue
   `)) as unknown as Array<Record<string, number>>;
   const r = rows[0] ?? {};
   return Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Number(v)]));

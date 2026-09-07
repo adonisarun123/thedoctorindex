@@ -1,0 +1,66 @@
+name: Enrich doctor profiles
+
+# Hourly background worker: matches profiles against the NMC register and
+# Google Places (scripts/enrich.ts). Runs in GitHub's cloud, so it keeps going
+# when nobody's laptop is on. Each run is bounded by --minutes and by the
+# Google daily cap; rerunning is idempotent.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   DATABASE_URL            Neon pooled URL (sslmode=require)
+#   DIRECT_URL              Neon direct URL (optional; preferred when set)
+#   GOOGLE_PLACES_API_KEY   optional — without it only the NMC step runs
+# Variables (optional): ENRICH_BATCH (default 800), ENRICH_MINUTES (default 40), GOOGLE_PLACES_DAILY_CAP (default 1500)
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      batch:
+        description: "Doctors per run"
+        default: "800"
+      only:
+        description: "nmc | google | (blank for both)"
+        default: ""
+      dry:
+        description: "Dry run (no writes)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: enrich
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Run the worker
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_SSL: require
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+          GOOGLE_PLACES_DAILY_CAP: ${{ vars.GOOGLE_PLACES_DAILY_CAP || '1500' }}
+          APP_ENV: production
+        run: |
+          npm run db:enrich -- \
+            --batch "${{ github.event.inputs.batch || vars.ENRICH_BATCH || '800' }}" \
+            --minutes "${{ vars.ENRICH_MINUTES || '40' }}" \
+            ${{ github.event.inputs.only && format('--only {0}', github.event.inputs.only) || '' }} \
+            ${{ github.event.inputs.dry == 'true' && '--dry' || '' }}
+      - name: Recompute SEO routes
+        if: ${{ github.event.inputs.dry != 'true' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_SSL: require
+          APP_ENV: production
+        run: npm run db:maintenance

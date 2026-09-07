@@ -42,6 +42,7 @@ async function loadRows(ids: string[]) {
     where: inArray(s.doctors.id, ids),
     with: {
       registrations: true,
+      enrichment: true,
       qualifications: { orderBy: (q, { asc }) => [asc(q.sort)] },
       experience: { orderBy: (e, { asc }) => [asc(e.sort), asc(e.fromYear)] },
       practices: { where: (p, { eq }) => eq(p.active, true), orderBy: (p, { asc }) => [asc(p.sort)], with: { facility: true } },
@@ -123,6 +124,17 @@ function toView(row: DoctorRow, locality: (key: string) => Locality | null, roll
     dbId: row.id,
     lifecycle: row.status,
     photoUrl: row.photoFileId && row.photoConsent ? `/photos/${row.photoFileId}` : null,
+    googleListing:
+      row.enrichment?.googleStatus === "matched" && row.enrichment.googlePlaceId
+        ? {
+            placeId: row.enrichment.googlePlaceId,
+            mapsUri: row.enrichment.googleMapsUri ?? `https://www.google.com/maps/place/?q=place_id:${row.enrichment.googlePlaceId}`,
+            name: row.enrichment.googleName ?? "",
+            address: row.enrichment.googleAddress ?? "",
+            addressMatch: Boolean(row.enrichment.googleAddressMatch),
+            checkedOn: toDisplay(row.enrichment.googleCheckedAt),
+          }
+        : null,
     slug: row.slug,
     name: row.name,
     gender: (row.gender === "M" ? "M" : "F") as "F" | "M",
@@ -349,7 +361,8 @@ export const dbSource: DataSource = {
   async getNearby(doctor: DoctorView, limit = 4): Promise<DoctorView[]> {
     const city = doctor.citySlugs[0];
     if (!city) return [];
-    const pool = (await this.getListing(doctor.specialty, { citySlug: city }, 40)).filter((d) => d.slug !== doctor.slug && d.indexable);
+    // Verified first (the listing order already does that), then the rest of the published pool — an unverified city still gets neighbours.
+    const pool = (await this.getListing(doctor.specialty, { citySlug: city }, 40)).filter((d) => d.slug !== doctor.slug);
     const shares = (d: DoctorView) => d.localities.some((l) => doctor.localities.includes(l));
     return [...pool.filter(shares), ...pool.filter((d) => !shares(d))].slice(0, limit);
   },

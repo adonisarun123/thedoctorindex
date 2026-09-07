@@ -20,6 +20,7 @@ export default async function AdminOverview() {
     ["Review moderation", "/admin/reviews", c.reviews, `${c.high_risk_reviews} high-risk`],
     ["Reports & corrections", "/admin/reports", c.reports, `${c.safety} safety-priority`],
     ["New enquiries", "/admin/enquiries", c.enquiries, "forwarded to practices"],
+    ["Register matching", "/admin/enrichment", c.enrichment_queue, "worker found more than one entry"],
   ];
 
   return (
