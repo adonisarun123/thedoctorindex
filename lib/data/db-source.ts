@@ -58,6 +58,55 @@ async function loadRows(ids: string[]) {
 }
 
 /**
+ * Card hydration.
+ *
+ * A listing renders name, speciality, one practice, the verification badges
+ * and the rating — it never renders review text, career history, the
+ * introduction or the service list. Loading those anyway cost the most
+ * expensive part of a listing: at LISTING_CAP that is 200 doctors' worth of
+ * review bodies and prose serialised out of Postgres and then again into the
+ * RSC payload, to be thrown away.
+ *
+ * This loader takes the same rows minus what a card cannot show. The result is
+ * still a DoctorView so nothing downstream changes shape, but `about`,
+ * `services`, `reviews` and `experience` come back empty — which is why only
+ * card readers (listings, search, featured, nearby) may use it, and anything
+ * rendering a full profile must use loadRows.
+ *
+ * Qualifications keep only `state`: the badge counts verified against pending,
+ * and the degree text is never shown on a card.
+ */
+async function loadCardRows(ids: string[]) {
+  if (!ids.length) return [];
+  const db = getDb();
+  const rows = await db.query.doctors.findMany({
+    where: inArray(s.doctors.id, ids),
+    columns: {
+      id: true, publicId: true, slug: true, name: true, gender: true, specialtyKey: true, subspecialties: true,
+      practiceStartYear: true, languages: true, modes: true, status: true, claimed: true, qualityScore: true,
+      lastVerifiedOn: true, hprVerified: true, photoFileId: true, photoConsent: true,
+    },
+    with: {
+      registrations: true,
+      qualifications: { columns: { state: true, sort: true }, orderBy: (q, { asc }) => [asc(q.sort)] },
+      practices: { where: (p, { eq }) => eq(p.active, true), orderBy: (p, { asc }) => [asc(p.sort)], with: { facility: true } },
+    },
+  });
+  const order = new Map(ids.map((id, i) => [id, i]));
+  return rows
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    .map((r) => ({
+      ...r,
+      about: "",
+      services: [] as string[],
+      enrichment: null,
+      experience: [] as DoctorRow["experience"],
+      reviews: [] as DoctorRow["reviews"],
+      qualifications: r.qualifications.map((q) => ({ ...q, degree: "", institution: "", year: null })),
+    })) as unknown as DoctorRow[];
+}
+
+/**
  * Registration tier, the first sort key of every listing (policy: /policies/ranking).
  * 2 = a council registration number checked against the register, 1 = a number on
  * record awaiting a check, 0 = no number. Doctors with a number on record always
@@ -191,14 +240,16 @@ function toView(row: DoctorRow, locality: (key: string) => Locality | null, roll
   };
 }
 
-async function views(where: SQL, limit?: number): Promise<DoctorView[]> {
+async function views(where: SQL, limit?: number, shape: "full" | "card" = "full"): Promise<DoctorView[]> {
   const ids = await selectIds(where, limit);
-  const [rows, geoReg, rollups] = await Promise.all([loadRows(ids), getGeo(), loadRollups(ids)]);
+  const load = shape === "card" ? loadCardRows : loadRows;
+  const [rows, geoReg, rollups] = await Promise.all([load(ids), getGeo(), loadRollups(ids)]);
   return rows.map((r) => toView(r, geoReg.locality, rollups.get(r.id)));
 }
 
-async function viewsByIds(ids: string[]): Promise<DoctorView[]> {
-  const [rows, geoReg, rollups] = await Promise.all([loadRows(ids), getGeo(), loadRollups(ids)]);
+async function viewsByIds(ids: string[], shape: "full" | "card" = "full"): Promise<DoctorView[]> {
+  const load = shape === "card" ? loadCardRows : loadRows;
+  const [rows, geoReg, rollups] = await Promise.all([load(ids), getGeo(), loadRollups(ids)]);
   return rows.map((r) => toView(r, geoReg.locality, rollups.get(r.id)));
 }
 
@@ -298,7 +349,7 @@ export const dbSource: DataSource = {
   },
   async getListing(specialty: SpecialtyKey, place: Place, limit = CAP): Promise<DoctorView[]> {
     const where = Object.keys(place).length ? sql`${published()} and ${eq(s.doctors.specialtyKey, specialty)} and ${inPlaceSubquery(place, sql`${s.doctors.id}`)}` : sql`${published()} and ${eq(s.doctors.specialtyKey, specialty)}`;
-    return views(where, limit);
+    return views(where, limit, "card");
   },
   async countIndexable(specialty: SpecialtyKey, place?: Place, measure?: Measure): Promise<number> {
     const rows = (await getDb().execute(sql`
@@ -382,7 +433,7 @@ export const dbSource: DataSource = {
       limit 50
     `)) as unknown as Array<{ id: string }>;
     if (!rows.length) return [];
-    return viewsByIds(rows.map((r) => r.id));
+    return viewsByIds(rows.map((r) => r.id), "card");
   },
   async getNearby(doctor: DoctorView, limit = 4): Promise<DoctorView[]> {
     const city = doctor.citySlugs[0];
@@ -400,7 +451,7 @@ export const dbSource: DataSource = {
       limit ${limit}
     `)) as unknown as Array<{ id: string }>;
     if (!rows.length) return [];
-    return viewsByIds(rows.map((r) => r.id));
+    return viewsByIds(rows.map((r) => r.id), "card");
   },
   async listIndexableSlugs(): Promise<Array<{ slug: string; lastVerifiedOn: string }>> {
     // Mirrors isProfileIndexable(): every published profile with an active

@@ -67,6 +67,8 @@ export const paths = {
   search: (q: string) => `/search?q=${encodeURIComponent(q)}`,
   addDoctor: () => "/add-doctor",
   forDoctors: () => "/for-doctors",
+  /** The case for doctors: why the site exists and what a profile does for them. */
+  whyThisSite: () => "/why-the-doctor-index",
   signIn: (next?: string) => (next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in"),
   account: () => "/account",
   claimProfile: () => "/claim-profile",

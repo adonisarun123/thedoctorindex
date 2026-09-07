@@ -50,6 +50,11 @@ export default async function AboutPage() {
             what other patients experienced — with every claim checked against a source and dated.
           </p>
 
+          <p>
+            Doctors: the case for putting your own registration behind a page, and what we will never
+            sell, is set out at <Link href={paths.whyThisSite()}>why this exists</Link>.
+          </p>
+
           <h2>What we are</h2>
           <p>
             A professional register, not a marketplace. Doctors do not pay to be listed, verified or

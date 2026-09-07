@@ -7,7 +7,6 @@ import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { CallButton, DirectionsButton, ViewBeacon } from "@/components/ContactActions";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
-import { TrustBadges } from "@/components/TrustBadges";
 import { canonicalDoctorPath, getDoctorBySlug, getNearby } from "@/lib/data";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { hasDate, registrationLabel, registrationSource, registrationState } from "@/lib/verification";
@@ -128,57 +127,190 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
     ],
   };
 
+  const primaryPractice = doctor.practices[0] ?? null;
+  const checks = profileChecks(doctor);
+  const passed = checks.filter((c) => c.ok).length;
+  const qualsVerified = doctor.qualifications.filter((q) => q.state === "verified");
+  const claimHref = doctor.claimed ? "/dashboard" : `${paths.claimProfile()}?registration=${encodeURIComponent(doctor.registration.number)}`;
+  const surname = doctor.name.split(" ").slice(-1)[0];
+
+  // "On record": only facts the record actually holds. A missing fact is
+  // said once, in the practice card, not as a row of "Not stated".
+  const facts: Array<{ k: string; v: string; mono?: boolean }> = [];
+  if (registrationState(doctor) !== "none") {
+    facts.push({ k: registrationState(doctor) === "verified" ? "Registration" : "Registration (as supplied)", v: `${doctor.registration.council} · No. ${doctor.registration.number}`, mono: true });
+  }
+  if (doctor.registration.registeredYear) {
+    const yrs = new Date().getFullYear() - doctor.registration.registeredYear;
+    facts.push({ k: "Registered since", v: `${doctor.registration.registeredYear}${yrs > 0 ? ` · ${yrs} years` : ""}`, mono: true });
+  }
+  if (doctor.qualifications.length) {
+    facts.push({ k: qualsVerified.length === doctor.qualifications.length ? "Qualification" : "Qualification (as supplied)", v: doctor.qualifications.map((q) => [q.degree, q.institution, q.year || null].filter(Boolean).join(", ")).join(" · ") });
+  }
+  facts.push({ k: "System of medicine", v: systemLabel(specialty.system) });
+  if (doctor.practiceStartYear) facts.push({ k: "Experience", v: `${doctor.yearsOfExperience} years · practising since ${doctor.practiceStartYear}` });
+  if (doctor.languages.length) facts.push({ k: "Languages", v: doctor.languages.join(", ") });
+  if (doctor.modes.length) facts.push({ k: "Consultation", v: doctor.modes.join(", ") });
+
   return (
     <>
       <RouteMeta data={routeMeta} />
       <JsonLd data={[doctorLd(doctor), faqLd(paths.doctor(doctor.slug), faqs), breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path })))]} />
-      <Breadcrumbs items={crumbs} />
       <ViewBeacon doctorId={doctor.dbId} localityKey={doctor.localities[0]} />
 
-      <div className="wrap">
-        {doctor.practices[0] ? (
-          <nav className="mobile-actions" aria-label="Contact this practice">
-            <CallButton practiceId={doctor.practices[0].id} variant="solid" />
-            <DirectionsButton practiceId={doctor.practices[0].id} variant="outline" />
-            <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>Enquire</Link>
-          </nav>
-        ) : null}
-        <div className="prof">
-          <div>
-            <GateBanner doctor={doctor} />
+      {primaryPractice ? (
+        <nav className="mobile-actions" aria-label="Contact this practice">
+          <CallButton practiceId={primaryPractice.id} variant="solid" />
+          <DirectionsButton practiceId={primaryPractice.id} variant="outline" />
+          <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>Enquire</Link>
+        </nav>
+      ) : null}
 
-            <div className="prof-head">
-              <Avatar name={doctor.name} id={doctor.id} size={84} photoUrl={doctor.photoUrl} />
-              <div>
+      <header className="idband">
+        <Breadcrumbs items={crumbs} />
+        <div className="wrap">
+          {!doctor.indexable ? <GateBanner doctor={doctor} /> : null}
+          <div className="idband-grid">
+            <Avatar name={doctor.name} id={doctor.id} photoUrl={doctor.photoUrl} />
+            <div className="idband-main">
+              <div className="idband-name">
                 <h1>Dr {doctor.name}</h1>
-                <div className="role">
-                  {specialty.one} in {cityName}
-                  {doctor.subspecialties.length ? ` · ${doctor.subspecialties.join(", ")}` : ""}
+                {registrationState(doctor) === "verified" ? (
+                  <span className="badge ok">Registered</span>
+                ) : null}
+              </div>
+              <div className="role">
+                {specialty.one}
+                {qualsVerified.length ? ` · ${qualsVerified.map((q) => q.degree).slice(0, 2).join(", ")}` : ""}
+                {doctor.registration.registeredYear ? ` · practising since ${doctor.registration.registeredYear}` : ""}
+                {doctor.subspecialties.length ? ` · ${doctor.subspecialties.join(", ")}` : ""}
+              </div>
+              {primaryPractice ? (
+                <div className="where">
+                  <PinIcon />
+                  <span>{[facilityLabel(primaryPractice), primaryPractice.localityName, primaryPractice.city].filter((v, i, a) => v && a.indexOf(v) === i).join(", ")}</span>
                 </div>
-                <div style={{ marginTop: "10px" }}>
-                  <TrustBadges doctor={doctor} />
+              ) : null}
+              <div className="meter" aria-label={`${passed} of ${checks.length} checks passed`}>
+                <div className="meter-head">
+                  <span>
+                    {passed} of {checks.length} checks passed
+                  </span>
+                  <Link href={paths.policy("verification")} className="mono">
+                    What each check means
+                  </Link>
+                </div>
+                <div className="meter-bars">
+                  {checks.map((c) => (
+                    <i key={c.label} className={c.ok ? "ok" : c.pending ? "wait" : ""} />
+                  ))}
+                </div>
+                <div className="meter-labels">
+                  {checks.map((c) => (
+                    <span key={c.label} className={c.ok ? "ok" : ""}>
+                      {c.label}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
+            {primaryPractice ? (
+              <div className="idband-acts">
+                <CallButton practiceId={primaryPractice.id} variant="solid" />
+                <div className="pair">
+                  <DirectionsButton practiceId={primaryPractice.id} variant="outline" />
+                  <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>
+                    Enquire
+                  </Link>
+                </div>
+                <p>Number shown after sign-in, to keep it off scraper lists.</p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </header>
 
-            <div className="block">
-              <p className="lede" style={{ fontSize: "15.5px", color: "var(--ink-2)", maxWidth: "64ch", margin: 0 }}>
+      <div className="wrap">
+        <div className="prof">
+          <div>
+            <section className="block">
+              <h2>On record</h2>
+              <dl className="facts">
+                {facts.map((f) => (
+                  <div key={f.k}>
+                    <dt className="eyebrow">{f.k}</dt>
+                    <dd className={f.mono ? "mono" : undefined}>{f.v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="lede" style={{ fontSize: "15px", color: "var(--ink-2)", maxWidth: "70ch", marginTop: "14px" }}>
                 {summarySentence(doctor)}
               </p>
-              <p className="mono" style={{ fontSize: "11.5px", color: "var(--muted)", margin: "8px 0 0" }}>{verificationLine(doctor)}</p>
               {doctor.about && doctor.about.trim().length >= 40 ? (
-                <p style={{ fontSize: "15px", color: "var(--ink-2)", maxWidth: "64ch", marginTop: "14px" }}>{doctor.about}</p>
+                <p style={{ fontSize: "15px", color: "var(--ink-2)", maxWidth: "70ch", marginTop: "10px" }}>{doctor.about}</p>
               ) : null}
-            </div>
+            </section>
+
+            {doctor.practices.length ? (
+              <section className="block">
+                <h2>{doctor.practices.length > 1 ? "Practices" : "Practice"}</h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {doctor.practices.map((p, i) => {
+                    const confirmed = hasDate(p.confirmedOn) && doctor.status !== "stale";
+                    const gaps = [
+                      p.feeInr === null ? "fee" : null,
+                      !p.days && !p.hours ? "timings" : null,
+                      !doctor.languages.length ? "languages" : null,
+                    ].filter(Boolean) as string[];
+                    return (
+                      <div className="practice" key={p.id ?? p.facility}>
+                        {doctor.practices.length > 1 ? (
+                          <div className="eyebrow">
+                            Practice {i + 1} of {doctor.practices.length}
+                          </div>
+                        ) : null}
+                        <div className="f">{facilityLabel(p)}</div>
+                        <div className="a">{addressLine(p).replace(new RegExp(`^${facilityLabel(p).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},\\s*`), "")}</div>
+                        <div className="badges">
+                          {confirmed ? <span className="badge ok">Address confirmed {p.confirmedOn}</span> : <span className="badge wait">Address not yet reconfirmed with the clinic</span>}
+                          {p.feeInr !== null ? <span className="badge ok">Fee ₹{p.feeInr.toLocaleString("en-IN")} · confirmed {p.feeCheckedOn}</span> : null}
+                        </div>
+                        {p.days || p.hours ? (
+                          <div className="h mono">
+                            {p.days} {p.hours}
+                          </div>
+                        ) : null}
+                        {gaps.length ? (
+                          <p className="gaps">
+                            {cap(listJoin(gaps))} {gaps.length > 1 ? "are" : "is"} not on record yet. Ask when you call{doctor.claimed ? "" : ", or the practice can confirm them by claiming this page"}.
+                          </p>
+                        ) : null}
+                        <div className="acts">
+                          <DirectionsButton practiceId={p.id} variant="outline" />
+                          <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/enquire?practice=${i}`}>
+                            Request appointment
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {doctor.googleListing ? (
+                  <div style={{ marginTop: "12px" }}>
+                    <GoogleListingCard listing={doctor.googleListing} doctorName={doctor.name} />
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
 
             <section className="block">
-              <h2>Verification record</h2>
+              <div className="section-head" style={{ marginBottom: "12px" }}>
+                <h2>Verification record</h2>
+                <span className="mono" style={{ fontSize: "12px", color: "var(--muted)" }}>
+                  Last checked {doctor.lastVerifiedOn}
+                </span>
+              </div>
               <div className="register">
-                <div className="rhead">
-                  <span className="t">Checked claims · source · date</span>
-                  <span className="n">{doctor.lastVerifiedOn}</span>
-                </div>
-
                 <Row
                   tone={registrationState(doctor) === "verified" ? "ok" : registrationState(doctor) === "submitted" ? "wait" : "none"}
                   label={registrationState(doctor) === "verified" ? "Medical registration verified" : registrationLabel(doctor)}
@@ -195,99 +327,75 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                     when={q.state === "verified" ? doctor.registration.checkedOn : "pending"}
                   />
                 ))}
-                {doctor.practices[0] ? (
+                {primaryPractice ? (
                   <Row
                     tone={doctor.status === "stale" ? "none" : "ok"}
                     label={
                       doctor.status === "stale"
-                        ? hasDate(doctor.practices[0].confirmedOn) ? "Practice not recently confirmed" : "Practice not yet confirmed"
+                        ? hasDate(primaryPractice.confirmedOn) ? "Practice not recently confirmed" : "Practice address not yet reconfirmed"
                         : "Practice location confirmed"
                     }
-                    source={`${doctor.practices[0].facility}, ${doctor.practices[0].localityName}`}
-                    when={doctor.practices[0].confirmedOn}
+                    source={`${facilityLabel(primaryPractice)}, ${primaryPractice.localityName}`}
+                    when={primaryPractice.confirmedOn}
                   />
                 ) : (
                   <Row tone="none" label="Practice location not on record" source="No practice address has been supplied or confirmed" when="—" />
                 )}
                 <Row
                   tone={doctor.claimed ? "ok" : "none"}
-                  label={doctor.claimed ? "Profile claimed by doctor" : "Profile not claimed"}
-                  source={
-                    doctor.claimed
-                      ? "The doctor controls the editable fields on this page"
-                      : "Compiled from permitted sources; the doctor may claim it free of charge"
-                  }
+                  label={doctor.claimed ? "Profile claimed by doctor" : "Not yet claimed by the doctor"}
+                  source={doctor.claimed ? "The doctor controls the editable fields on this page" : "Compiled from permitted sources; the doctor may claim it free of charge"}
                   when={doctor.claimed ? doctor.lastVerifiedOn : "—"}
                 />
-                {doctor.hprVerified ? (
-                  <Row
-                    tone="ok"
-                    label="HPR ID verified"
-                    source="Healthcare Professionals Registry, used as a secondary signal only"
-                    when={doctor.registration.checkedOn}
-                  />
-                ) : null}
+                {doctor.hprVerified ? <Row tone="ok" label="HPR ID verified" source="Healthcare Professionals Registry, used as a secondary signal only" when={doctor.registration.checkedOn} /> : null}
               </div>
               <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
-                Registration verification confirms that a doctor is on the register. It does not
-                measure clinical skill, outcomes, current employment or the authenticity of any
-                review. <Link href={paths.policy("verification")}>How verification works</Link>
+                Registration verification confirms that a doctor is on the register. It does not measure clinical skill, outcomes, current employment or the
+                authenticity of any review. <Link href={paths.policy("verification")}>How verification works</Link>
               </p>
             </section>
 
-            <section className="block">
-              <h2>Practice and experience</h2>
-              <dl className="kv">
-                <dt>Experience</dt>
-                <dd>
-                  {doctor.practiceStartYear ? `${doctor.yearsOfExperience} years — practice start year ${doctor.practiceStartYear} supplied by the doctor${doctor.experience.length ? " and consistent with the career history below" : ""}` : "Not stated"}
-                </dd>
-                <dt>Registered since</dt>
-                <dd>{doctor.registration.registeredYear || "Not stated"}</dd>
-                <dt>Languages</dt>
-                <dd>{doctor.languages.join(", ") || "Not stated"}</dd>
-                <dt>Consultation</dt>
-                <dd>{doctor.modes.join(", ")}</dd>
-              </dl>
-              <div className="tl" style={{ marginTop: "16px" }}>
-                {doctor.experience.map((e) => (
-                  <div className="it" key={`${e.role}-${e.from}`}>
-                    <div className="yr">
-                      {e.from} – {e.to ?? "present"}
+            {doctor.experience.length ? (
+              <section className="block">
+                <h2>Career history</h2>
+                <div className="tl">
+                  {doctor.experience.map((e) => (
+                    <div className="it" key={`${e.role}-${e.from}`}>
+                      <div className="yr">
+                        {e.from} – {e.to ?? "present"}
+                      </div>
+                      <div className="rl">{e.role}</div>
+                      <div className="pl">{e.place}</div>
                     </div>
-                    <div className="rl">{e.role}</div>
-                    <div className="pl">{e.place}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             {doctor.services.length ? (
-            <section className="block">
-              <h2>Services and conditions managed</h2>
-              <div className="taglist">
-                {doctor.services.map((s) => (
-                  <span className="tag" key={s}>
-                    {s}
-                  </span>
-                ))}
-              </div>
-              <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
-                Drawn from a controlled list. Free-text claims go to review before they appear here.
-              </p>
-            </section>
+              <section className="block">
+                <h2>Services and conditions managed</h2>
+                <div className="taglist">
+                  {doctor.services.map((s) => (
+                    <span className="tag" key={s}>
+                      {s}
+                    </span>
+                  ))}
+                </div>
+                <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>Drawn from a controlled list. Free-text claims go to review before they appear here.</p>
+              </section>
             ) : null}
 
             <section className="block" aria-labelledby="faq-h">
-              <h2 id="faq-h">Questions people ask about Dr {doctor.name}</h2>
-              <dl className="faq">
-                {faqs.map((f) => (
-                  <div className="faq-item" key={f.q}>
-                    <dt>{f.q}</dt>
-                    <dd>{f.a}</dd>
-                  </div>
+              <h2 id="faq-h">Questions people ask</h2>
+              <div className="faq-acc">
+                {faqs.map((f, i) => (
+                  <details key={f.q} open={i === 0}>
+                    <summary>{f.q}</summary>
+                    <p>{f.a}</p>
+                  </details>
                 ))}
-              </dl>
+              </div>
               <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
                 Answers come from the verified record on this page, not from opinion. Where a fact has not been confirmed, the answer says so.
               </p>
@@ -298,60 +406,79 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
             <Nearby doctor={doctor} nearby={await getNearby(doctor)} />
           </div>
 
-          <div className="sticky">
-            {doctor.practices.map((p, i) => (
-              <div className="pcard" key={p.facility}>
-                <div className="eyebrow">
-                  Practice {i + 1} of {doctor.practices.length}
-                </div>
-                <div className="f" style={{ marginTop: "6px" }}>
-                  {facilityLabel(p)}
-                </div>
-                <div className="a">
-                  {addressLine(p).replace(new RegExp(`^${facilityLabel(p).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},\\s*`), "")}
-                </div>
-                <div className="h">
-                  {p.days} {p.hours}
-                  <br />
-                  {p.feeInr !== null
-                    ? `Fee ₹${p.feeInr.toLocaleString("en-IN")} · confirmed ${p.feeCheckedOn}`
-                    : "Fee not confirmed"}
-                  <br />
-                  Address confirmed {p.confirmedOn}
-                </div>
-                <div className="acts">
-                  <CallButton practiceId={p.id} />
-                  <DirectionsButton practiceId={p.id} />
-                  <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/enquire?practice=${i}`}>
-                    Request appointment
-                  </Link>
-                </div>
+          <aside className="sticky">
+            {doctor.claimed ? (
+              <div className="panel pad">
+                <div className="eyebrow">Claimed by the doctor</div>
+                <p style={{ fontSize: "14px", color: "var(--ink-2)", margin: "8px 0 12px" }}>The doctor controls the editable fields on this page.</p>
+                <Link className="btn quiet" href={claimHref}>
+                  Manage this profile
+                </Link>
               </div>
-            ))}
+            ) : (
+              <div className="claimcard">
+                <div className="eyebrow">Is this you, Dr {surname}?</div>
+                <div className="t">Claim this page, free</div>
+                <p>Correct anything, add your fee and timings, and reply to reviews. Takes about five minutes with your registration number.</p>
+                <Link className="btn solid" href={claimHref}>
+                  Claim this profile
+                </Link>
+              </div>
+            )}
 
-            {doctor.googleListing ? <GoogleListingCard listing={doctor.googleListing} doctorName={doctor.name} /> : null}
-
-            <div className="panel pad">
+            <div className="panel pad honest">
               <div className="eyebrow">Keep this page honest</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
-                <Link className="btn quiet" href={doctor.claimed ? "/dashboard" : `${paths.claimProfile()}?registration=${encodeURIComponent(doctor.registration.number)}`}>
-                  {doctor.claimed ? "Manage this profile" : "Claim this profile"}
-                </Link>
-                <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/correct`}>
-                  Suggest a correction
-                </Link>
-                <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/report`}>
-                  Report this profile
-                </Link>
-              </div>
-              <p className="mono" style={{ fontSize: "12px", color: "var(--muted)", marginTop: "12px" }}>
+              <Link href={`${paths.doctor(doctor.slug)}/correct`}>Suggest a correction →</Link>
+              <Link href={`${paths.doctor(doctor.slug)}/report`}>Report this profile →</Link>
+              <p className="mono">
                 Public ID {doctor.id} · last verified {doctor.lastVerifiedOn}
               </p>
             </div>
-          </div>
+            <p style={{ fontSize: "12.5px", color: "var(--muted)", padding: "0 4px" }}>Not for emergencies. If someone is in immediate danger, call 108.</p>
+          </aside>
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * The four checks the header meter shows. Same derivations as the badges
+ * and the verification record, so the meter can never disagree with them.
+ */
+function profileChecks(doctor: DoctorView): Array<{ label: string; ok: boolean; pending?: boolean }> {
+  const reg = registrationState(doctor);
+  const quals = doctor.qualifications;
+  return [
+    { label: "Registration", ok: reg === "verified", pending: reg === "submitted" },
+    { label: "Qualification", ok: quals.length > 0 && quals.every((q) => q.state === "verified"), pending: quals.length > 0 },
+    { label: "Address", ok: Boolean(doctor.practices[0]) && doctor.status !== "stale" },
+    { label: "Claimed", ok: doctor.claimed },
+  ];
+}
+
+function systemLabel(system: string): string {
+  switch (system) {
+    case "modern":
+      return "Allopathic (modern medicine)";
+    case "dental":
+      return "Dentistry";
+    case "ayush":
+      return "AYUSH";
+    default:
+      return system.charAt(0).toUpperCase() + system.slice(1);
+  }
+}
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const listJoin = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+
+function PinIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
   );
 }
 
@@ -379,36 +506,38 @@ function Row({
 }
 
 function GateBanner({ doctor }: { doctor: DoctorView }) {
-  if (!doctor.indexable) {
-    return (
-      <div className="notice alert" style={{ marginBottom: "18px" }}>
-        <b>This profile is not indexed.</b>{" "}
-        {doctor.status === "retired"
-          ? "The record is marked retired."
-          : !doctor.practices.length
-            ? "No practice location is on record."
-            : `Quality score ${doctor.qualityScore}/100 against a gate of ${GATES.profileQuality}${hasDate(doctor.practices[0]?.confirmedOn) ? `, and the practice has not been reconfirmed since ${doctor.practices[0]?.confirmedOn}` : ", and no practice location has been confirmed yet"}.`}{" "}
-        It stays reachable by direct link and by search on this site, and carries <span className="mono">noindex</span>{" "}
-        until it passes.
-      </div>
-    );
-  }
-  if (!doctor.claimed) {
-    const verified = registrationState(doctor) === "verified";
-    return (
-      <div className="notice" style={{ marginBottom: "18px" }}>
-        <b>Unclaimed profile.</b> Compiled from permitted sources
-        {verified ? " and matched against the state medical register" : "; the registration check against the state medical register is still pending, and the record below says exactly what has and has not been verified"}.
-        If you are Dr {doctor.name.split(" ").slice(-1)[0]}, you can{" "}
-        <Link href={paths.claimProfile()}>claim this page free</Link> and correct anything on it.
-      </div>
-    );
-  }
-  return null;
+  if (doctor.indexable) return null;
+  return (
+    <div className="notice alert" style={{ margin: "14px 0 6px" }}>
+      <b>This profile is not indexed.</b>{" "}
+      {doctor.status === "retired"
+        ? "The record is marked retired."
+        : !doctor.practices.length
+          ? "No practice location is on record."
+          : `Quality score ${doctor.qualityScore}/100 against a gate of ${GATES.profileQuality}${hasDate(doctor.practices[0]?.confirmedOn) ? `, and the practice has not been reconfirmed since ${doctor.practices[0]?.confirmedOn}` : ", and no practice location has been confirmed yet"}.`}{" "}
+      It stays reachable by direct link and by search on this site, and carries <span className="mono">noindex</span> until it passes.
+    </div>
+  );
 }
 
 function Reviews({ doctor }: { doctor: DoctorView }) {
   const { rating, reviews } = doctor;
+  if (!rating.count && !reviews.length) {
+    return (
+      <section className="block">
+        <h2>Patient reviews</h2>
+        <div className="panel pad revempty">
+          <p>
+            No reviews yet. Reviews open once the profile is claimed and verified; they describe patient experience, never clinical outcome.{" "}
+            <Link href={paths.policy("reviews")}>Review policy</Link>
+          </p>
+          <Link className="btn" href={`${paths.doctor(doctor.slug)}/review`}>
+            Write a review
+          </Link>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="block">
       <h2>Patient reviews</h2>
@@ -418,25 +547,19 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
           <div className="of">{rating.count ? `${rating.count} reviews` : "no reviews yet"}</div>
         </div>
         <div>
-          {rating.count ? (
-            [5, 4, 3, 2, 1].map((star) => {
-              const count = rating.distribution[star - 1];
-              const pct = Math.round((count / rating.count) * 100);
-              return (
-                <div className="distrow" key={star}>
-                  <span>{star}★</span>
-                  <span className="b">
-                    <i style={{ width: `${pct}%` }} />
-                  </span>
-                  <span>{count}</span>
-                </div>
-              );
-            })
-          ) : (
-            <p style={{ fontSize: "13.5px", color: "var(--muted)" }}>
-              Reviews open once the profile is claimed and verified.
-            </p>
-          )}
+          {[5, 4, 3, 2, 1].map((star) => {
+            const count = rating.distribution[star - 1];
+            const pct = rating.count ? Math.round((count / rating.count) * 100) : 0;
+            return (
+              <div className="distrow" key={star}>
+                <span>{star}★</span>
+                <span className="b">
+                  <i style={{ width: `${pct}%` }} />
+                </span>
+                <span>{count}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -472,8 +595,7 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
       ) : (
         <div className="rev">
           <p className="txt" style={{ color: "var(--muted)" }}>
-            No written reviews have been published for this doctor yet. The score above comes from
-            ratings submitted without written feedback.
+            No written reviews have been published for this doctor yet. The score above comes from ratings submitted without written feedback.
           </p>
         </div>
       )}
@@ -487,8 +609,7 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
         </Link>
       </div>
       <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "12px" }}>
-        Reviews describe patient experience, not clinical outcome. We do not rate treatment
-        effectiveness. <Link href={paths.policy("reviews")}>Review policy</Link>
+        Reviews describe patient experience, not clinical outcome. We do not rate treatment effectiveness. <Link href={paths.policy("reviews")}>Review policy</Link>
       </p>
     </section>
   );
@@ -503,7 +624,9 @@ function Nearby({ doctor, nearby }: { doctor: DoctorView; nearby: DoctorView[] }
   const specialty = SPECIALTIES[doctor.specialty];
   return (
     <section className="block">
-      <h2>Other {specialty.plural.toLowerCase()} nearby</h2>
+      <h2>
+        Other {specialty.plural.toLowerCase()} {doctor.practices[0]?.city ? `in ${doctor.practices[0].city}` : "nearby"}
+      </h2>
       <div className="rows">
         {nearby.map((d) => (
           <div className="mini" key={d.slug}>
@@ -517,7 +640,9 @@ function Nearby({ doctor, nearby }: { doctor: DoctorView; nearby: DoctorView[] }
                 {d.subspecialties.length ? ` · ${d.subspecialties[0]}` : ""}
               </div>
             </div>
-            <div className="r">{d.rating.count ? `${d.rating.average.toFixed(1)} · ${d.rating.count}` : "no reviews"}</div>
+            <div className="r">
+              {d.rating.count ? `${d.rating.average.toFixed(1)} · ${d.rating.count}` : registrationState(d) === "verified" ? <span className="badge ok">Registered</span> : <span className="badge neut">Listed</span>}
+            </div>
           </div>
         ))}
       </div>

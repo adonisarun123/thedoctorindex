@@ -26,6 +26,9 @@ export default function ForDoctorsPage() {
         <p style={{ color: "var(--ink-2)", fontSize: "16px", maxWidth: "62ch" }}>
           Registration-first, verified against the state register, with your practice details kept current on your terms. We do not sell rankings, leads or appointment slots. We do promise the basic profile stays free.
         </p>
+        <p style={{ fontSize: "14px", marginTop: "-4px" }}>
+          <Link href={paths.whyThisSite()}>Why this site exists, and what it changes for you →</Link>
+        </p>
 
         <div className="tiles" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginTop: "26px" }}>
           <div className="tile" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>

@@ -1,5 +1,8 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
+import { DATA_CACHE_TAG } from "@/lib/data/cache-tag";
 import { LOCALITIES } from "@/lib/data/taxonomy";
 import { databaseReadyForBuild, isBuildPhase } from "@/lib/db/readiness";
 export { placeName, placeSlug } from "@/lib/geo-names";
@@ -10,9 +13,15 @@ import type { City, Locality, State } from "@/lib/types";
  *
  * Localities are rows in the `localities` table (or the static Bengaluru set
  * in seed mode); states and cities are derived from them, so opening a city
- * is a data change, never a code change. The registry is read on almost
- * every request, so it is cached in-process for a minute; `invalidateGeo()`
- * is called by the admin taxonomy actions and the importer.
+ * is a data change, never a code change.
+ *
+ * Almost every request reads this registry, and the table is the whole
+ * country — a few thousand rows. It is cached twice: in-process for a minute
+ * (the hot path, free), and under the shared `doctors` tag in Next's data
+ * cache (the cold path, so a new serverless instance does not go to Postgres
+ * for the same rows). `invalidateGeo()` drops the local memo; `revalidateTag`
+ * drops the shared one, and the admin taxonomy actions and the importer call
+ * both through revalidateDoctors().
  */
 
 export interface Geo {
@@ -69,10 +78,16 @@ export async function getGeo(): Promise<Geo> {
   if (!useDb()) return SEED_GEO;
   if (cache && Date.now() - cache.at < TTL_MS) return cache.geo;
   if (isBuildPhase() && !(await databaseReadyForBuild())) return EMPTY_GEO;
+  const localities = await loadLocalities();
+  cache = { geo: build(localities), at: Date.now() };
+  return cache.geo;
+}
+
+async function readLocalities(): Promise<Locality[]> {
   const { getDb } = await import("@/lib/db/client");
   const s = await import("@/lib/db/schema");
   const rows = await getDb().select().from(s.localities).where((await import("drizzle-orm")).eq(s.localities.active, true)).orderBy(s.localities.sort, s.localities.name);
-  const localities: Locality[] = rows.map((r) => ({
+  return rows.map((r) => ({
     key: r.key,
     slug: r.slug ?? r.key,
     name: r.name,
@@ -83,8 +98,12 @@ export async function getGeo(): Promise<Geo> {
     lat: r.lat !== null && Number.isFinite(Number(r.lat)) ? Number(r.lat) : null,
     lng: r.lng !== null && Number.isFinite(Number(r.lng)) ? Number(r.lng) : null,
   }));
-  cache = { geo: build(localities), at: Date.now() };
-  return cache.geo;
+}
+
+/** Outside a Next server runtime (scripts, tests) unstable_cache has no store to write to. */
+async function loadLocalities(): Promise<Locality[]> {
+  if (!process.env.NEXT_RUNTIME || isBuildPhase()) return readLocalities();
+  return unstable_cache(readLocalities, ["geo:localities"], { revalidate: 3600, tags: [DATA_CACHE_TAG] })();
 }
 
 export function invalidateGeo(): void {

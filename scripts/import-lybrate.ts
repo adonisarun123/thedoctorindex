@@ -6,6 +6,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { customAlphabet } from "nanoid";
 import postgres from "postgres";
 
+import { revalidateSite } from "./revalidate-site";
+
 import { SPECIALTIES } from "../lib/data/taxonomy";
 import * as s from "../lib/db/schema";
 import { syncTaxonomy } from "../lib/db/taxonomy-sync";
@@ -661,6 +663,7 @@ async function main() {
   console.log(`\ndone: ${written} profiles written (${pub} published, ${written - pub} draft), all unclaimed, registration/qualifications "submitted" (not yet checked).`);
   console.log("next: npm run db:maintenance, then work the drafts in /admin/doctors.");
   await client.end();
+  await revalidateSite();
 }
 
 main().catch((e) => {

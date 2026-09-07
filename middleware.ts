@@ -36,6 +36,21 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
 
+  // Shared-cache the canonical browse pages.
+  //
+  // These render the same HTML for everyone: the header, the account menu and
+  // the call/directions actions are client components that probe /api/me, so
+  // nothing personal is in the document. Only bare URLs qualify — a query
+  // string means a filter, a sort, a page or a location, and those stay live.
+  //
+  // s-maxage is short and stale-while-revalidate long: a visitor is served
+  // from the edge immediately while the CDN refreshes behind them, so the
+  // worst case after an import is a minute-old page, against the hour the
+  // data cache already allows.
+  if (isCacheableBrowsePage(request)) {
+    response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
+  }
+
   // Staging and preview hosts must never be indexed, whatever the page-level
   // gates say. FORCE_NOINDEX=1 adds an X-Robots-Tag header to every response,
   // which search engines honour for HTML and non-HTML alike (sitemaps included).
@@ -43,6 +58,18 @@ export function middleware(request: NextRequest) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
   return response;
+}
+
+/**
+ * A browse page that is safe to hold in a shared cache: a plain GET, no query
+ * string, no session cookie, and one of the listing or hub routes.
+ */
+function isCacheableBrowsePage(request: NextRequest): boolean {
+  if (request.method !== "GET") return false;
+  if (request.nextUrl.search) return false;
+  if (request.cookies.get(process.env.AUTH_COOKIE_NAME ?? "tdi_session")) return false;
+  const p = request.nextUrl.pathname;
+  return p === "/doctors" || p.startsWith("/doctors/") || p === "/specialties" || p.startsWith("/specialties/");
 }
 
 export const config = {
