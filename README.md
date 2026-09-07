@@ -308,14 +308,23 @@ markup from `lib/seo/profile-content.ts`, `sameAs` to the Google listing — no 
 
 ### Sitemaps and IndexNow
 
-`/sitemap.xml` is an index of `/sitemaps/doctors.xml` (indexable profiles, split into further files
-`/sitemaps/doctors/2…` under the protocol's 50,000-URL cap; `SITEMAP_MAX_URLS_PER_FILE`),
+`/sitemap.xml` is an index of `/sitemaps/doctors.xml` (indexable profiles, split into files of
+`SITEMAP_MAX_URLS_PER_FILE` — default 10,000 — as `/sitemaps/doctors/2…`),
 `/sitemaps/directory.xml` (states, cities and the place × speciality listings that clear their gate)
-and `/sitemaps/editorial.xml`. Every file is regenerated hourly, so a profile that crosses the gate
-is listed within the hour; `lastmod` comes only from a real verification or review date, `loc` is
+and `/sitemaps/editorial.xml`. Every file is regenerated hourly, so a newly published profile is
+listed within the hour; `lastmod` comes only from a real verification or review date, `loc` is
 entity-escaped, and the files carry the sitemaps.org 0.9 schema reference. Set `INDEXNOW_KEY` and
 maintenance pushes the sitemap index plus profiles verified in the last two days to Bing, Yandex,
 Naver and Seznam after every run (`/indexnow-key.txt` serves the key); Google reads `lastmod`.
+
+**Which profiles are indexed** is `PROFILE_INDEX_MODE` (`lib/seo/gates.ts`). `all` (the default,
+chosen Sep 2026 to get the whole corpus indexed) gives every published profile with a practice
+`index,follow` and a sitemap entry; the page's verification line, register check and FAQ state
+what has and has not been verified. `verified` restores the original gate — quality at or above
+`GATE_PROFILE_QUALITY` with a practice confirmed inside the freshness window — and puts everything
+else back on `noindex`. Listing gates, "verified" counts and the featured/nearby pools mean
+verified supply in both modes. The known cost of `all`: some 24,000 thin, unverified pages under a
+health topic; if Search Console shows the site losing ground, flip the variable and redeploy.
 
 ### Speed: region and data cache
 

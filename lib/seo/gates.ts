@@ -17,7 +17,9 @@ import { hasDate, registrationState } from "@/lib/verification";
  */
 
 export const GATES = {
-  /** Minimum quality score for a doctor profile to be indexed. GATE_PROFILE_QUALITY */
+  /** Which profiles are indexed: every published profile, or only verified ones. PROFILE_INDEX_MODE */
+  profileIndexMode: env.gates.profileIndexMode,
+  /** Minimum quality score for a doctor profile to count as verified supply (and, in verified mode, to be indexed). GATE_PROFILE_QUALITY */
   profileQuality: env.gates.profileQuality,
   /** Minimum indexable doctors before a city × speciality page is indexed. GATE_CITY_SPECIALTY_MIN_DOCTORS */
   citySpecialty: env.gates.citySpecialty,
@@ -36,20 +38,39 @@ export interface GateResult {
 }
 
 /**
- * A doctor profile is indexed only after registration and current practice are
- * verified and the quality score clears the gate. Everything else stays
- * reachable by direct link and by on-site search, with noindex.
+ * Verified supply: the quality score clears the gate and the current practice
+ * has been confirmed inside the freshness window. This is what listing gates,
+ * "verified" counts and the featured/nearby pools mean by a verified doctor,
+ * whatever the index mode.
  */
-export function isProfileIndexable(d: Doctor): boolean {
+export function isProfileVerified(d: Doctor): boolean {
   return d.qualityScore >= GATES.profileQuality && d.status === "active";
 }
 
+/** A profile that exists as a page at all: not retired, with at least one practice to place it. */
+export function isProfilePublishable(d: Doctor): boolean {
+  return d.status !== "retired" && d.practices.length > 0;
+}
+
+/**
+ * Whether the profile carries index,follow and goes into the sitemap.
+ *
+ * In "all" mode every publishable profile is indexed and the page itself says
+ * what has and has not been verified (verification line, register check,
+ * FAQ). In "verified" mode only verified supply is indexed and the rest stays
+ * reachable by direct link and on-site search, with noindex.
+ */
+export function isProfileIndexable(d: Doctor): boolean {
+  return GATES.profileIndexMode === "all" ? isProfilePublishable(d) : isProfileVerified(d);
+}
+
 export function profileGate(d: Doctor): GateResult {
-  const checks = [
+  const reg = registrationState(d);
+  const verification = [
     {
       label: "Registration verified",
-      pass: registrationState(d) === "verified",
-      detail: registrationState(d) === "verified" ? `${d.registration.council} · checked ${d.registration.checkedOn}` : registrationState(d) === "submitted" ? "Supplied, not yet checked against the register" : "No registration number on record",
+      pass: reg === "verified",
+      detail: reg === "verified" ? `${d.registration.council} · checked ${d.registration.checkedOn}` : reg === "submitted" ? "Supplied, not yet checked against the register" : "No registration number on record",
     },
     {
       label: "Current practice confirmed",
@@ -67,7 +88,16 @@ export function profileGate(d: Doctor): GateResult {
       detail: `${d.qualityScore} against a gate of ${GATES.profileQuality}`,
     },
   ];
-  return { indexable: checks.every((c) => c.pass), checks };
+  if (GATES.profileIndexMode === "verified") return { indexable: verification.every((c) => c.pass), checks: verification };
+  const checks = [
+    {
+      label: "Published with a practice",
+      pass: isProfilePublishable(d),
+      detail: d.status === "retired" ? "Retired record" : d.practices.length ? `${d.practices.length} practice location${d.practices.length === 1 ? "" : "s"} on record` : "No practice location on record",
+    },
+    ...verification.map((c) => ({ ...c, label: `${c.label} (shown, not required)` })),
+  ];
+  return { indexable: checks[0].pass, checks };
 }
 
 export function listingGate(

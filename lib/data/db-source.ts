@@ -211,9 +211,12 @@ function geo(lat: string | null, lng: string | null, locality: Locality | null):
 const published = () => eq(s.doctors.status, "published");
 
 /* ---------------------------------------------------------------------------
-   Indexable predicate, in SQL, identical in meaning to isProfileIndexable():
-   published, quality at or above the gate, and at least one active practice
-   whose confirmation is inside the freshness window.
+   Verified-supply predicate, in SQL, identical in meaning to
+   isProfileVerified(): published, quality at or above the gate, and at least
+   one active practice whose confirmation is inside the freshness window. It
+   feeds listing gates and "verified" counts. Which profiles are *indexed* is
+   isProfileIndexable() — the same set in verified mode, every published
+   profile with a practice in "all" mode (listIndexableSlugs below).
 --------------------------------------------------------------------------- */
 
 function placeSql(place: Place | undefined, alias = "l"): SQL {
@@ -377,8 +380,11 @@ export const dbSource: DataSource = {
     return viewsByIds(rows.map((r) => r.id));
   },
   async listIndexableSlugs(): Promise<Array<{ slug: string; lastVerifiedOn: string }>> {
+    // Mirrors isProfileIndexable(): every published profile with an active
+    // practice in "all" mode, verified supply only in "verified" mode.
+    const join = env.gates.profileIndexMode === "all" ? PUBLISHED_JOIN : INDEXABLE_JOIN;
     const rows = (await getDb().execute(sql`
-      select d.slug, d.last_verified_on as lv ${INDEXABLE_JOIN} group by d.id, d.slug, d.last_verified_on order by d.slug
+      select d.slug, d.last_verified_on as lv ${join} group by d.id, d.slug, d.last_verified_on order by d.slug
     `)) as unknown as Array<{ slug: string; lv: string | null }>;
     return rows.map((r) => ({ slug: r.slug, lastVerifiedOn: toDisplay(r.lv) }));
   },

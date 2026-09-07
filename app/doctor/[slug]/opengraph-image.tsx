@@ -2,6 +2,7 @@ import { getDoctorBySlug } from "@/lib/data";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { OG_CONTENT_TYPE, OG_SIZE, ogCard } from "@/lib/seo/og";
 import { SITE } from "@/lib/site";
+import { registrationState } from "@/lib/verification";
 
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
@@ -37,6 +38,6 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     subtitle: d.subspecialties.length ? d.subspecialties.slice(0, 3).join(" · ") : sp.name,
     chips,
     initials,
-    kicker: d.claimed ? "Verified · claimed profile" : d.indexable ? "Verified profile" : "Profile · verification pending",
+    kicker: registrationState(d) === "verified" ? (d.claimed ? "Register-verified · claimed profile" : "Register-verified profile") : d.claimed ? "Claimed profile · registration check pending" : "Profile · registration check pending",
   });
 }

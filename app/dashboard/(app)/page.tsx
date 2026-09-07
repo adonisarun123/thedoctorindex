@@ -52,8 +52,10 @@ export default async function DashboardOverview() {
 
       {!doctor.indexable && live ? (
         <div className="notice" style={{ marginBottom: "16px" }}>
-          <b>Not in the search index yet.</b> Quality score {score}/100 against a gate of {GATES.profileQuality}
-          {doctor.status === "stale" ? ", and a practice needs reconfirmation" : ""}. Complete the checklist on the right and the page enters the sitemap automatically.
+          <b>Not in the search index yet.</b>{" "}
+          {GATES.profileIndexMode === "all"
+            ? `${doctor.practices.length ? "The record is marked retired" : "No practice location is on record"}. Add a practice location and the page enters the sitemap automatically.`
+            : `Quality score ${score}/100 against a gate of ${GATES.profileQuality}${doctor.status === "stale" ? ", and a practice needs reconfirmation" : ""}. Complete the checklist on the right and the page enters the sitemap automatically.`}
         </div>
       ) : null}
 

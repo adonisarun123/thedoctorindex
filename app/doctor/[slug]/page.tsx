@@ -11,7 +11,7 @@ import { TrustBadges } from "@/components/TrustBadges";
 import { canonicalDoctorPath, getDoctorBySlug, getNearby } from "@/lib/data";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { hasDate, registrationLabel, registrationSource, registrationState } from "@/lib/verification";
-import { profileGate } from "@/lib/seo/gates";
+import { GATES, profileGate } from "@/lib/seo/gates";
 import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, doctorLd, faqLd } from "@/lib/seo/structured-data";
 import { addressLine, buildFaq, facilityLabel, summarySentence, verificationLine } from "@/lib/seo/profile-content";
@@ -382,18 +382,24 @@ function GateBanner({ doctor }: { doctor: DoctorView }) {
   if (!doctor.indexable) {
     return (
       <div className="notice alert" style={{ marginBottom: "18px" }}>
-        <b>This profile is not indexed.</b> Quality score {doctor.qualityScore}/100 against a gate of
-        70{hasDate(doctor.practices[0]?.confirmedOn) ? `, and the practice has not been reconfirmed since ${doctor.practices[0]?.confirmedOn}` : ", and no practice location has been confirmed yet"}. It stays
-        reachable by direct link and by search on this site, and carries <span className="mono">noindex</span>{" "}
+        <b>This profile is not indexed.</b>{" "}
+        {doctor.status === "retired"
+          ? "The record is marked retired."
+          : !doctor.practices.length
+            ? "No practice location is on record."
+            : `Quality score ${doctor.qualityScore}/100 against a gate of ${GATES.profileQuality}${hasDate(doctor.practices[0]?.confirmedOn) ? `, and the practice has not been reconfirmed since ${doctor.practices[0]?.confirmedOn}` : ", and no practice location has been confirmed yet"}.`}{" "}
+        It stays reachable by direct link and by search on this site, and carries <span className="mono">noindex</span>{" "}
         until it passes.
       </div>
     );
   }
   if (!doctor.claimed) {
+    const verified = registrationState(doctor) === "verified";
     return (
       <div className="notice" style={{ marginBottom: "18px" }}>
-        <b>Unclaimed profile.</b> Compiled from permitted sources and verified against the state
-        register. If you are Dr {doctor.name.split(" ").slice(-1)[0]}, you can{" "}
+        <b>Unclaimed profile.</b> Compiled from permitted sources
+        {verified ? " and matched against the state medical register" : "; the registration check against the state medical register is still pending, and the record below says exactly what has and has not been verified"}.
+        If you are Dr {doctor.name.split(" ").slice(-1)[0]}, you can{" "}
         <Link href={paths.claimProfile()}>claim this page free</Link> and correct anything on it.
       </div>
     );

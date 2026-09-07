@@ -1,7 +1,7 @@
 import { lookupRedirect } from "@/lib/seo/redirects";
 import { SEED_DOCTORS, type SeedDoctor } from "@/lib/data/doctors";
 import { LOCALITIES, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
-import { isProfileIndexable } from "@/lib/seo/gates";
+import { isProfileIndexable, isProfileVerified } from "@/lib/seo/gates";
 import type { DataSource, Measure, Place, PlaceCount, Totals } from "@/lib/data/index";
 import type { Doctor, DoctorView, Practice, SpecialtyKey } from "@/lib/types";
 import { registrationTier } from "@/lib/verification";
@@ -43,7 +43,8 @@ function inPlace(d: DoctorView, place?: Place): boolean {
   return d.practices.some((p) => (!place.localityKey || p.locality === place.localityKey) && (!place.citySlug || p.citySlug === place.citySlug) && (!place.stateSlug || p.stateSlug === place.stateSlug));
 }
 
-const indexable = (place?: Place, specialty?: SpecialtyKey, measure: Measure = "indexable") => ALL.filter((d) => (measure === "published" || d.indexable) && (!specialty || d.specialty === specialty) && inPlace(d, place));
+/** Verified supply (the "indexable" measure), or everything published; index mode does not change these counts. */
+const indexable = (place?: Place, specialty?: SpecialtyKey, measure: Measure = "indexable") => ALL.filter((d) => (measure === "published" || isProfileVerified(d)) && (!specialty || d.specialty === specialty) && inPlace(d, place));
 
 export const seedSource: DataSource = {
   async getDoctorBySlug(slug: string): Promise<DoctorView | null> {
@@ -110,7 +111,7 @@ export const seedSource: DataSource = {
     const pool = ALL.filter((d) => inPlace(d, place));
     return {
       published: pool.length,
-      indexable: pool.filter((d) => d.indexable).length,
+      indexable: pool.filter((d) => isProfileVerified(d)).length,
       claimed: pool.filter((d) => d.claimed).length,
       practices: pool.reduce((n, d) => n + d.practices.filter((p) => p.confirmedOn && p.confirmedOn !== "—").length, 0),
       cities: new Set(pool.flatMap((d) => d.citySlugs)).size,
@@ -123,7 +124,7 @@ export const seedSource: DataSource = {
     return ALL.filter((d) => inPlace(d, place) && (d.name.toLowerCase().includes(q) || d.specialty.includes(q) || d.specialty === spec || d.subspecialties.some((x) => x.toLowerCase().includes(q))));
   },
   async getNearby(doctor: DoctorView, limit = 4): Promise<DoctorView[]> {
-    const pool = ALL.filter((d) => d.slug !== doctor.slug && d.specialty === doctor.specialty && d.indexable && d.citySlugs.some((c) => doctor.citySlugs.includes(c)));
+    const pool = ALL.filter((d) => d.slug !== doctor.slug && d.specialty === doctor.specialty && isProfileVerified(d) && d.citySlugs.some((c) => doctor.citySlugs.includes(c)));
     const shares = (d: DoctorView) => d.localities.some((l) => doctor.localities.includes(l));
     return [...pool.filter(shares), ...pool.filter((d) => !shares(d))].slice(0, limit);
   },
