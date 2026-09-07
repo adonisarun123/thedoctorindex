@@ -317,6 +317,16 @@ entity-escaped, and the files carry the sitemaps.org 0.9 schema reference. Set `
 maintenance pushes the sitemap index plus profiles verified in the last two days to Bing, Yandex,
 Naver and Seznam after every run (`/indexnow-key.txt` serves the key); Google reads `lastmod`.
 
+### Speed: region and data cache
+
+Functions run in Singapore (`vercel.json` → `regions: ["sin1"]`), the same region as the Neon
+database, so a query costs milliseconds rather than a transatlantic round trip. Every public read
+through `lib/data/index.ts` is stored in Next's data cache for an hour, keyed by its arguments and
+tagged `doctors`: a listing page still renders per request (its filters live in the query string)
+but reads the 200-profile pool, the counts and the locality links from the cache. Admin actions,
+the cron route and `POST /api/revalidate` (bearer `CRON_SECRET`; the enrichment job calls it after
+every run) drop the tag so changes show at once.
+
 ## Deliberate product decisions carried into the code
 
 - **"Verified", never "Best".** A best-of page needs a published methodology, a minimum review volume

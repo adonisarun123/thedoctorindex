@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import { dbSource } from "@/lib/data/db-source";
 import { emptySource } from "@/lib/data/empty-source";
 import { seedSource } from "@/lib/data/seed-source";
@@ -97,21 +99,43 @@ async function source(): Promise<DataSource> {
   return dbSource;
 }
 
-export const getDoctorBySlug = async (slug: string) => (await source()).getDoctorBySlug(slug);
-export const canonicalDoctorPath = async (slug: string) => (await source()).canonicalDoctorPath(slug);
+/**
+ * Read-through cache for the public site's reads.
+ *
+ * Listing pages are rendered per request (their filters live in the query
+ * string), and each render used to cost five to eight round trips to the
+ * database. Every read below is now stored in Next's data cache for an hour,
+ * keyed by its arguments and tagged `doctors`, so a city page that has been
+ * opened once is served from the cache until the hour passes or an admin
+ * change calls `revalidateDoctors()`. The cache applies only inside the Next
+ * server runtime with the database source; builds, scripts and tests read
+ * straight through.
+ */
+export const DATA_CACHE_TAG = "doctors";
+const DATA_CACHE_SECONDS = 3600;
+
+function cached<A extends unknown[], R>(name: string, fn: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
+  return (...args: A) => {
+    if (!process.env.NEXT_RUNTIME || activeSourceName() !== "db" || isBuildPhase()) return fn(...args);
+    return unstable_cache(() => fn(...args), [name, JSON.stringify(args)], { revalidate: DATA_CACHE_SECONDS, tags: [DATA_CACHE_TAG] })();
+  };
+}
+
+export const getDoctorBySlug = cached("getDoctorBySlug", async (slug: string) => (await source()).getDoctorBySlug(slug));
+export const canonicalDoctorPath = cached("canonicalDoctorPath", async (slug: string) => (await source()).canonicalDoctorPath(slug));
 export const findByRegistration = async (n: string) => (await source()).findByRegistration(n);
-export const getListing = async (k: SpecialtyKey, place: Place, limit?: number) => (await source()).getListing(k, place, limit);
-export const countIndexable = async (k: SpecialtyKey, place?: Place) => (await source()).countIndexable(k, place);
-export const countsBySpecialty = async (place?: Place, measure?: Measure) => (await source()).countsBySpecialty(place, measure);
-export const countsByCity = async (k?: SpecialtyKey, measure?: Measure) => (await source()).countsByCity(k, measure);
-export const countsByLocality = async (citySlug: string, k?: SpecialtyKey) => (await source()).countsByLocality(citySlug, k);
-export const countsByLocalitySpecialty = async (citySlug: string) => (await source()).countsByLocalitySpecialty(citySlug);
-export const countsByState = async (measure?: Measure) => (await source()).countsByState(measure);
-export const totals = async (place?: Place) => (await source()).totals(place);
+export const getListing = cached("getListing", async (k: SpecialtyKey, place: Place, limit?: number) => (await source()).getListing(k, place, limit));
+export const countIndexable = cached("countIndexable", async (k: SpecialtyKey, place?: Place) => (await source()).countIndexable(k, place));
+export const countsBySpecialty = cached("countsBySpecialty", async (place?: Place, measure?: Measure) => (await source()).countsBySpecialty(place, measure));
+export const countsByCity = cached("countsByCity", async (k?: SpecialtyKey, measure?: Measure) => (await source()).countsByCity(k, measure));
+export const countsByLocality = cached("countsByLocality", async (citySlug: string, k?: SpecialtyKey) => (await source()).countsByLocality(citySlug, k));
+export const countsByLocalitySpecialty = cached("countsByLocalitySpecialty", async (citySlug: string) => (await source()).countsByLocalitySpecialty(citySlug));
+export const countsByState = cached("countsByState", async (measure?: Measure) => (await source()).countsByState(measure));
+export const totals = cached("totals", async (place?: Place) => (await source()).totals(place));
 export const searchDoctors = async (q: string, place?: Place) => (await source()).searchDoctors(q, place);
 export const getNearby = async (d: DoctorView, limit?: number) => (await source()).getNearby(d, limit);
-export const getFeatured = async (limit: number, place?: Place) => (await source()).getFeatured(limit, place);
-export const listIndexableSlugs = async () => (await source()).listIndexableSlugs();
+export const getFeatured = cached("getFeatured", async (limit: number, place?: Place) => (await source()).getFeatured(limit, place));
+export const listIndexableSlugs = cached("listIndexableSlugs", async () => (await source()).listIndexableSlugs());
 
 /* Pure helpers, source-independent. */
 
