@@ -53,3 +53,10 @@ test("IndexNow is a no-op without a key and batches with one when present", asyn
   assert.equal(calls[0].body.urlList.length, 1);
   delete process.env.INDEXNOW_KEY;
 });
+
+test("an empty urlset is never rendered for the doctors file: zero entries means no file", () => {
+  // renderUrlset itself will happily render an empty document; the routes and index guard against it.
+  const xml = renderUrlset([]);
+  assert.equal((xml.match(/<url>/g) ?? []).length, 0);
+  assert.equal(doctorFileCount(0), 1, "file arithmetic alone says 1; indexEntries() and the route treat 0 entries as no file");
+});

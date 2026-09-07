@@ -28,14 +28,17 @@ export async function doctorEntries(): Promise<SitemapEntry[]> {
 /** Entries for doctor file n (1-based; see sitemap-xml.ts), or null when n is beyond the last file. */
 export async function doctorEntriesFile(n: number): Promise<SitemapEntry[] | null> {
   const all = await doctorEntries();
-  if (n < 1 || (n > 1 && n > doctorFileCount(all.length))) return null;
+  if (n < 1 || !all.length || n > doctorFileCount(all.length)) return null;
   return all.slice((n - 1) * DOCTORS_PER_FILE, n * DOCTORS_PER_FILE);
 }
 
 /** Every sitemap the index should list, with the newest lastmod each carries. */
 export async function indexEntries(): Promise<SitemapEntry[]> {
   const doctors = await doctorEntries();
-  const files = doctorFileCount(doctors.length);
+  // An empty <urlset> is invalid against the schema (it needs at least one
+  // <url>), so a doctors file with nothing to list is left out of the index
+  // and answers 404 until a profile clears its gate.
+  const files = doctors.length ? doctorFileCount(doctors.length) : 0;
   const entries: SitemapEntry[] = [];
   for (let n = 1; n <= files; n++) {
     entries.push({ loc: absoluteUrl(doctorFilePath(n)), lastmod: latestLastmod(doctors.slice((n - 1) * DOCTORS_PER_FILE, n * DOCTORS_PER_FILE)) });
