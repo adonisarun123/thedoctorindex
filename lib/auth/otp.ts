@@ -3,7 +3,7 @@ import "server-only";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { generateOtp, ipHash, normalizeIdentifier, safeEqual, sha256 } from "@/lib/auth/hash";
-import { sendEmail, sendSms } from "@/lib/auth/mailer";
+import { sendEmail, sendSms, smsConfigured } from "@/lib/auth/mailer";
 import { getDb } from "@/lib/db/client";
 import { otpCodes, users } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/security/rate-limit";
@@ -25,6 +25,17 @@ export async function requestOtp(
 ): Promise<{ ok: true; kind: "email" | "phone"; identifier: string } | { ok: false; error: string }> {
   const id = normalizeIdentifier(rawIdentifier);
   if (!id) return { ok: false, error: "Enter a valid email address or Indian mobile number." };
+
+  /**
+   * No SMS provider means the phone channel cannot deliver. Refuse here, before
+   * the rate limit is spent and before a code row is written: the visitor gets
+   * one clear steer to email instead of a round trip that burns an attempt and
+   * then fails. sendSms would otherwise report delivered outside production and
+   * strand the visitor on a code screen for a code nobody sent.
+   */
+  if (id.kind === "phone" && !smsConfigured()) {
+    return { ok: false, error: "Codes by SMS are not available yet. Sign in with an email address instead." };
+  }
 
   const perContact = await rateLimit(`otp:${id.value}`, Number(process.env.RATE_LIMIT_OTP_REQUEST ?? 5), 600);
   if (!perContact.ok) return { ok: false, error: "Too many codes requested. Wait ten minutes and try again." };
