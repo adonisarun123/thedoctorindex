@@ -360,13 +360,23 @@ npm test          # unit: TOTP (RFC 6238 vectors), geo, SEO gates, review risk s
 npm run test:e2e  # Playwright drive of the whole product through the real UI
 ```
 
-The e2e run needs a built app and a throwaway database: start `npm start` with
-`EMAIL_PROVIDER=console` and its stdout captured to a file, then run with `E2E_BASE_URL`,
-`E2E_DATABASE_URL`, `E2E_SERVER_LOG` (one-time codes are read from that log) and optionally
-`CRON_SECRET`. It covers OTP sign-in, review with evidence → moderation, enquiry, submission →
-approval → dashboard edit → change request → publish → slug redirect, staff-created doctor, SEO
-recompute, staff roles, claim, gated contact, theme, account page, near-me, MFA enrolment and
-gate, photo upload/removal, notifications, the cron endpoint, manual geocoding, first-run registration (name, mobile, email, locality, terms; duplicate mobile refused) and the mandatory-evidence moderation gate — 75 checks.
+The e2e run needs a built app and a throwaway database. Put the throwaway URL in
+`E2E_DATABASE_URL` and drive everything through `scripts/e2e-env.cjs`, which swaps
+`DATABASE_URL` for it and refuses to run if the two share a host:
+
+```bash
+node scripts/e2e-env.cjs npm run db:staff -- admin@thedoctorindex.in   # the account the run signs in as
+node scripts/e2e-env.cjs npm run db:seed                               # a claimed doctor for the first checks
+node scripts/e2e-env.cjs npm run build                                 # AFTER seeding: pages are ISR-cached
+node scripts/e2e-env.cjs npx next start -p 3111 > /tmp/e2e.log 2>&1 &
+E2E_BASE_URL=http://localhost:3111 E2E_SERVER_LOG=/tmp/e2e.log \
+  node scripts/e2e-env.cjs npm run test:e2e
+```
+
+Order matters: seed before build, or `/doctor/[slug]` serves a cached 404 for an
+hour. The runner sets `EMAIL_CONSOLE_DELIVERS=1` — without it a `next start` build
+treats the console mailer as undelivered, `requestOtp` deletes the code, and no
+sign-in in the suite can complete.
 It creates data; never point it at production.
 
 Accessibility: axe-core (WCAG 2.2 AA rules) runs clean on the home, listing, profile, review,

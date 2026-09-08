@@ -11,7 +11,7 @@ import postgres from "postgres";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3111";
 const LOG = process.env.E2E_SERVER_LOG ?? "/tmp/next.log";
-const sql = postgres(process.env.E2E_DATABASE_URL ?? process.env.DATABASE_URL ?? "", { onnotice: () => {}, ssl: process.env.DATABASE_SSL === "disable" ? false : undefined });
+const sql = postgres(process.env.E2E_DATABASE_URL ?? process.env.DATABASE_URL ?? "", { onnotice: () => {}, ssl: process.env.DATABASE_SSL === "disable" ? false : "require" });
 const results = [];
 const ok = (name, cond, detail = "") => { results.push({ name, pass: Boolean(cond), detail }); console.log(`${cond ? "PASS" : "FAIL"} ${name}${detail ? " — " + detail : ""}`); };
 
