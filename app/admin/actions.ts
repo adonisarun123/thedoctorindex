@@ -9,7 +9,7 @@ import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { decideCorrection, resolveProfileReport, setEnquiryStatus } from "@/lib/services/cases";
-import { addPractice, addQualification, applyField, createDoctor, markRegistrationChecked, mergeDoctor, recomputeQuality, setDoctorStatus, setQualificationState } from "@/lib/services/doctors";
+import { addPractice, addQualification, applyField, createDoctor, markAllVerified, markRegistrationChecked, mergeDoctor, recomputeQuality, setDoctorStatus, setQualificationState } from "@/lib/services/doctors";
 import { removeDoctorPhoto, setDoctorPhoto } from "@/lib/services/photos";
 import { moderateResponse, moderateReview, resolveReviewReport, validateEvidence } from "@/lib/services/reviews";
 import { recomputeSeoRoutes, setSeoOverride } from "@/lib/services/seo";
@@ -267,6 +267,17 @@ export async function qualificationStateAction(_p: AdminState, f: FormData): Pro
     const u = await requireStaff("verification_officer");
     await setQualificationState(str(f, "id"), str(f, "state") as "verified" | "submitted" | "rejected", u.id, str(f, "note") || undefined);
     return done("Qualification updated.", [`/admin/doctors/${str(f, "doctorId")}`]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function markAllVerifiedAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const id = str(f, "id");
+    const r = await markAllVerified(id, u.id, str(f, "note") || "Marked all as verified");
+    return done(`Marked verified: ${r.registrations} registration(s), ${r.qualifications} qualification(s), ${r.practices} practice(s).`, [`/admin/doctors/${id}`]);
   } catch (e) {
     return fail(e);
   }
