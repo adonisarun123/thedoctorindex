@@ -56,6 +56,8 @@ const DAILY_CAP = Number(process.env.GOOGLE_PLACES_DAILY_CAP ?? "1500");
  * the tested ceiling.
  */
 const CONCURRENCY = Math.max(1, Math.min(6, Number(arg("--concurrency", "1"))));
+/** Consecutive NMC failures before the register is treated as down for this run. */
+const NMC_GIVE_UP = Number(arg("--give-up-after", "8"));
 
 async function main() {
   const url = process.env.DIRECT_URL || process.env.DATABASE_URL;
@@ -141,6 +143,11 @@ async function main() {
       } else {
         try {
           const out = await matchOnRegister(nmc, { name: d.name, stateSlug: loc?.stateSlug ?? null, registration: primaryReg ? { number: primaryReg.number, council: primaryReg.council } : null }, { log: (m) => process.env.ENRICH_VERBOSE && console.log(m) });
+          // The give-up counter measures a register that is down *now*, so any
+          // answer at all clears it. Without this reset, eight unrelated blips
+          // spread over a twenty-hour run would stop it just as surely as an
+          // outage.
+          nmcFailures = 0;
           bump(`nmc:${out.status}`);
           console.log(`  nmc → ${out.status}${"match" in out ? ` ${out.match.council} ${out.match.registrationNo} (${out.match.name})` : ""}${"candidates" in out ? ` ${out.candidates.length} candidates` : ""}`);
           if (!DRY) {
@@ -189,11 +196,22 @@ async function main() {
           bump("nmc:error");
           console.log(`  nmc → error ${msg}`);
           if (!DRY) await db.update(s.doctorEnrichment).set({ attempts: sql`${s.doctorEnrichment.attempts} + 1`, lastError: `nmc: ${msg}`.slice(0, 500), updatedAt: new Date() }).where(eq(s.doctorEnrichment.doctorId, d.id));
+          // A transient network blip is not a reason to abandon the run. Back
+          // off and keep going; only a register that stays unreachable across
+          // several consecutive doctors is treated as down. (This guard used
+          // to stop on the first "fetch failed", which is survivable for a
+          // 40-minute scheduled run that retries within the hour, but throws
+          // away a long catch-up run on one dropped packet.)
           nmcFailures++;
-          if (/fetch failed|ECONN|ETIMEDOUT|certificate/.test(msg) || nmcFailures >= 5) {
-            console.log("register unreachable; stopping the NMC step for this run");
+          if (nmcFailures >= NMC_GIVE_UP) {
+            console.log(`register unreachable for ${nmcFailures} doctors in a row; stopping the NMC step for this run`);
             stopAll = true;
             return;
+          }
+          if (/fetch failed|ECONN|ETIMEDOUT|certificate|socket|network/i.test(msg)) {
+            const wait = Math.min(60_000, 5_000 * nmcFailures);
+            console.log(`  register unreachable (${nmcFailures}/${NMC_GIVE_UP}); waiting ${wait / 1000}s`);
+            await new Promise((r) => setTimeout(r, wait));
           }
         }
       }
