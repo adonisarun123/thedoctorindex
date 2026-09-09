@@ -364,4 +364,271 @@ export const CREDENTIAL_GUIDES: Guide[] = [
       </>
     ),
   },
+  {
+    slug: "checking-registration-numbers-against-the-register",
+    title: "We checked 3,700 registration numbers against the national register",
+    standfirst:
+      "Of the records where the number on file could be judged conclusively, about three in five did not belong to the doctor listed beside them. What we found, how we checked, and what it means if you are reading a doctor listing anywhere.",
+    specialty: null,
+    author: "The Doctor Index editorial team",
+    reviewer: null,
+    clinical: false,
+    publishedOn: "10 Sep 2026",
+    reviewedOn: "10 Sep 2026",
+    readingMinutes: 8,
+    body: (
+      <>
+        <p>
+          Every doctor listing site in India shows registration numbers. Almost none of them say
+          whether the number has been checked. We built a worker that checks ours against the National
+          Medical Commission&rsquo;s register, ran it across our directory, and the results were worse
+          than we expected.
+        </p>
+        <div className="notice">
+          <b>Snapshot, not a finished study.</b> The run is still going as this is published. The
+          figures below cover the 3,739 modern-medicine records checked so far that had a registration
+          number on file. We will update this page rather than write a second one.
+        </div>
+
+        <h2>What we found</h2>
+        <p>
+          For 2,471 records the check was conclusive &mdash; the number either belonged to the doctor
+          listed beside it or it did not:
+        </p>
+        <ul>
+          <li>
+            <b>994 confirmed.</b> The number, searched under its council, returned a register entry
+            whose name covers the doctor on the listing.
+          </li>
+          <li>
+            <b>1,477 mismatched.</b> The number returned a register entry belonging to somebody with a
+            different name. About three in five.
+          </li>
+        </ul>
+        <p>The rest were inconclusive rather than wrong:</p>
+        <ul>
+          <li>
+            <b>787 matched by name instead.</b> The number on file led nowhere, but exactly one entry in
+            the state&rsquo;s councils matched the doctor&rsquo;s name closely enough to be certain. Those
+            profiles now carry a number they did not have before.
+          </li>
+          <li>
+            <b>335 ambiguous</b> &mdash; several plausible entries, so a person has to choose. They sit
+            in a queue rather than on the profile.
+          </li>
+          <li>
+            <b>143 not found</b> under either the number or the name in that state&rsquo;s councils.
+          </li>
+          <li>
+            <b>4 struck off.</b> Entries the register itself marks as removed. Rare, and exactly what a
+            check like this is for.
+          </li>
+        </ul>
+
+        <h2>How we checked</h2>
+        <p>
+          For each profile: search the register for the registration number on file, restricted to the
+          council on file. Registration numbers are only unique within a council, so searching a bare
+          number across the whole register is meaningless. Councils write the same number differently
+          &mdash; &ldquo;MP-3037&rdquo; and &ldquo;3037&rdquo; are the same registration &mdash; so both
+          forms are tried before concluding anything.
+        </p>
+        <p>
+          If exactly one returned entry has a name that covers the doctor&rsquo;s name, the registration
+          is confirmed and dated. If entries come back but none of the names match, the number is
+          recorded as belonging to someone else, and the profile falls through to a name search across
+          that state&rsquo;s councils. Anything with more than one plausible answer goes to a human.
+        </p>
+
+        <h2>What &ldquo;mismatch&rdquo; does and does not mean</h2>
+        <div className="notice alert">
+          <b>It does not mean 1,477 doctors are unregistered.</b> It means the number printed next to
+          their name is not theirs. Almost all of these doctors are registered; the digits travelled
+          badly.
+        </div>
+        <p>Reading the mismatches, the causes look like this, in rough order of frequency:</p>
+        <ul>
+          <li>
+            <b>Transcription.</b> A number typed from a prescription pad, a signboard or an old
+            directory, with a digit dropped or transposed. It then lands on somebody else&rsquo;s
+            registration, because register numbers are dense &mdash; most short numbers belong to
+            someone.
+          </li>
+          <li>
+            <b>Wrong council.</b> The right digits filed under the wrong council. A doctor who
+            registered in Madhya Pradesh and now practises in Karnataka is often recorded against
+            Karnataka, and the number then resolves to a different person entirely.
+          </li>
+          <li>
+            <b>Historic councils.</b> Madhya Pradesh alone has three council identities in the register
+            &mdash; the state council plus the older Mahakoshal and Bhopal councils. Uttar Pradesh has
+            two. A number registered under a predecessor council will not be found under the modern one.
+          </li>
+          <li>
+            <b>Our own strictness.</b> Some share of these are ours: a name written differently on the
+            register than on the listing can defeat the match. We would rather report a mismatch and
+            queue it than confirm a registration we are not sure of, so this number is a ceiling on the
+            error rate, not a floor.
+          </li>
+        </ul>
+
+        <h2>What this means if you are reading any doctor listing</h2>
+        <p>
+          A registration number displayed without a checked date is decoration. It tells you the site
+          holds a number, not that the number is right, and on this evidence a displayed number is a
+          coin flip. That applies to our unchecked profiles exactly as much as to anyone else&rsquo;s.
+        </p>
+        <p>
+          The number is still worth having, because it lets you do the check yourself in about two
+          minutes. Our guide on{" "}
+          <a href="/health-guides/how-to-check-a-doctors-registration-in-india">
+            how to check a doctor&rsquo;s registration
+          </a>{" "}
+          walks through it, and{" "}
+          <a href="/health-guides/medical-councils-of-india">which council to search</a> explains why the
+          council matters as much as the digits.
+        </p>
+
+        <h2>What we did about ours</h2>
+        <p>
+          A mismatched number is removed from the profile as the primary registration and kept only in
+          the audit trail. It is not displayed, and the profile says the registration is unverified.
+          Confirmed registrations carry the council, the number and the date they were checked. Where
+          the register recorded the degree it registered the doctor on, that qualification is marked
+          verified too, and only that one.
+        </p>
+        <p>
+          None of this makes a profile good. It makes the claim on it honest, which is a lower bar than
+          most of this industry currently clears, including us before we ran this.
+        </p>
+      </>
+    ),
+  },
+  {
+    slug: "medical-councils-of-india",
+    title: "Which medical council registered your doctor",
+    standfirst:
+      "Registration numbers are unique within a council, not across India. Why that matters when you check a doctor, and how to work out which council to search.",
+    specialty: null,
+    author: "The Doctor Index editorial team",
+    reviewer: null,
+    clinical: false,
+    publishedOn: "10 Sep 2026",
+    reviewedOn: "10 Sep 2026",
+    readingMinutes: 6,
+    body: (
+      <>
+        <p>
+          People treat a medical registration number the way they treat a passport number &mdash; as one
+          identifier, nationally unique, that either checks out or does not. It is not that. Understanding
+          why is most of what you need to check a doctor successfully, and it is why so many published
+          numbers cannot be verified as written.
+        </p>
+
+        <h2>The structure</h2>
+        <p>
+          Doctors are registered by <b>State Medical Councils</b>, not centrally. A doctor registers with
+          the council of the state where they qualify or first practise. The National Medical Commission
+          maintains the national register, which aggregates what the state councils supply &mdash; but the
+          registration itself belongs to a council.
+        </p>
+        <div className="notice">
+          <b>A number is unique within its council, not across India.</b> Registration 3037 exists in many
+          states, held by a different doctor in each. A number quoted without its council does not identify
+          anybody.
+        </div>
+
+        <h2>Three things that catch people out</h2>
+        <h3>1. The council is often not the state they practise in</h3>
+        <p>
+          Registration attaches to where a doctor qualified or first registered, and it does not move when
+          they do. A physician who studied in Madhya Pradesh and has practised in Bengaluru for fifteen
+          years still holds a Madhya Pradesh registration. Searching Karnataka&rsquo;s council for that
+          number returns either nothing or, worse, a different doctor who happens to hold that number in
+          Karnataka.
+        </p>
+        <h3>2. Several states have more than one council in the register</h3>
+        <p>
+          Councils have been created, renamed and merged across the decades, and the register keeps the
+          older identities so that registrations made under them stay findable. A doctor registered in
+          1985 is on the council that existed in 1985, under the name it had then.
+        </p>
+        <ul>
+          <li>
+            <b>Madhya Pradesh</b> &mdash; the state council, plus the historic <b>Mahakoshal</b> and{" "}
+            <b>Bhopal</b> councils.
+          </li>
+          <li>
+            <b>Maharashtra</b> &mdash; the state council, plus <b>Bombay</b> and <b>Vidarbha</b>.
+          </li>
+          <li>
+            <b>Karnataka</b> &mdash; the state council, plus <b>Mysore</b>.
+          </li>
+          <li>
+            <b>Tamil Nadu</b> &mdash; the state council, plus <b>Madras</b>. Puducherry registrations also
+            sit under Madras, so the same council serves both.
+          </li>
+          <li>
+            <b>Kerala</b> &mdash; the state council, plus <b>Travancore</b>.
+          </li>
+          <li>
+            <b>Uttar Pradesh</b> &mdash; the state council, plus <b>Bareilly</b>.
+          </li>
+          <li>
+            <b>Andhra Pradesh and Telangana</b> &mdash; share the <b>Andhra</b> and <b>Hyderabad</b>
+            councils for anyone registered before the 2014 split.
+          </li>
+          <li>
+            <b>Punjab&rsquo;s</b> council also holds registrations for doctors in Chandigarh, Haryana and
+            Himachal Pradesh.
+          </li>
+        </ul>
+        <p>
+          So an empty result from the obvious council is not evidence that a doctor is unregistered. The
+          predecessor council, or the neighbour, is the next place to look.
+        </p>
+        <h3>3. The same number is written several ways</h3>
+        <p>
+          Councils prefix numbers inconsistently, and so do the people copying them. &ldquo;MP-3037&rdquo;,
+          &ldquo;MP 3037&rdquo; and &ldquo;3037&rdquo; are one registration. Some councils use a letter
+          prefix that is part of the number and some use one that is merely the state&rsquo;s initials. When
+          a search fails, stripping the prefix and searching the digits alone is worth trying before
+          concluding anything.
+        </p>
+
+        <h2>Councils the NMC register does not cover</h2>
+        <p>
+          The NMC register is modern medicine only. Ayurveda, Homoeopathy, Unani and Siddha practitioners
+          are registered under their own statutory councils and will never appear on it, however correctly
+          you search. Dentists are registered with the Dental Council of India and its state counterparts.
+          This is the single most common reason a search &ldquo;fails&rdquo; for a perfectly well-qualified
+          practitioner &mdash; the search was aimed at the wrong register.
+        </p>
+
+        <h2>Finding the right council</h2>
+        <p>
+          The register&rsquo;s own search carries the authoritative council list in its dropdown, and that
+          list is the one to trust &mdash; councils change, and any list republished elsewhere, including
+          this page, goes stale. Start at nmc.org.in, open the register search, and read the council names
+          there.
+        </p>
+        <p>Practically, in order:</p>
+        <ul>
+          <li>Search the number under the council printed on the prescription or the profile.</li>
+          <li>If nothing, search the same number with the prefix stripped.</li>
+          <li>If still nothing, try the council of the state where they studied, not where they practise.</li>
+          <li>If still nothing, try that state&rsquo;s historic councils.</li>
+          <li>Failing all of that, search by name within the state&rsquo;s councils and read the entries.</li>
+          <li>If the practitioner is a dentist or works in an AYUSH system, use the relevant council instead.</li>
+        </ul>
+        <p>
+          We ran exactly this sequence across our own directory, and{" "}
+          <a href="/health-guides/checking-registration-numbers-against-the-register">
+            what came back
+          </a>{" "}
+          is worth reading before you trust a registration number printed anywhere, ours included.
+        </p>
+      </>
+    ),
+  },
 ];
