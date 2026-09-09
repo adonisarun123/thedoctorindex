@@ -44,17 +44,31 @@ const DRY = args.includes("--dry");
 const ONLY = arg("--only", "") as "" | "nmc" | "google";
 const SLUG = arg("--slug", "");
 const DAILY_CAP = Number(process.env.GOOGLE_PLACES_DAILY_CAP ?? "1500");
+/**
+ * Doctors processed in parallel. Each worker gets its OWN NmcClient, because
+ * pacing lives on the client: N workers means N requests per pauseMs window
+ * against the register, not N at once through one paced queue.
+ *
+ * Default 1 — the scheduled workflow must stay at the pace the register has
+ * been served at all along. Raise it only for a deliberate catch-up run, and
+ * not far: this is a public government register with no published rate limit,
+ * and the polite reading of "no limit" is not "any limit we like". 3 has been
+ * the tested ceiling.
+ */
+const CONCURRENCY = Math.max(1, Math.min(6, Number(arg("--concurrency", "1"))));
 
 async function main() {
   const url = process.env.DIRECT_URL || process.env.DATABASE_URL;
   if (!url) throw new Error("Set DIRECT_URL or DATABASE_URL");
-  const client = postgres(url, { max: 2, ssl: process.env.DATABASE_SSL === "disable" ? false : "require", onnotice: () => {} });
+  // One spare connection per worker: each holds one while it reads the doctor
+  // and writes the outcome, and a pool of 2 would serialise what we just
+  // parallelised.
+  const client = postgres(url, { max: CONCURRENCY + 2, ssl: process.env.DATABASE_SSL === "disable" ? false : "require", onnotice: () => {} });
   const db = drizzle(client, { schema: s });
   // recomputeQuality reads through the app's pooled client; point it at the same database.
   process.env.DATABASE_URL = url;
 
   const deadline = Date.now() + MINUTES * 60_000;
-  const nmc = new NmcClient({ log: (m) => process.env.ENRICH_VERBOSE && console.log(m) });
   const googleKey = process.env.GOOGLE_PLACES_API_KEY;
   const google = googleKey ? new GoogleClient(googleKey) : null;
 
@@ -84,15 +98,25 @@ async function main() {
     .orderBy(desc(sql`exists (select 1 from medical_registrations r where r.doctor_id = ${s.doctors.id})`), desc(s.doctors.qualityScore), asc(s.doctors.name))
     .limit(BATCH);
 
-  console.log(`enrich: ${rows.length} doctors in batch · nmc=${wantNmc} google=${wantGoogle} (budget ${googleBudget} of ${DAILY_CAP} today) · ${DRY ? "DRY RUN" : "writing"} · ${MINUTES} min limit`);
+  console.log(`enrich: ${rows.length} doctors in batch · nmc=${wantNmc} google=${wantGoogle} (budget ${googleBudget} of ${DAILY_CAP} today) · ${DRY ? "DRY RUN" : "writing"} · ${MINUTES} min limit · concurrency ${CONCURRENCY}`);
   const tally: Record<string, number> = {};
   const bump = (k: string) => (tally[k] = (tally[k] ?? 0) + 1);
   let nmcFailures = 0;
+  // Shared across workers. Single-threaded event loop, so ++ and -- on these
+  // are atomic with respect to each other; no lock is needed or wanted.
+  let cursor = 0;
+  let stopAll = false;
+  let done = 0;
 
-  for (const row of rows) {
+  async function processDoctors(nmc: NmcClient) {
+   for (;;) {
+    if (stopAll) return;
+    const row = rows[cursor++];
+    if (!row) return;
     if (Date.now() > deadline) {
       console.log("time limit reached; stopping cleanly");
-      break;
+      stopAll = true;
+      return;
     }
     const d = await db.query.doctors.findFirst({
       where: eq(s.doctors.id, row.id),
@@ -168,7 +192,8 @@ async function main() {
           nmcFailures++;
           if (/fetch failed|ECONN|ETIMEDOUT|certificate/.test(msg) || nmcFailures >= 5) {
             console.log("register unreachable; stopping the NMC step for this run");
-            break;
+            stopAll = true;
+            return;
           }
         }
       }
@@ -224,7 +249,14 @@ async function main() {
         }
       }
     }
+
+    if (++done % 100 === 0) console.log(`— ${done}/${rows.length} processed`);
+   }
   }
+
+  const clients = Array.from({ length: CONCURRENCY }, () => new NmcClient({ log: (m) => process.env.ENRICH_VERBOSE && console.log(m) }));
+  await Promise.all(clients.map((c) => processDoctors(c)));
+  const nmcRequests = clients.reduce((n, c) => n + c.requests, 0);
 
   const remaining = await db.execute(sql`select
       count(*) filter (where nmc_status = 'pending')::int as nmc_pending,
@@ -235,7 +267,7 @@ async function main() {
     from doctor_enrichment`);
   console.log("tally:", JSON.stringify(tally));
   console.log("state:", JSON.stringify(remaining[0]));
-  console.log(`requests: nmc=${nmc.requests} google=${google?.requests ?? 0}`);
+  console.log(`requests: nmc=${nmcRequests} google=${google?.requests ?? 0}`);
   await client.end();
   const g = (globalThis as { __tdi_db?: { sql: { end: (o?: { timeout: number }) => Promise<void> } } }).__tdi_db;
   if (g) await g.sql.end({ timeout: 5 });
