@@ -56,8 +56,17 @@ const DAILY_CAP = Number(process.env.GOOGLE_PLACES_DAILY_CAP ?? "1500");
  * the tested ceiling.
  */
 const CONCURRENCY = Math.max(1, Math.min(6, Number(arg("--concurrency", "1"))));
-/** Consecutive NMC failures before the register is treated as down for this run. */
-const NMC_GIVE_UP = Number(arg("--give-up-after", "8"));
+/**
+ * Consecutive NMC failures before the run gives up entirely.
+ *
+ * The register goes down periodically — it was unreachable for roughly an
+ * hour overnight on 9 Sep, TCP accepting but answering nothing — and a long
+ * catch-up run should outlast that rather than die into it. With the
+ * escalating backoff below, 20 consecutive failures is a bit over an hour of
+ * the register refusing to answer before we conclude it is not coming back
+ * during this run.
+ */
+const NMC_GIVE_UP = Number(arg("--give-up-after", "20"));
 
 async function main() {
   const url = process.env.DIRECT_URL || process.env.DATABASE_URL;
@@ -209,8 +218,10 @@ async function main() {
             return;
           }
           if (/fetch failed|ECONN|ETIMEDOUT|certificate|socket|network/i.test(msg)) {
-            const wait = Math.min(60_000, 5_000 * nmcFailures);
-            console.log(`  register unreachable (${nmcFailures}/${NMC_GIVE_UP}); waiting ${wait / 1000}s`);
+            // Escalating, capped at 5 minutes. An outage that lasts an hour
+            // should cost us an hour of waiting, not the rest of the run.
+            const wait = Math.min(300_000, 15_000 * nmcFailures);
+            console.log(`  register unreachable (${nmcFailures}/${NMC_GIVE_UP}); waiting ${Math.round(wait / 1000)}s`);
             await new Promise((r) => setTimeout(r, wait));
           }
         }
