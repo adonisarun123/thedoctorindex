@@ -11,8 +11,29 @@ import { lookupRedirect } from "@/lib/seo/redirects";
  * returns 404/410 from the route instead. Redirecting every dead profile to the
  * homepage would be a soft-404 farm.
  */
+/**
+ * City identities that were merged, and the slug they became.
+ *
+ * The imports named Bengaluru three ways, so the city was published as two URL
+ * trees with its doctors split between them. Merging the data fixes the pages;
+ * these keep the URLs that were already crawled under the old spellings from
+ * turning into 404s. A prefix match, because everything below a city slug —
+ * the city page, each speciality, each locality — moves with it.
+ */
+const MERGED_CITY_SLUGS: Array<[string, string]> = [
+  ["/doctors/karnataka/bangalore-urban", "/doctors/karnataka/bengaluru"],
+  ["/doctors/karnataka/bangalore", "/doctors/karnataka/bengaluru"],
+];
+
+function mergedCityRedirect(pathname: string): string | null {
+  for (const [from, to] of MERGED_CITY_SLUGS) {
+    if (pathname === from || pathname.startsWith(`${from}/`)) return to + pathname.slice(from.length);
+  }
+  return null;
+}
+
 export function middleware(request: NextRequest) {
-  const target = lookupRedirect(request.nextUrl.pathname);
+  const target = lookupRedirect(request.nextUrl.pathname) ?? mergedCityRedirect(request.nextUrl.pathname);
   if (target) {
     const url = request.nextUrl.clone();
     url.pathname = target;

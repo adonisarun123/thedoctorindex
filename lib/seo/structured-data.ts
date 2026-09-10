@@ -342,10 +342,22 @@ export function specialtyLd(specialty: Specialty, count: number, listingPaths: s
   };
 }
 
-/** Health guide: a MedicalWebPage whose main entity is the reviewed article. */
+/**
+ * Health guide: a MedicalWebPage whose main entity is the article.
+ *
+ * `reviewedBy` and `lastReviewed` are emitted only when a named registered
+ * doctor has actually reviewed the guide. They previously carried a
+ * role-shaped placeholder as a schema.org Person, which told Google a human
+ * had checked the medical content when none had; an unreviewed guide now
+ * simply omits both properties rather than naming a reviewer who does not
+ * exist.
+ */
 export function guideLd(guide: Guide): Json {
   const url = absoluteUrl(`/health-guides/${guide.slug}`);
   const image = `${url}/opengraph-image`;
+  const reviewed = guide.reviewer
+    ? { lastReviewed: isoDate(guide.reviewedOn) ?? guide.reviewedOn, reviewedBy: { "@type": "Person", name: guide.reviewer } }
+    : {};
   return {
     "@context": "https://schema.org",
     "@type": "MedicalWebPage",
@@ -357,8 +369,7 @@ export function guideLd(guide: Guide): Json {
     isPartOf: { "@id": SITE_ID() },
     publisher: { "@id": ORG_ID() },
     medicalAudience: { "@type": "MedicalAudience", audienceType: "Patient" },
-    lastReviewed: isoDate(guide.reviewedOn) ?? guide.reviewedOn,
-    reviewedBy: { "@type": "Person", name: guide.reviewer },
+    ...reviewed,
     ...(guide.specialty ? { about: aboutSpecialty(SPECIALTIES[guide.specialty]) } : {}),
     primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
     mainEntity: {
@@ -370,7 +381,7 @@ export function guideLd(guide: Guide): Json {
       datePublished: isoDate(guide.publishedOn) ?? guide.publishedOn,
       dateModified: isoDate(guide.reviewedOn) ?? guide.reviewedOn,
       author: { "@type": "Organization", name: guide.author, url: absoluteUrl("/about") },
-      reviewedBy: { "@type": "Person", name: guide.reviewer },
+      ...(guide.reviewer ? { reviewedBy: { "@type": "Person", name: guide.reviewer } } : {}),
       publisher: { "@id": ORG_ID() },
       mainEntityOfPage: url,
       timeRequired: `PT${guide.readingMinutes}M`,

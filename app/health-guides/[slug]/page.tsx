@@ -84,15 +84,38 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
               </div>
               <span className="when">{guide.publishedOn}</span>
             </div>
-            <div className="rrow">
-              <span className="dot ok" />
-              <div>
-                <div className="lbl">Medically reviewed</div>
-                <div className="src">{guide.reviewer}</div>
+            {guide.reviewer ? (
+              <div className="rrow">
+                <span className="dot ok" />
+                <div>
+                  <div className="lbl">Medically reviewed</div>
+                  <div className="src">{guide.reviewer}</div>
+                </div>
+                <span className="when">{guide.reviewedOn}</span>
               </div>
-              <span className="when">{guide.reviewedOn}</span>
-            </div>
+            ) : (
+              <div className="rrow">
+                <span className="dot" />
+                <div>
+                  <div className="lbl">Not medically reviewed</div>
+                  <div className="src">
+                    {guide.clinical
+                      ? "No registered doctor has reviewed this guide. Treat it as general orientation, not medical advice, and take any decision with your own doctor."
+                      : "This guide describes registers, credentials and how to check them. It makes no medical claim and needs no clinical review."}
+                  </div>
+                </div>
+                <span className="when">{guide.reviewedOn}</span>
+              </div>
+            )}
           </div>
+
+          {guide.clinical ? (
+            <div className="notice alert">
+              <b>This is not medical advice.</b> It is written to help you decide who to see and what to
+              ask, not to tell you what is wrong or how to treat it. If a symptom is severe, sudden or
+              getting worse, call 108 or go to the nearest emergency department.
+            </div>
+          ) : null}
 
           {guide.body}
 

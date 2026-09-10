@@ -1,17 +1,28 @@
 import type { ReactNode } from "react";
 
+import { CREDENTIAL_GUIDES } from "@/lib/data/guides-credentials";
 import type { SpecialtyKey } from "@/lib/types";
 
 /**
  * Health guides (plan §11.7).
  *
- * Every guide names an author and a separate medical reviewer, shows its
- * publication and last-review dates, and is written individually. There is no
- * template that swaps a condition name into boilerplate. Guides never name or
- * recommend a specific doctor — guidance and directory stay separate.
+ * Every guide shows its author, its publication and last-review dates, and is
+ * written individually. There is no template that swaps a condition name into
+ * boilerplate. Guides never name or recommend a specific doctor — guidance and
+ * directory stay separate.
  *
- * The author and reviewer credits below are placeholders for the editorial
- * roles the plan staffs; they are not real people.
+ * `reviewer` is null until a named, registered doctor has actually read the
+ * piece. It was previously filled with role-shaped placeholders ("Medical
+ * reviewer, cardiology (registration on file)") which the page printed as a
+ * credit and the structured data emitted as a schema.org Person with a
+ * registration we do not hold — a claim about a human being who does not
+ * exist. Null is the honest value, and the page and the markup both omit the
+ * reviewer line when it is null rather than inventing a stand-in.
+ *
+ * `clinical` marks guidance about symptoms, conditions or treatment. Those
+ * pieces need a real reviewer before they can carry one; non-clinical guides
+ * (how to check a registration, what a degree abbreviation means) do not,
+ * because they make no medical claim.
  */
 export interface Guide {
   slug: string;
@@ -20,14 +31,18 @@ export interface Guide {
   standfirst: string;
   specialty: SpecialtyKey | null;
   author: string;
-  reviewer: string;
+  /** Named registered doctor who reviewed this, or null when nobody has. */
+  reviewer: string | null;
+  /** True when the guide gives clinical guidance and therefore needs a reviewer. */
+  clinical: boolean;
   publishedOn: string;
   reviewedOn: string;
   readingMinutes: number;
   body: ReactNode;
 }
 
-export const GUIDES: Guide[] = [
+/** Guides that give clinical guidance. These need a real reviewer. */
+const CLINICAL_GUIDES: Guide[] = [
   {
     slug: "when-to-consult-a-cardiologist",
     title: "When to consult a cardiologist",
@@ -35,7 +50,8 @@ export const GUIDES: Guide[] = [
       "Which symptoms warrant a cardiology consultation, what a first appointment involves, and what to bring.",
     specialty: "cardiology",
     author: "Editorial team",
-    reviewer: "Medical reviewer, cardiology (registration on file)",
+    reviewer: null,
+    clinical: true,
     publishedOn: "12 Aug 2026",
     reviewedOn: "12 Aug 2026",
     readingMinutes: 4,
@@ -93,7 +109,8 @@ export const GUIDES: Guide[] = [
       "Skin, hair and nail problems that need a specialist, what can wait, and the one symptom never to sit on.",
     specialty: "dermatology",
     author: "Editorial team",
-    reviewer: "Medical reviewer, dermatology (registration on file)",
+    reviewer: null,
+    clinical: true,
     publishedOn: "12 Aug 2026",
     reviewedOn: "12 Aug 2026",
     readingMinutes: 3,
@@ -139,7 +156,8 @@ export const GUIDES: Guide[] = [
       "Bone, joint and spine problems that need a specialist — and why seeing a surgeon does not mean having surgery.",
     specialty: "orthopaedics",
     author: "Editorial team",
-    reviewer: "Medical reviewer, orthopaedics (registration on file)",
+    reviewer: null,
+    clinical: true,
     publishedOn: "12 Aug 2026",
     reviewedOn: "12 Aug 2026",
     readingMinutes: 4,
@@ -186,7 +204,8 @@ export const GUIDES: Guide[] = [
       "Routine care, warning signs in infants and children, and how to choose a paediatrician you will see for years.",
     specialty: "paediatrics",
     author: "Editorial team",
-    reviewer: "Medical reviewer, paediatrics (registration on file)",
+    reviewer: null,
+    clinical: true,
     publishedOn: "12 Aug 2026",
     reviewedOn: "12 Aug 2026",
     readingMinutes: 4,
@@ -231,7 +250,8 @@ export const GUIDES: Guide[] = [
       "What a verification label proves and what it does not, how to read a profile, and the questions worth asking before you book.",
     specialty: null,
     author: "Editorial team",
-    reviewer: "Medical reviewer, general medicine (registration on file)",
+    reviewer: null,
+    clinical: true,
     publishedOn: "12 Aug 2026",
     reviewedOn: "12 Aug 2026",
     readingMinutes: 5,
@@ -281,6 +301,14 @@ export const GUIDES: Guide[] = [
     ),
   },
 ];
+
+/**
+ * The published set. Credential guides live in their own module: they are
+ * non-clinical, need no medical reviewer, and are the pages that teach a
+ * reader to check a doctor — and to check us. Kept as a separate array so the
+ * clinical set stays easy to find when a reviewer is appointed.
+ */
+export const GUIDES: Guide[] = [...CLINICAL_GUIDES, ...CREDENTIAL_GUIDES];
 
 export function guideBySlug(slug: string): Guide | null {
   return GUIDES.find((g) => g.slug === slug) ?? null;

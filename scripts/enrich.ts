@@ -44,17 +44,42 @@ const DRY = args.includes("--dry");
 const ONLY = arg("--only", "") as "" | "nmc" | "google";
 const SLUG = arg("--slug", "");
 const DAILY_CAP = Number(process.env.GOOGLE_PLACES_DAILY_CAP ?? "1500");
+/**
+ * Doctors processed in parallel. Each worker gets its OWN NmcClient, because
+ * pacing lives on the client: N workers means N requests per pauseMs window
+ * against the register, not N at once through one paced queue.
+ *
+ * Default 1 — the scheduled workflow must stay at the pace the register has
+ * been served at all along. Raise it only for a deliberate catch-up run, and
+ * not far: this is a public government register with no published rate limit,
+ * and the polite reading of "no limit" is not "any limit we like". 3 has been
+ * the tested ceiling.
+ */
+const CONCURRENCY = Math.max(1, Math.min(6, Number(arg("--concurrency", "1"))));
+/**
+ * Consecutive NMC failures before the run gives up entirely.
+ *
+ * The register goes down periodically — it was unreachable for roughly an
+ * hour overnight on 9 Sep, TCP accepting but answering nothing — and a long
+ * catch-up run should outlast that rather than die into it. With the
+ * escalating backoff below, 20 consecutive failures is a bit over an hour of
+ * the register refusing to answer before we conclude it is not coming back
+ * during this run.
+ */
+const NMC_GIVE_UP = Number(arg("--give-up-after", "20"));
 
 async function main() {
   const url = process.env.DIRECT_URL || process.env.DATABASE_URL;
   if (!url) throw new Error("Set DIRECT_URL or DATABASE_URL");
-  const client = postgres(url, { max: 2, ssl: process.env.DATABASE_SSL === "disable" ? false : "require", onnotice: () => {} });
+  // One spare connection per worker: each holds one while it reads the doctor
+  // and writes the outcome, and a pool of 2 would serialise what we just
+  // parallelised.
+  const client = postgres(url, { max: CONCURRENCY + 2, ssl: process.env.DATABASE_SSL === "disable" ? false : "require", onnotice: () => {} });
   const db = drizzle(client, { schema: s });
   // recomputeQuality reads through the app's pooled client; point it at the same database.
   process.env.DATABASE_URL = url;
 
   const deadline = Date.now() + MINUTES * 60_000;
-  const nmc = new NmcClient({ log: (m) => process.env.ENRICH_VERBOSE && console.log(m) });
   const googleKey = process.env.GOOGLE_PLACES_API_KEY;
   const google = googleKey ? new GoogleClient(googleKey) : null;
 
@@ -84,19 +109,49 @@ async function main() {
     .orderBy(desc(sql`exists (select 1 from medical_registrations r where r.doctor_id = ${s.doctors.id})`), desc(s.doctors.qualityScore), asc(s.doctors.name))
     .limit(BATCH);
 
-  console.log(`enrich: ${rows.length} doctors in batch · nmc=${wantNmc} google=${wantGoogle} (budget ${googleBudget} of ${DAILY_CAP} today) · ${DRY ? "DRY RUN" : "writing"} · ${MINUTES} min limit`);
+  console.log(`enrich: ${rows.length} doctors in batch · nmc=${wantNmc} google=${wantGoogle} (budget ${googleBudget} of ${DAILY_CAP} today) · ${DRY ? "DRY RUN" : "writing"} · ${MINUTES} min limit · concurrency ${CONCURRENCY}`);
   const tally: Record<string, number> = {};
   const bump = (k: string) => (tally[k] = (tally[k] ?? 0) + 1);
   let nmcFailures = 0;
+  // Shared across workers. Single-threaded event loop, so ++ and -- on these
+  // are atomic with respect to each other; no lock is needed or wanted.
+  let cursor = 0;
+  let stopAll = false;
+  let done = 0;
 
-  for (const row of rows) {
+  async function processDoctors(nmc: NmcClient) {
+   for (;;) {
+    if (stopAll) return;
+    const row = rows[cursor++];
+    if (!row) return;
     if (Date.now() > deadline) {
       console.log("time limit reached; stopping cleanly");
-      break;
+      stopAll = true;
+      return;
     }
+    // Only the columns the two steps actually read. The unrestricted version
+    // of this query pulled every column of the doctor, its registrations, its
+    // facility and its locality — including the facility geometry — for all
+    // 24,000 rows, and it is the single heaviest thing this script does. The
+    // public site reads through Next's data cache; scripts do not, so this
+    // query's width is paid in full on every doctor.
     const d = await db.query.doctors.findFirst({
       where: eq(s.doctors.id, row.id),
-      with: { registrations: true, enrichment: true, practices: { where: (p, { eq }) => eq(p.active, true), with: { facility: { with: { locality: true } } } } },
+      columns: { id: true, name: true, slug: true, specialtyKey: true },
+      with: {
+        registrations: { columns: { id: true, number: true, council: true, isPrimary: true, checkedOn: true, registeredYear: true } },
+        enrichment: { columns: { nmcStatus: true, googleStatus: true } },
+        practices: {
+          where: (p, { eq }) => eq(p.active, true),
+          columns: { id: true, phone: true },
+          with: {
+            facility: {
+              columns: { id: true, name: true, address: true, postalCode: true, phone: true, lat: true, lng: true },
+              with: { locality: { columns: { name: true, city: true, state: true, stateSlug: true, lat: true, lng: true } } },
+            },
+          },
+        },
+      },
     });
     if (!d) continue;
     const enr = d.enrichment;
@@ -117,6 +172,11 @@ async function main() {
       } else {
         try {
           const out = await matchOnRegister(nmc, { name: d.name, stateSlug: loc?.stateSlug ?? null, registration: primaryReg ? { number: primaryReg.number, council: primaryReg.council } : null }, { log: (m) => process.env.ENRICH_VERBOSE && console.log(m) });
+          // The give-up counter measures a register that is down *now*, so any
+          // answer at all clears it. Without this reset, eight unrelated blips
+          // spread over a twenty-hour run would stop it just as surely as an
+          // outage.
+          nmcFailures = 0;
           bump(`nmc:${out.status}`);
           console.log(`  nmc → ${out.status}${"match" in out ? ` ${out.match.council} ${out.match.registrationNo} (${out.match.name})` : ""}${"candidates" in out ? ` ${out.candidates.length} candidates` : ""}`);
           if (!DRY) {
@@ -165,10 +225,35 @@ async function main() {
           bump("nmc:error");
           console.log(`  nmc → error ${msg}`);
           if (!DRY) await db.update(s.doctorEnrichment).set({ attempts: sql`${s.doctorEnrichment.attempts} + 1`, lastError: `nmc: ${msg}`.slice(0, 500), updatedAt: new Date() }).where(eq(s.doctorEnrichment.doctorId, d.id));
-          nmcFailures++;
-          if (/fetch failed|ECONN|ETIMEDOUT|certificate/.test(msg) || nmcFailures >= 5) {
-            console.log("register unreachable; stopping the NMC step for this run");
-            break;
+          // Two failure modes, and only one of them means "stop".
+          //
+          // A connection that never completes means the register is down. Those
+          // count toward NMC_GIVE_UP and get an escalating wait (capped at five
+          // minutes), which is what lets a long run sit through an outage rather
+          // than die into it. The first version of this guard stopped on the
+          // first "fetch failed" and threw away nineteen hours of a run over one
+          // dropped packet.
+          //
+          // An HTTP 5xx means the register answered — it just did not like that
+          // query, and often never will: the detail endpoint 500s on certain
+          // records and a few council ids 500 on any search. A dry run over
+          // eight doctors hit five of them. Those must NOT count toward giving
+          // up, or an unlucky run of bad records stops a run while the register
+          // is plainly healthy. They get a short pause, and the per-doctor
+          // `attempts` counter retires them after five tries.
+          const down = /fetch failed|ECONN|ETIMEDOUT|certificate|socket|network/i.test(msg);
+          if (down) {
+            nmcFailures++;
+            if (nmcFailures >= NMC_GIVE_UP) {
+              console.log(`register unreachable for ${nmcFailures} doctors in a row; stopping the NMC step for this run`);
+              stopAll = true;
+              return;
+            }
+            const wait = Math.min(300_000, 15_000 * nmcFailures);
+            console.log(`  register unreachable (${nmcFailures}/${NMC_GIVE_UP}); waiting ${Math.round(wait / 1000)}s`);
+            await new Promise((r) => setTimeout(r, wait));
+          } else {
+            await new Promise((r) => setTimeout(r, 3_000));
           }
         }
       }
@@ -224,7 +309,14 @@ async function main() {
         }
       }
     }
+
+    if (++done % 100 === 0) console.log(`— ${done}/${rows.length} processed`);
+   }
   }
+
+  const clients = Array.from({ length: CONCURRENCY }, () => new NmcClient({ log: (m) => process.env.ENRICH_VERBOSE && console.log(m) }));
+  await Promise.all(clients.map((c) => processDoctors(c)));
+  const nmcRequests = clients.reduce((n, c) => n + c.requests, 0);
 
   const remaining = await db.execute(sql`select
       count(*) filter (where nmc_status = 'pending')::int as nmc_pending,
@@ -235,7 +327,7 @@ async function main() {
     from doctor_enrichment`);
   console.log("tally:", JSON.stringify(tally));
   console.log("state:", JSON.stringify(remaining[0]));
-  console.log(`requests: nmc=${nmc.requests} google=${google?.requests ?? 0}`);
+  console.log(`requests: nmc=${nmcRequests} google=${google?.requests ?? 0}`);
   await client.end();
   const g = (globalThis as { __tdi_db?: { sql: { end: (o?: { timeout: number }) => Promise<void> } } }).__tdi_db;
   if (g) await g.sql.end({ timeout: 5 });
