@@ -129,9 +129,29 @@ async function main() {
       stopAll = true;
       return;
     }
+    // Only the columns the two steps actually read. The unrestricted version
+    // of this query pulled every column of the doctor, its registrations, its
+    // facility and its locality — including the facility geometry — for all
+    // 24,000 rows, and it is the single heaviest thing this script does. The
+    // public site reads through Next's data cache; scripts do not, so this
+    // query's width is paid in full on every doctor.
     const d = await db.query.doctors.findFirst({
       where: eq(s.doctors.id, row.id),
-      with: { registrations: true, enrichment: true, practices: { where: (p, { eq }) => eq(p.active, true), with: { facility: { with: { locality: true } } } } },
+      columns: { id: true, name: true, slug: true, specialtyKey: true },
+      with: {
+        registrations: { columns: { id: true, number: true, council: true, isPrimary: true, checkedOn: true, registeredYear: true } },
+        enrichment: { columns: { nmcStatus: true, googleStatus: true } },
+        practices: {
+          where: (p, { eq }) => eq(p.active, true),
+          columns: { id: true, phone: true },
+          with: {
+            facility: {
+              columns: { id: true, name: true, address: true, postalCode: true, phone: true, lat: true, lng: true },
+              with: { locality: { columns: { name: true, city: true, state: true, stateSlug: true, lat: true, lng: true } } },
+            },
+          },
+        },
+      },
     });
     if (!d) continue;
     const enr = d.enrichment;
@@ -205,24 +225,35 @@ async function main() {
           bump("nmc:error");
           console.log(`  nmc → error ${msg}`);
           if (!DRY) await db.update(s.doctorEnrichment).set({ attempts: sql`${s.doctorEnrichment.attempts} + 1`, lastError: `nmc: ${msg}`.slice(0, 500), updatedAt: new Date() }).where(eq(s.doctorEnrichment.doctorId, d.id));
-          // A transient network blip is not a reason to abandon the run. Back
-          // off and keep going; only a register that stays unreachable across
-          // several consecutive doctors is treated as down. (This guard used
-          // to stop on the first "fetch failed", which is survivable for a
-          // 40-minute scheduled run that retries within the hour, but throws
-          // away a long catch-up run on one dropped packet.)
-          nmcFailures++;
-          if (nmcFailures >= NMC_GIVE_UP) {
-            console.log(`register unreachable for ${nmcFailures} doctors in a row; stopping the NMC step for this run`);
-            stopAll = true;
-            return;
-          }
-          if (/fetch failed|ECONN|ETIMEDOUT|certificate|socket|network/i.test(msg)) {
-            // Escalating, capped at 5 minutes. An outage that lasts an hour
-            // should cost us an hour of waiting, not the rest of the run.
+          // Two failure modes, and only one of them means "stop".
+          //
+          // A connection that never completes means the register is down. Those
+          // count toward NMC_GIVE_UP and get an escalating wait (capped at five
+          // minutes), which is what lets a long run sit through an outage rather
+          // than die into it. The first version of this guard stopped on the
+          // first "fetch failed" and threw away nineteen hours of a run over one
+          // dropped packet.
+          //
+          // An HTTP 5xx means the register answered — it just did not like that
+          // query, and often never will: the detail endpoint 500s on certain
+          // records and a few council ids 500 on any search. A dry run over
+          // eight doctors hit five of them. Those must NOT count toward giving
+          // up, or an unlucky run of bad records stops a run while the register
+          // is plainly healthy. They get a short pause, and the per-doctor
+          // `attempts` counter retires them after five tries.
+          const down = /fetch failed|ECONN|ETIMEDOUT|certificate|socket|network/i.test(msg);
+          if (down) {
+            nmcFailures++;
+            if (nmcFailures >= NMC_GIVE_UP) {
+              console.log(`register unreachable for ${nmcFailures} doctors in a row; stopping the NMC step for this run`);
+              stopAll = true;
+              return;
+            }
             const wait = Math.min(300_000, 15_000 * nmcFailures);
             console.log(`  register unreachable (${nmcFailures}/${NMC_GIVE_UP}); waiting ${Math.round(wait / 1000)}s`);
             await new Promise((r) => setTimeout(r, wait));
+          } else {
+            await new Promise((r) => setTimeout(r, 3_000));
           }
         }
       }
