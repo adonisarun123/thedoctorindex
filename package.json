@@ -25,6 +25,7 @@
     "db:revalidate": "tsx --require ./scripts/server-only-shim.cjs scripts/revalidate-site.ts",
     "db:photo": "tsx --require ./scripts/server-only-shim.cjs scripts/set-photo.ts",
     "db:merge-city": "tsx --require ./scripts/server-only-shim.cjs scripts/merge-city.ts",
+    "db:merge-locality": "tsx --require ./scripts/server-only-shim.cjs scripts/merge-locality.ts",
     "db:verify": "tsx --require ./scripts/server-only-shim.cjs scripts/verify-doctor.ts",
     "test": "tsx --require ./scripts/server-only-shim.cjs --test tests/unit/*.test.ts",
     "test:e2e": "node tests/e2e/flow.mjs",

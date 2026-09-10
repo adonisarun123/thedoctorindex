@@ -70,8 +70,11 @@ async function main() {
     return;
   }
 
+  // Active only. A locality retired by an earlier merge still holds its slug,
+  // and repointing facilities at a deactivated row would hide them from the
+  // site entirely — the failure mode is silent, so it is worth the filter.
   const targets = (await db.execute(sql`
-    select key, name, slug, city, state from localities where city_slug = ${TO}`)) as unknown as Array<{
+    select key, name, slug, city, state from localities where city_slug = ${TO} and active`)) as unknown as Array<{
     key: string; name: string; slug: string; city: string; state: string;
   }>;
   if (!targets.length) throw new Error(`no localities under ${TO}; refusing to merge into a city that does not exist`);
