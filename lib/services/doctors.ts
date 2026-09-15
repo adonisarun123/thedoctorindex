@@ -370,6 +370,59 @@ export async function markRegistrationChecked(doctorId: string, actorUserId: str
   await recomputeQuality(doctorId);
 }
 
+/**
+ * Staff / CLI: record a check on every unverified dimension we hold —
+ * registration, each qualification, each active practice. Does not claim
+ * the profile or invent an HPR match; those are separate facts.
+ */
+export async function markAllVerified(doctorId: string, actorUserId: string | null, note?: string): Promise<{ registrations: number; qualifications: number; practices: number }> {
+  const db = getDb();
+  const today = todayIso();
+  const d = await getDoctorAdmin(doctorId);
+  if (!d) throw new Error("doctor not found");
+
+  const summary = { registrations: 0, qualifications: 0, practices: 0 };
+  const checks: Array<typeof s.verificationChecks.$inferInsert> = [];
+
+  await db.transaction(async (tx) => {
+    for (const r of d.registrations) {
+      if (!r.checkedOn) {
+        await tx.update(s.medicalRegistrations).set({ checkedOn: today, status: "active" }).where(eq(s.medicalRegistrations.id, r.id));
+        checks.push({ doctorId, kind: "registration", subjectId: r.id, result: "verified", source: r.source ?? "State Medical Council register", checkedByUserId: actorUserId, note });
+        summary.registrations++;
+      }
+    }
+    for (const q of d.qualifications) {
+      if (q.state !== "verified") {
+        await tx.update(s.doctorQualifications).set({ state: "verified", checkedOn: today }).where(eq(s.doctorQualifications.id, q.id));
+        checks.push({ doctorId, kind: "qualification", subjectId: q.id, result: "verified", source: q.institution, checkedByUserId: actorUserId, note });
+        summary.qualifications++;
+      }
+    }
+    for (const p of d.practices.filter((p) => p.active)) {
+      if (!(p.confirmedOn ?? p.facility.confirmedOn)) {
+        await tx.update(s.doctorPractices).set({ confirmedOn: today, feeCheckedOn: p.feeInr !== null ? today : p.feeCheckedOn }).where(eq(s.doctorPractices.id, p.id));
+        checks.push({ doctorId, kind: "practice", subjectId: p.id, result: "verified", source: "Practice confirmation", checkedByUserId: actorUserId, note });
+        summary.practices++;
+      }
+    }
+    if (checks.length) await tx.insert(s.verificationChecks).values(checks);
+    await tx.update(s.doctors).set({ lastVerifiedOn: today, updatedAt: new Date() }).where(eq(s.doctors.id, doctorId));
+  });
+
+  await audit({
+    actorUserId,
+    actorRole: actorUserId ? "staff" : "script",
+    action: "doctor.verified_all",
+    entityType: "doctor",
+    entityId: doctorId,
+    after: summary,
+    reason: note ?? "Marked all as verified",
+  });
+  await recomputeQuality(doctorId);
+  return summary;
+}
+
 export async function addPractice(doctorId: string, p: { facilityId?: string; facilityName?: string; localityKey?: string; address?: string; postalCode?: string; days?: string; hours?: string; feeInr?: number | null; phone?: string }, actorUserId: string | null, confirmed = false) {
   const db = getDb();
   const today = todayIso();

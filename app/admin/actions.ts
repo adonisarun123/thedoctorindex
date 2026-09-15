@@ -9,7 +9,7 @@ import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { decideCorrection, resolveProfileReport, setEnquiryStatus } from "@/lib/services/cases";
-import { addPractice, addQualification, applyField, createDoctor, markRegistrationChecked, mergeDoctor, recomputeQuality, setDoctorStatus, setQualificationState } from "@/lib/services/doctors";
+import { addPractice, addQualification, applyField, createDoctor, markAllVerified, markRegistrationChecked, mergeDoctor, recomputeQuality, setDoctorStatus, setQualificationState } from "@/lib/services/doctors";
 import { removeDoctorPhoto, setDoctorPhoto } from "@/lib/services/photos";
 import { moderateResponse, moderateReview, resolveReviewReport, validateEvidence } from "@/lib/services/reviews";
 import { recomputeSeoRoutes, setSeoOverride } from "@/lib/services/seo";
@@ -229,6 +229,59 @@ export async function updatePracticeAdminAction(_p: AdminState, f: FormData): Pr
   }
 }
 
+/**
+ * One confirmation call, logged in one submit (/admin/calls).
+ *
+ * The three fields a call collects — practice confirmed, consultation fee,
+ * professional introduction — are worth 37 of the 100 quality points, and are
+ * the only ones that cannot be reached without speaking to someone. Doing them
+ * in one action rather than three trips through the profile editor is the whole
+ * point of the call queue.
+ *
+ * Every outcome is logged, including the ones that collect nothing: a number
+ * that rings out, a wrong number, a doctor who declines. The queue reads those
+ * back so nobody redials the same clinic tomorrow, and so "we called and they
+ * said no" is distinguishable from "we never got to them".
+ */
+export async function logCallAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer", "content_editor");
+    const doctorId = str(f, "doctorId");
+    const pid = str(f, "practiceId");
+    const outcome = str(f, "outcome") || "reached";
+    const note = str(f, "note");
+
+    if (outcome !== "reached") {
+      await audit({ actorUserId: u.id, actorRole: "staff", action: "doctor.call.logged", entityType: "doctor", entityId: doctorId, after: { outcome }, reason: note || null });
+      const label = outcome === "no_answer" ? "No answer — back in the queue in 2 days." : outcome === "wrong_number" ? "Wrong number — the phone is now marked unusable." : "Declined — parked for 90 days.";
+      if (outcome === "wrong_number") await applyField(doctorId, `practice.${pid}.phone`, "", u.id, "staff", "wrong number on a confirmation call");
+      return done(label, ["/admin/calls"]);
+    }
+
+    const about = str(f, "about");
+    const fee = str(f, "fee");
+    // About before fee before confirm: applyField stamps feeCheckedOn when the
+    // fee is written and confirmedOn when the practice is confirmed, so the
+    // confirmation is last and the dates all land on today.
+    if (about) await applyField(doctorId, "about", about, u.id, "staff", "confirmation call");
+    if (fee) await applyField(doctorId, `practice.${pid}.feeInr`, Number(fee), u.id, "staff", "confirmation call");
+    if (f.get("confirm") === "on") await applyField(doctorId, `practice.${pid}.confirmed`, true, u.id, "staff", "confirmed by telephone");
+
+    await audit({ actorUserId: u.id, actorRole: "staff", action: "doctor.call.logged", entityType: "doctor", entityId: doctorId, after: { outcome: "reached", confirmed: f.get("confirm") === "on", fee: fee || null, about: Boolean(about) }, reason: note || null });
+    const { score } = await recomputeQuality(doctorId);
+
+    // The introduction is saved either way, but it only scores when it is long
+    // enough and free of the superlatives recomputeQuality screens for. Saying
+    // so here beats letting a caller wonder why the score did not move.
+    const shortAbout = about && about.length < 80;
+    const puffed = about && /\b(best|no\.?\s*1|top|most trusted)\b/i.test(about);
+    const caveat = shortAbout ? " The introduction is under 80 characters, so it does not score yet." : puffed ? " The introduction contains a superlative, so it does not score — reword it without “best”, “top”, “no. 1” or “most trusted”." : "";
+    return done(`Saved — quality score now ${score}${score >= 70 ? " (verified)" : ""}.${caveat}`, ["/admin/calls", `/admin/doctors/${doctorId}`]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 export async function addPracticeAdminAction(_p: AdminState, f: FormData): Promise<AdminState> {
   try {
     const u = await requireStaff("verification_officer", "content_editor");
@@ -267,6 +320,17 @@ export async function qualificationStateAction(_p: AdminState, f: FormData): Pro
     const u = await requireStaff("verification_officer");
     await setQualificationState(str(f, "id"), str(f, "state") as "verified" | "submitted" | "rejected", u.id, str(f, "note") || undefined);
     return done("Qualification updated.", [`/admin/doctors/${str(f, "doctorId")}`]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function markAllVerifiedAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const id = str(f, "id");
+    const r = await markAllVerified(id, u.id, str(f, "note") || "Marked all as verified");
+    return done(`Marked verified: ${r.registrations} registration(s), ${r.qualifications} qualification(s), ${r.practices} practice(s).`, [`/admin/doctors/${id}`]);
   } catch (e) {
     return fail(e);
   }

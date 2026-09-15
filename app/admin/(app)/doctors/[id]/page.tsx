@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { photoAdminAction, addPracticeAdminAction, addQualificationAdminAction, mergeDoctorAction, registrationCheckAction, qualificationStateAction, setStatusAction, updateDoctorFieldsAction, updatePracticeAdminAction } from "@/app/admin/actions";
+import { photoAdminAction, addPracticeAdminAction, addQualificationAdminAction, markAllVerifiedAction, mergeDoctorAction, registrationCheckAction, qualificationStateAction, setStatusAction, updateDoctorFieldsAction, updatePracticeAdminAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
 import { RankingBreakdown } from "@/components/RankingBreakdown";
 import { PlacePicker } from "@/components/PlacePicker";
@@ -200,6 +200,10 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
                 <div className="mono" style={{ fontSize: "12px", color: "var(--muted)" }}>{c.points}</div>
               </div>
             ))}
+            <ActionForm action={markAllVerifiedAction} submitLabel="Mark all as verified" variant="outline" className="pad" style={{ borderTop: "1px solid var(--hair)" }} confirm="Record a verified check on every pending registration, qualification and active practice? This does not claim the profile or set an HPR match.">
+              <input type="hidden" name="id" value={d.id} />
+              <div className="field" style={{ marginBottom: 0 }}><label>Note</label><input type="text" name="note" placeholder="Checked against source records" /></div>
+            </ActionForm>
           </section>
 
           {/* Registration */}
