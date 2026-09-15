@@ -6,6 +6,7 @@ import { DATA_CACHE_TAG } from "@/lib/data/cache-tag";
 import { LOCALITIES } from "@/lib/data/taxonomy";
 import { databaseReadyForBuild, isBuildPhase } from "@/lib/db/readiness";
 export { placeName, placeSlug } from "@/lib/geo-names";
+import { normalize, rank } from "@/lib/search/fuzzy";
 import type { City, Locality, State } from "@/lib/types";
 
 /**
@@ -119,9 +120,44 @@ export async function userPlace(localityKey: string | null, city: string | null)
   return { stateSlug: c?.stateSlug ?? null, citySlug: c?.slug ?? null };
 }
 
+export interface PlaceSuggestion {
+  kind: "city" | "locality";
+  /** "Indiranagar" / "Bengaluru" */
+  name: string;
+  /** "Bengaluru, Karnataka" for a locality; the state for a city. */
+  detail: string;
+  /** What to put in the location field so the server resolves it unambiguously. */
+  text: string;
+  stateSlug: string;
+  citySlug: string;
+  localitySlug?: string;
+}
+
+/**
+ * Cities and localities ranked against a partial, possibly misspelt, query
+ * ("bangalor" → Bengaluru, "indranagar" → Indiranagar, Bengaluru). Cities
+ * outrank localities on an equal score.
+ */
+export async function suggestPlaces(q: string, limit = 6): Promise<PlaceSuggestion[]> {
+  const geo = await getGeo();
+  if (!normalize(q)) return [];
+  const cities = rank(q, geo.cities, (c) => [c.name, c.slug.replace(/-/g, " ")], limit).map(({ item, score }) => ({
+    score: score + 0.5,
+    s: { kind: "city" as const, name: item.name, detail: item.state, text: item.name, stateSlug: item.stateSlug, citySlug: item.slug },
+  }));
+  const localities = rank(q, geo.localities.filter((l) => l.slug !== l.citySlug), (l) => [l.name, l.slug.replace(/-/g, " ")], limit).map(({ item, score }) => ({
+    score,
+    s: { kind: "locality" as const, name: item.name, detail: `${item.city}, ${item.state}`, text: `${item.name}, ${item.city}`, stateSlug: item.stateSlug, citySlug: item.citySlug, localitySlug: item.slug },
+  }));
+  return [...cities, ...localities].sort((a, b) => b.score - a.score).slice(0, limit).map((x) => x.s);
+}
+
 /**
  * Free-text place → city or locality. Exact name first, then prefix, then
  * substring; localities win over cities of the same name only on exact match.
+ * "Locality, City" (what a picked suggestion submits) resolves the locality
+ * within that city. Failing all of those, a query within a typo or two of a
+ * place name still resolves.
  */
 export async function resolvePlaceQuery(q: string): Promise<{ name: string; stateSlug: string; citySlug: string; locality: Locality | null } | null> {
   const needle = q.trim().toLowerCase();
@@ -129,13 +165,29 @@ export async function resolvePlaceQuery(q: string): Promise<{ name: string; stat
   const geo = await getGeo();
   const cityHit = (pred: (n: string) => boolean) => geo.cities.find((c) => pred(c.name.toLowerCase()) || pred(c.slug));
   const locHit = (pred: (n: string) => boolean) => geo.localities.find((l) => l.slug !== l.citySlug && (pred(l.name.toLowerCase()) || pred(l.slug)));
+  const asLoc = (l: Locality) => ({ name: `${l.name}, ${l.city}`, stateSlug: l.stateSlug, citySlug: l.citySlug, locality: l });
+  const asCity = (c: City) => ({ name: c.name, stateSlug: c.stateSlug, citySlug: c.slug, locality: null });
+  if (needle.includes(",")) {
+    const [locPart, cityPart] = needle.split(",").map((x) => x.trim());
+    const city = cityPart ? cityHit((n) => n === cityPart) : null;
+    const l = city ? geo.localities.find((x) => x.citySlug === city.slug && x.stateSlug === city.stateSlug && (x.name.toLowerCase() === locPart || x.slug === locPart)) : null;
+    if (l) return asLoc(l);
+    if (city) return asCity(city);
+  }
   const exactCity = cityHit((n) => n === needle);
-  if (exactCity) return { name: exactCity.name, stateSlug: exactCity.stateSlug, citySlug: exactCity.slug, locality: null };
+  if (exactCity) return asCity(exactCity);
   const exactLoc = locHit((n) => n === needle);
-  if (exactLoc) return { name: `${exactLoc.name}, ${exactLoc.city}`, stateSlug: exactLoc.stateSlug, citySlug: exactLoc.citySlug, locality: exactLoc };
+  if (exactLoc) return asLoc(exactLoc);
   const c = cityHit((n) => n.startsWith(needle)) ?? cityHit((n) => n.includes(needle));
-  if (c) return { name: c.name, stateSlug: c.stateSlug, citySlug: c.slug, locality: null };
+  if (c) return asCity(c);
   const l = locHit((n) => n.startsWith(needle)) ?? locHit((n) => n.includes(needle));
-  if (l) return { name: `${l.name}, ${l.city}`, stateSlug: l.stateSlug, citySlug: l.citySlug, locality: l };
-  return null;
+  if (l) return asLoc(l);
+  const [fuzzy] = await suggestPlaces(needle, 1);
+  if (!fuzzy) return null;
+  if (fuzzy.kind === "city") {
+    const fc = geo.city(fuzzy.stateSlug, fuzzy.citySlug);
+    return fc ? asCity(fc) : null;
+  }
+  const fl = fuzzy.localitySlug ? geo.localityBySlug(fuzzy.stateSlug, fuzzy.citySlug, fuzzy.localitySlug) : null;
+  return fl ? asLoc(fl) : null;
 }

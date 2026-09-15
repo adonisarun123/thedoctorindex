@@ -1,8 +1,9 @@
 import { lookupRedirect } from "@/lib/seo/redirects";
 import { SEED_DOCTORS, type SeedDoctor } from "@/lib/data/doctors";
 import { LOCALITIES, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
+import { rank } from "@/lib/search/fuzzy";
 import { isProfileIndexable, isProfileVerified } from "@/lib/seo/gates";
-import type { DataSource, Measure, Place, PlaceCount, PlaceSpecialtyCount, Totals } from "@/lib/data/index";
+import type { DataSource, DoctorSuggestion, Measure, Place, PlaceCount, PlaceSpecialtyCount, Totals } from "@/lib/data/index";
 import type { Doctor, DoctorView, Practice, SpecialtyKey } from "@/lib/types";
 import { registrationTier } from "@/lib/verification";
 
@@ -148,6 +149,14 @@ export const seedSource: DataSource = {
     if (!q) return [];
     const spec = resolveSpecialtyQuery(q)?.key;
     return ALL.filter((d) => inPlace(d, place) && (d.name.toLowerCase().includes(q) || d.specialty.includes(q) || d.specialty === spec || d.subspecialties.some((x) => x.toLowerCase().includes(q))));
+  },
+  async suggestDoctors(query: string, limit = 6, place?: Place): Promise<DoctorSuggestion[]> {
+    return rank(query, ALL.filter((d) => inPlace(d, place)), (d) => [d.name], limit).map(({ item: d }) => ({
+      slug: d.slug,
+      name: d.name,
+      specialty: d.specialty,
+      city: d.practices[0]?.city ?? null,
+    }));
   },
   async getNearby(doctor: DoctorView, limit = 4): Promise<DoctorView[]> {
     const pool = ALL.filter((d) => d.slug !== doctor.slug && d.specialty === doctor.specialty && isProfileVerified(d) && d.citySlugs.some((c) => doctor.citySlugs.includes(c)));

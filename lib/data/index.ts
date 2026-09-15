@@ -48,6 +48,15 @@ export interface Place {
  */
 export type Measure = "indexable" | "published" | "eligible";
 
+/** One row of the search box's doctor suggestions. */
+export interface DoctorSuggestion {
+  slug: string;
+  name: string;
+  specialty: SpecialtyKey;
+  /** Primary city name, when the doctor has a placed practice. */
+  city: string | null;
+}
+
 export interface PlaceCount {
   stateSlug: string;
   citySlug: string;
@@ -102,6 +111,8 @@ export type DataSource = {
   /** Published / indexable / claimed / practice counts, optionally within a place. */
   totals(place?: Place): Promise<Totals>;
   searchDoctors(query: string, place?: Place): Promise<DoctorView[]>;
+  /** Published doctors whose name is close to a partial, possibly misspelt, query — the search box's suggestions. Light rows, no hydration. */
+  suggestDoctors(query: string, limit?: number, place?: Place): Promise<DoctorSuggestion[]>;
   getNearby(doctor: DoctorView, limit?: number): Promise<DoctorView[]>;
   /** Indexable doctors with a photo or a claim first — the home page strip. */
   getFeatured(limit: number, place?: Place): Promise<DoctorView[]>;
@@ -160,6 +171,7 @@ export const countsByCitySpecialty = cached("countsByCitySpecialty", async (meas
 export const countsByLocalityAll = cached("countsByLocalityAll", async (measure?: Measure) => (await source()).countsByLocalityAll(measure));
 export const totals = cached("totals", async (place?: Place) => (await source()).totals(place));
 export const searchDoctors = async (q: string, place?: Place) => (await source()).searchDoctors(q, place);
+export const suggestDoctors = async (q: string, limit?: number, place?: Place) => (await source()).suggestDoctors(q, limit, place);
 export const getNearby = async (d: DoctorView, limit?: number) => (await source()).getNearby(d, limit);
 export const getFeatured = cached("getFeatured", async (limit: number, place?: Place) => (await source()).getFeatured(limit, place));
 export const listIndexableSlugs = cached("listIndexableSlugs", async () => (await source()).listIndexableSlugs());

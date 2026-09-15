@@ -72,7 +72,7 @@ export const SPECIALTIES: Record<SpecialtyKey, Specialty> = {
     aOne: "an orthopaedic surgeon",
     slug: "orthopaedic-surgeons",
     department: "Bones & Joints",
-    aliases: ["bone specialist", "bone doctor", "joint pain", "ortho", "orthopedics"],
+    aliases: ["bone specialist", "bone doctor", "joint pain", "ortho", "orthopedics", "orthopedic", "orthopedist"],
     guide:
       "Orthopaedic surgeons manage injuries and disorders of bones, joints, ligaments and the spine. Not every consultation ends in surgery — a large share of orthopaedic care is physiotherapy, injection and load management.",
     when: [
@@ -94,7 +94,7 @@ export const SPECIALTIES: Record<SpecialtyKey, Specialty> = {
     aOne: "a paediatrician",
     slug: "paediatricians",
     department: "Child Health",
-    aliases: ["child specialist", "children doctor", "kids doctor", "child doctor", "pediatrics"],
+    aliases: ["child specialist", "children doctor", "kids doctor", "child doctor", "pediatrics", "pediatrician", "paediatrician"],
     guide:
       "Paediatricians care for infants, children and adolescents — growth and development, immunisation, common infections and long-term childhood conditions. Most families choose a paediatrician close to home for continuity.",
     when: [

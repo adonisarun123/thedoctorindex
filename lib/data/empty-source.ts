@@ -22,6 +22,7 @@ export const emptySource: DataSource = {
   countsByState: async () => ({}),
   totals: async () => ({ published: 0, indexable: 0, claimed: 0, practices: 0, cities: 0 }),
   searchDoctors: async () => [],
+  suggestDoctors: async () => [],
   getNearby: async () => [],
   getFeatured: async () => [],
   listIndexableSlugs: async () => [],
