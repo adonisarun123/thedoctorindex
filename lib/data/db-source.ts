@@ -5,11 +5,12 @@ import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { env } from "@/lib/env";
 import { getGeo } from "@/lib/data/geo";
 import { resolveSpecialtyQuery } from "@/lib/data/taxonomy";
+import { normalize } from "@/lib/search/fuzzy";
 import { getDb } from "@/lib/db/client";
 import { daysBetween, toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { isProfileIndexable } from "@/lib/seo/gates";
-import type { DataSource, Measure, Place, PlaceCount, PlaceSpecialtyCount, Totals } from "@/lib/data/index";
+import type { DataSource, DoctorSuggestion, Measure, Place, PlaceCount, PlaceSpecialtyCount, Totals } from "@/lib/data/index";
 import type { DoctorView, Locality, SpecialtyKey } from "@/lib/types";
 
 /**
@@ -434,6 +435,26 @@ export const dbSource: DataSource = {
     `)) as unknown as Array<{ id: string }>;
     if (!rows.length) return [];
     return viewsByIds(rows.map((r) => r.id), "card");
+  },
+  async suggestDoctors(query: string, limit = 6, place?: Place): Promise<DoctorSuggestion[]> {
+    const q = normalize(query).replace(/^(dr|doctor)\s+/, "");
+    if (q.length < 2) return [];
+    // Word similarity (pg_trgm) so "shar" finds "Sharma" while the person is
+    // still typing and "sharna" still finds it; the gin index on lower(name)
+    // serves both operators. The closest name ranks first (a prefix of a word
+    // scores 1.0, so typing ahead still works), then the better-documented profile.
+    const rows = (await getDb().execute(sql`
+      select d.slug, d.name, d.specialty_key as specialty,
+             (select l.city from doctor_practices p join facilities f on f.id = p.facility_id join localities l on l.key = f.locality_key
+               where p.doctor_id = d.id and p.active order by p.sort, p.id limit 1) as city
+      from doctors d
+      where d.status = 'published'
+        and (lower(d.name) like ${q + "%"} or lower(d.name) like ${"% " + q + "%"} or ${q} <% lower(d.name))
+        ${place && Object.keys(place).length ? sql`and ${inPlaceSubquery(place)}` : sql``}
+      order by word_similarity(${q}, lower(d.name)) desc, (lower(d.name) like ${q + "%"}) desc, d.quality_score desc
+      limit ${limit}
+    `)) as unknown as Array<{ slug: string; name: string; specialty: SpecialtyKey; city: string | null }>;
+    return rows.map((r) => ({ slug: r.slug, name: r.name, specialty: r.specialty, city: r.city ?? null }));
   },
   async getNearby(doctor: DoctorView, limit = 4): Promise<DoctorView[]> {
     const city = doctor.citySlugs[0];

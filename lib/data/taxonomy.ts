@@ -1,3 +1,4 @@
+import { bestScore, normalize } from "@/lib/search/fuzzy";
 import type { Locality, LocalityKey, Specialty, SpecialtyKey } from "@/lib/types";
 
 /**
@@ -65,22 +66,41 @@ export const LOCALITY_KEYS = Object.keys(LOCALITIES) as LocalityKey[];
 /**
  * Maps a free-text patient query onto one canonical speciality. Synonyms with
  * the same search intent resolve to the same page; they never get one of
- * their own.
+ * their own. Every speciality is scored against the query (exact, prefix,
+ * a term contained in the query, then one or two typos — "cardiolgy",
+ * "skn doctor") and the best one wins, so a misspelling lands on the listing
+ * rather than /search and a short term such as "ent" no longer matches
+ * whichever alias happens to contain those letters.
  */
 export function resolveSpecialtyQuery(query: string): Specialty | null {
-  const q = query.trim().toLowerCase();
-  if (!q) return null;
-  for (const key of SPECIALTY_KEYS) {
-    const s = SPECIALTIES[key];
-    if (
-      s.name.toLowerCase().includes(q) ||
-      s.plural.toLowerCase().includes(q) ||
-      s.one.toLowerCase().includes(q) ||
-      s.slug.includes(q)
-    ) {
-      return s;
-    }
-    if (s.aliases.some((a) => a.includes(q) || q.includes(a))) return s;
-  }
-  return null;
+  if (normalize(query).length < 3) return null;
+  const top = suggestSpecialties(query, 1)[0];
+  return top && top.score >= 40 ? top.item : null;
+}
+
+/** What one speciality can be found by: its names, slug and patient-language aliases. */
+export function specialtyTerms(s: Specialty): string[] {
+  return [s.name, s.plural, s.one, s.slug.replace(/-/g, " "), ...s.aliases];
+}
+
+/** Specialities ranked against a partial, possibly misspelt, query — the search box's suggestions. */
+export function suggestSpecialties(query: string, limit = 6): Array<{ item: Specialty; score: number }> {
+  const q = normalize(query);
+  if (!q) return [];
+  const padded = ` ${q} `;
+  const all = SPECIALTY_KEYS.map((k) => SPECIALTIES[k]);
+  const out: Array<{ item: Specialty; score: number; i: number }> = [];
+  all.forEach((item, i) => {
+    // The speciality's own names outrank an alias that merely starts the same way ("ca" → cardiology before "cataract").
+    const own = bestScore(q, [item.name, item.plural, item.one, item.slug.replace(/-/g, " ")]);
+    const alias = bestScore(q, item.aliases);
+    let score = Math.max(own, alias >= 70 ? alias - 6 : alias);
+    // "best heart doctor near me": a term used as a whole word inside a longer query.
+    if (score < 75 && q.includes(" ") && specialtyTerms(item).some((t) => t.length >= 3 && padded.includes(` ${normalize(t)} `))) score = 75;
+    if (score > 0) out.push({ item, score, i });
+  });
+  return out
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .slice(0, limit)
+    .map(({ item, score }) => ({ item, score }));
 }
