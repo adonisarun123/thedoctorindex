@@ -32,6 +32,7 @@
     "db:localities": "tsx --require ./scripts/server-only-shim.cjs scripts/ensure-localities.ts",
     "db:build-import": "tsx --require ./scripts/server-only-shim.cjs scripts/build-import.ts",
     "db:photo-candidates": "tsx --require ./scripts/server-only-shim.cjs scripts/attach-photo-candidates.ts",
+    "db:extra-practices": "tsx --require ./scripts/server-only-shim.cjs scripts/attach-extra-practices.ts",
     "test": "tsx --require ./scripts/server-only-shim.cjs --test tests/unit/*.test.ts",
     "test:e2e": "node tests/e2e/flow.mjs",
     "db:enrich": "NODE_EXTRA_CA_CERTS=lib/enrich/certs/ssl-com-tls-issuing-rsa-ca-r1.crt tsx --require ./scripts/server-only-shim.cjs scripts/enrich.ts"

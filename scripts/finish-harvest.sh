@@ -22,6 +22,10 @@ echo "matched.json holds $resolved records"
 scripts/import-harvest.sh --with-drafts
 
 echo
+echo "=== second hospitals for doctors who work at more than one"
+npm run --silent db:extra-practices 2>&1 | tail -3
+
+echo
 echo "=== revalidating the site"
 npm run --silent db:revalidate 2>&1 | tail -5
 
