@@ -361,6 +361,40 @@ export const files = pgTable("files", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
+/**
+ * A portrait we know exists but are not entitled to show.
+ *
+ * Imported hospital-sourced profiles carry a photo on the hospital's own site.
+ * That image is the hospital's asset and the doctor never consented to it
+ * appearing here, so we record where it is and render nothing. When the doctor
+ * claims the profile they are shown the candidate and can adopt it in one
+ * click, which is the moment consent actually exists. Nothing here is ever
+ * fetched or displayed until then.
+ */
+export const photoCandidates = pgTable(
+  "photo_candidates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id")
+      .notNull()
+      .references(() => doctors.id, { onDelete: "cascade" }),
+    /** Where the image is on the source site. A URL only — the bytes are not copied. */
+    url: text("url").notNull(),
+    /** The page the portrait was published on, for provenance. */
+    sourceUrl: text("source_url").notNull(),
+    /** "hospital:manipal", matching doctors.source. */
+    source: text("source").notNull(),
+    /** pending → the doctor has not claimed; adopted → promoted to doctors.photo_file_id; declined → they said no. */
+    status: text("status").notNull().default("pending"),
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("photo_candidates_doctor_url_idx").on(t.doctorId, t.url),
+    index("photo_candidates_doctor_idx").on(t.doctorId),
+  ],
+);
+
 /* ------------------------------------------------------------------------- */
 /* Reviews and trust                                                         */
 /* ------------------------------------------------------------------------- */

@@ -121,21 +121,35 @@ export interface NewDoctorInput {
   modes?: string[];
   about?: string;
   services?: string[];
-  registration: { number: string; council: string; registeredYear?: number | null; verified?: boolean };
+  /**
+   * Null only for a DRAFT held while the register is still being searched.
+   * A profile is never published without one, and a number is never invented
+   * to fill this in: no registration means no registration row at all.
+   */
+  registration: { number: string; council: string; registeredYear?: number | null; verified?: boolean } | null;
   qualifications?: Array<{ degree: string; institution: string; year?: number | null; verified?: boolean }>;
   experience?: Array<{ role: string; place: string; fromYear: number; toYear?: number | null }>;
   practices?: Array<{ facilityId?: string; facilityName?: string; localityKey?: string; address?: string; postalCode?: string; days?: string; hours?: string; feeInr?: number | null; phone?: string; confirmed?: boolean }>;
   status?: "draft" | "published";
   source?: string;
+  /** The page this record was read from. Shown as provenance and used to re-link later passes. */
+  sourceUrl?: string | null;
+  sourceRef?: string | null;
   claimedByUserId?: string | null;
 }
 
 export async function createDoctor(input: NewDoctorInput, actorUserId: string | null, actorRole = "staff"): Promise<{ id: string; slug: string; publicId: string }> {
   const db = getDb();
-  const regNorm = normalizeKey(input.registration.number);
-  const councilNorm = normalizeKey(input.registration.council);
-  const [dup] = await db.select({ doctorId: s.medicalRegistrations.doctorId }).from(s.medicalRegistrations).where(and(eq(s.medicalRegistrations.numberNormalized, regNorm), eq(s.medicalRegistrations.councilNormalized, councilNorm))).limit(1);
-  if (dup) throw new Error(`A profile already exists for ${input.registration.council} ${input.registration.number}`);
+  const reg = input.registration;
+  if (!reg && (input.status ?? "draft") === "published") {
+    throw new Error("A profile cannot be published without a registration number");
+  }
+  const regNorm = reg ? normalizeKey(reg.number) : "";
+  const councilNorm = reg ? normalizeKey(reg.council) : "";
+  if (reg) {
+    const [dup] = await db.select({ doctorId: s.medicalRegistrations.doctorId }).from(s.medicalRegistrations).where(and(eq(s.medicalRegistrations.numberNormalized, regNorm), eq(s.medicalRegistrations.councilNormalized, councilNorm))).limit(1);
+    if (dup) throw new Error(`A profile already exists for ${reg.council} ${reg.number}`);
+  }
 
   let publicId = publicIdGen();
   for (let i = 0; i < 5; i++) {
@@ -163,27 +177,31 @@ export async function createDoctor(input: NewDoctorInput, actorUserId: string | 
         services: input.services ?? [],
         status: input.status ?? "draft",
         source: input.source ?? "staff",
+        sourceUrl: input.sourceUrl ?? null,
+        sourceRef: input.sourceRef ?? null,
         claimed: Boolean(input.claimedByUserId),
         claimedByUserId: input.claimedByUserId ?? null,
         createdByUserId: actorUserId,
         publishedAt: input.status === "published" ? new Date() : null,
-        lastVerifiedOn: input.registration.verified ? today : null,
+        lastVerifiedOn: reg?.verified ? today : null,
       })
       .returning({ id: s.doctors.id });
 
-    await tx.insert(s.medicalRegistrations).values({
-      doctorId: doc.id,
-      number: input.registration.number.trim(),
-      numberNormalized: regNorm,
-      council: input.registration.council.trim(),
-      councilNormalized: councilNorm,
-      registeredYear: input.registration.registeredYear ?? null,
-      checkedOn: input.registration.verified ? today : null,
-      source: input.registration.verified ? "State Medical Council register" : null,
-      isPrimary: true,
-    });
-    if (input.registration.verified) {
-      await tx.insert(s.verificationChecks).values({ doctorId: doc.id, kind: "registration", result: "verified", source: input.registration.council, checkedByUserId: actorUserId });
+    if (reg) {
+      await tx.insert(s.medicalRegistrations).values({
+        doctorId: doc.id,
+        number: reg.number.trim(),
+        numberNormalized: regNorm,
+        council: reg.council.trim(),
+        councilNormalized: councilNorm,
+        registeredYear: reg.registeredYear ?? null,
+        checkedOn: reg.verified ? today : null,
+        source: reg.verified ? "State Medical Council register" : null,
+        isPrimary: true,
+      });
+      if (reg.verified) {
+        await tx.insert(s.verificationChecks).values({ doctorId: doc.id, kind: "registration", result: "verified", source: reg.council, checkedByUserId: actorUserId });
+      }
     }
     for (const [i, q] of (input.qualifications ?? []).entries()) {
       await tx.insert(s.doctorQualifications).values({ doctorId: doc.id, degree: q.degree, institution: q.institution, year: q.year ?? null, state: q.verified ? "verified" : "submitted", checkedOn: q.verified ? today : null, sort: i });

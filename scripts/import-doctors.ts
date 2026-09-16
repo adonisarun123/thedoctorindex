@@ -120,15 +120,23 @@ async function main() {
     if (!name || !/^[\p{L}][\p{L} .'-]{1,79}$/u.test(name)) problems.push("name missing or not a plain personal name");
     const specialty = r.specialty ? specialtyByKey(r.specialty) ?? specialtyBySlug(r.specialty) ?? resolveSpecialtyQuery(r.specialty) : null;
     if (!specialty) problems.push(`specialty "${r.specialty}" not one of the open specialities`);
-    if (!r.registration_number) problems.push("registration_number missing");
-    if (!r.council) problems.push("council missing");
+    // A published profile must carry a registration. A draft may be held without
+    // one while the register is still being searched for it — that is the whole
+    // point of the draft state, and it is never a licence to invent a number.
+    if (publish && !r.registration_number) problems.push("registration_number missing (required to publish)");
+    if (publish && !r.council) problems.push("council missing (required to publish)");
+    if (r.registration_number && !r.council) problems.push("council missing for the registration number given");
     if (!r.source_url || !/^https?:\/\//.test(r.source_url)) problems.push("source_url missing (provenance is mandatory)");
     const gender = r.gender && ["F", "M", "X"].includes(r.gender.toUpperCase()) ? (r.gender.toUpperCase() as "F" | "M" | "X") : null;
     let locality = r.locality ? geo.locality(r.locality) ?? geo.localities.find((l) => l.slug === r.locality) ?? null : null;
     if (r.facility_name && !locality) problems.push(`locality "${r.locality}" is not a known locality key (see /api/places)`);
     if (r.facility_name && !r.address) problems.push("address required with facility_name");
-    const dupKey = `${(r.council ?? "").toLowerCase()}|${(r.registration_number ?? "").replace(/\W+/g, "").toLowerCase()}`;
-    if (seen.has(dupKey)) problems.push("duplicate registration within this file");
+    // Registration is the identity key when there is one; without it, fall back to
+    // the source URL so one file cannot import the same page twice.
+    const dupKey = r.registration_number
+      ? `${(r.council ?? "").toLowerCase()}|${r.registration_number.replace(/\W+/g, "").toLowerCase()}`
+      : `url|${(r.source_url ?? "").toLowerCase()}`;
+    if (seen.has(dupKey)) problems.push(r.registration_number ? "duplicate registration within this file" : "duplicate source_url within this file");
     seen.add(dupKey);
 
     if (problems.length) {
@@ -148,7 +156,13 @@ async function main() {
       modes: list(r.modes).length ? list(r.modes) : ["In person"],
       about: r.about ?? "",
       services: list(r.services),
-      registration: { number: r.registration_number, council: r.council, registeredYear: int(r.registered_year), verified: false },
+      // `registration_verified` is set only by a pipeline that has already matched
+      // the row against the NMC/State Medical Council register itself (see
+      // scripts/match-register.ts). It is never a claim from the source site.
+      registration:
+        r.registration_number && r.council
+          ? { number: r.registration_number, council: r.council, registeredYear: int(r.registered_year), verified: r.registration_verified === "true" }
+          : null,
       qualifications: list(r.qualifications).map((q) => {
         const [degree, institution, year] = q.split("@").map((x) => x.trim());
         return { degree, institution: institution ?? "", year: int(year), verified: false };
@@ -158,6 +172,8 @@ async function main() {
         : [],
       status: publish ? ("published" as const) : ("draft" as const),
       source: `import:${sourceName}`,
+      sourceUrl: r.source_url,
+      sourceRef: r.source_ref || null,
     };
 
     if (dry) {
