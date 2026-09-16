@@ -43,6 +43,8 @@ const MINUTES = Number(arg("--minutes", "40"));
 const DRY = args.includes("--dry");
 const ONLY = arg("--only", "") as "" | "nmc" | "google";
 const SLUG = arg("--slug", "");
+/** Restrict the batch to one import, e.g. `--source import:hospital:sakra`. */
+const SOURCE = arg("--source", "");
 const DAILY_CAP = Number(process.env.GOOGLE_PLACES_DAILY_CAP ?? "1500");
 /**
  * Doctors processed in parallel. Each worker gets its OWN NmcClient, because
@@ -105,7 +107,7 @@ async function main() {
     .select({ id: s.doctors.id, slug: s.doctors.slug })
     .from(s.doctors)
     .leftJoin(s.doctorEnrichment, eq(s.doctorEnrichment.doctorId, s.doctors.id))
-    .where(and(eq(s.doctors.status, "published"), SLUG ? eq(s.doctors.slug, SLUG) : pendingClause, sql`coalesce(${s.doctorEnrichment.attempts}, 0) < 5`))
+    .where(and(eq(s.doctors.status, "published"), SLUG ? eq(s.doctors.slug, SLUG) : pendingClause, SOURCE ? eq(s.doctors.source, SOURCE) : sql`true`, sql`coalesce(${s.doctorEnrichment.attempts}, 0) < 5`))
     .orderBy(desc(sql`exists (select 1 from medical_registrations r where r.doctor_id = ${s.doctors.id})`), desc(s.doctors.qualityScore), asc(s.doctors.name))
     .limit(BATCH);
 
