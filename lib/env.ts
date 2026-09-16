@@ -48,6 +48,13 @@ export const env = {
   /** "1" / "0" to force the "seed data" banner on or off; unset = shown only while the seed dataset is the data source. */
   demoBanner: process.env.NEXT_PUBLIC_DEMO_BANNER === undefined || process.env.NEXT_PUBLIC_DEMO_BANNER === "" ? null : flag("NEXT_PUBLIC_DEMO_BANNER"),
   mediaCdnUrl: str("NEXT_PUBLIC_MEDIA_CDN_URL", ""),
+  /**
+   * GA4 measurement id for gtag.js (components/Analytics.tsx). A measurement
+   * id is public by design — it ships in the page source — so the property's
+   * id is the default here and the variable only exists to point a fork or a
+   * staging deployment somewhere else. Set it to "" to serve no tag at all.
+   */
+  ga4MeasurementId: str("NEXT_PUBLIC_GA4_MEASUREMENT_ID", "G-VC636R0Y49"),
 
   /* --- launch cluster ---------------------------------------------------- */
   defaultCountry: str("NEXT_PUBLIC_DEFAULT_COUNTRY", "IN"),

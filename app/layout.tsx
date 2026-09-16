@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import "./globals.css";
+import { Analytics } from "@/components/Analytics";
 import { RouteInspector } from "@/components/RouteInspector";
 import { SiteHeader } from "@/components/SiteHeader";
 import { THEME_BOOT_SCRIPT } from "@/components/ThemeToggle";
@@ -187,6 +188,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense fallback={null}>
           <RouteInspector />
         </Suspense>
+
+        <Analytics />
       </body>
     </html>
   );
