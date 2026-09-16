@@ -12,7 +12,7 @@ import { SPECIALTIES } from "../lib/data/taxonomy";
 import * as s from "../lib/db/schema";
 import { syncTaxonomy } from "../lib/db/taxonomy-sync";
 import { placeName, placeSlug } from "../lib/geo-names";
-import { slugify } from "../lib/services/doctors";
+import { cleanPersonName, slugify } from "../lib/services/doctors";
 import { localityKeyFor } from "../lib/services/places-pure";
 
 config({ path: ".env.local" });
@@ -107,8 +107,8 @@ const val = (v: string | undefined) => (v && !isNull(v) ? clean(v) : "");
 
 /** "Dr. Capt Manjunath S B" → "Capt Manjunath S B". Titles off, case preserved. */
 function personName(raw: string): string | null {
-  let n = clean(raw)
-    .replace(/^(dr\.?|prof\.?|mr\.?|mrs\.?|ms\.?)\s+/i, "")
+  // Honorifics: the shared rule, which also catches "Dr.Abhishek" (no space).
+  let n = cleanPersonName(clean(raw))
     .replace(/\s*\(.*?\)\s*$/, "")
     .replace(/[^\p{L}\p{M}.' -]/gu, "")
     .replace(/\s+/g, " ")

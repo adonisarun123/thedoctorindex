@@ -17,6 +17,26 @@ import { audit } from "@/lib/services/audit";
 
 const publicIdGen = customAlphabet("0123456789abcdef", 6);
 
+/**
+ * Honorifics stored in the name field render twice, because every surface
+ * prefixes "Dr" itself: the <h1>, the <title>, the JSON-LD `name` and the slug
+ * all came out as "Dr Dr. Bhavsagar Neena" / `/doctor/drabhishek-anand-…`.
+ *
+ * The importers each strip a leading honorific, but only when whitespace
+ * follows it, so "Dr.Abhishek Anand" survived. This is the shared rule, and it
+ * also guards staff and doctor edits, which were never cleaned at all.
+ *
+ * A dot or whitespace after the title is required, so "Drishti" and "Mstislav"
+ * are left alone. Two passes, for "Dr. Prof. X".
+ */
+const HONORIFIC = /^(dr|prof|mr|mrs|ms|miss)(\.\s*|\s+)/i;
+
+export function cleanPersonName(raw: string): string {
+  let n = String(raw).replace(/\s+/g, " ").trim();
+  for (let i = 0; i < 2 && HONORIFIC.test(n); i++) n = n.replace(HONORIFIC, "").trim();
+  return n;
+}
+
 export function slugify(name: string, publicId: string): string {
   return `${name.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim().replace(/\s+/g, "-") || "doctor"}-${publicId}`;
 }
@@ -241,7 +261,10 @@ export async function applyField(doctorId: string, field: string, value: unknown
     const [d] = await db.select().from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
     if (!d) throw new Error("doctor not found");
     const allowed: Record<string, (v: unknown) => Partial<typeof s.doctors.$inferInsert>> = {
-      name: (v) => ({ name: String(v).trim(), slug: slugify(String(v), d.publicId) }),
+      name: (v) => {
+        const n = cleanPersonName(String(v));
+        return { name: n, slug: slugify(n, d.publicId) };
+      },
       about: (v) => ({ about: String(v ?? "") }),
       gender: (v) => ({ gender: v === "M" || v === "F" || v === "X" ? v : null }),
       specialtyKey: (v) => ({ specialtyKey: String(v) }),
