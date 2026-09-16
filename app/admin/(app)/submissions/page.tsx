@@ -42,7 +42,7 @@ export default async function AdminSubmissions({ searchParams }: { searchParams:
         const p = r.payload as SubmissionPayload;
         const dupe = dupes[i];
         return (
-          <div className="qcard" key={r.id}>
+          <div className="qcard" id={r.id} key={r.id}>
             <div className="qh">
               <div>
                 <div className="qt">Dr {p.name} · {SPECIALTIES[p.specialtyKey as keyof typeof SPECIALTIES]?.name ?? p.specialtyKey}</div>

@@ -106,7 +106,7 @@ export default async function AdminEnrichment({ searchParams }: { searchParams: 
         const reg = d.registrations.find((x) => x.isPrimary) ?? d.registrations[0];
         const candidates = (r.nmcCandidates as CandidateRow[] | null) ?? [];
         return (
-          <div className="qcard" key={r.doctorId}>
+          <div className="qcard" id={r.doctorId} key={r.doctorId}>
             <div className="qh">
               <div>
                 <div className="qt">

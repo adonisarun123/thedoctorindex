@@ -478,3 +478,38 @@ export async function resetEnrichmentAction(_p: AdminState, f: FormData): Promis
     return fail(e);
   }
 }
+
+/* Dashboard (super_admin) */
+export async function snapshotStatsAction(_p: AdminState, _f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("super_admin");
+    const { snapshotDailyStats } = await import("@/lib/services/admin-stats");
+    const r = await snapshotDailyStats();
+    await audit({ actorUserId: u.id, actorRole: "staff", action: "admin_stats.snapshot", entityType: "system", after: r });
+    revalidatePath("/admin");
+    return { ok: true, message: `Snapshot written for ${r.day}.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function runMaintenanceAction(_p: AdminState, _f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("super_admin");
+    const { runMaintenance } = await import("@/lib/services/maintenance");
+    const r = await runMaintenance(u.id);
+    return done(`Maintenance ran in ${Math.round(r.ms / 1000)} s: ${r.qualityRecomputed} profiles recomputed, ${r.seoRoutes} routes, snapshot ${r.statsDay}.`, ["/admin", "/admin/seo"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function revalidateSiteAction(_p: AdminState, _f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("super_admin");
+    await audit({ actorUserId: u.id, actorRole: "staff", action: "cache.revalidated", entityType: "system" });
+    return done("Public pages will re-render on next request.", ["/admin"]);
+  } catch (e) {
+    return fail(e);
+  }
+}

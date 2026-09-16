@@ -32,7 +32,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
         <section style={{ marginBottom: "22px" }}>
           <div className="chart-head"><span className="t">Open reports on reviews</span><span className="m">{reports.length}</span></div>
           {reports.map((rp) => (
-            <div className="qcard" key={rp.id}>
+            <div className="qcard" id={rp.id} key={rp.id}>
               <div className="qh">
                 <div>
                   <div className="qt">{rp.reason} <span className={`pill ${rp.priority === "safety" ? "warn" : "neut"}`} style={{ marginLeft: "6px" }}>{rp.priority}</span></div>
@@ -57,7 +57,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
         <section style={{ marginBottom: "22px" }}>
           <div className="chart-head"><span className="t">Doctor replies awaiting moderation</span><span className="m">{responses.length}</span></div>
           {responses.map((r) => (
-            <div className="qcard" key={r.id}>
+            <div className="qcard" id={r.id} key={r.id}>
               <div className="qh"><div><div className="qt">Reply from Dr {r.review.doctor.name}</div><div className="qm">to review by {r.review.authorLabel} · {toDisplay(r.createdAt)}</div></div></div>
               <div className="qb" style={{ fontStyle: "italic", color: "var(--muted)" }}>Review: “{r.review.text}”</div>
               <div className="qb" style={{ marginTop: "6px" }}>Reply: “{r.text}”</div>
@@ -77,7 +77,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
         <div className="chart-head"><span className="t">Reviews · {status}</span><span className="m">{reviews.length}</span></div>
         {reviews.length === 0 ? <div className="panel pad" style={{ color: "var(--muted)" }}>Nothing here.</div> : null}
         {reviews.map((r) => (
-          <div className="qcard" key={r.id}>
+          <div className="qcard" id={r.id} key={r.id}>
             <div className="qh">
               <div>
                 <div className="qt">{r.authorLabel} on <Link href={`/admin/doctors/${r.doctorId}`}>Dr {r.doctor.name}</Link></div>

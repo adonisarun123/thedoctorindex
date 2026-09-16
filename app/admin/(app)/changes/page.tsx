@@ -33,7 +33,7 @@ export default async function AdminChanges({ searchParams }: { searchParams: Pro
       </div>
       {rows.length === 0 ? <div className="panel pad" style={{ color: "var(--muted)" }}>Queue is empty.</div> : null}
       {rows.map((c) => (
-        <div className="qcard" key={c.id}>
+        <div className="qcard" id={c.id} key={c.id}>
           <div className="qh">
             <div>
               <div className="qt"><Link href={`/admin/doctors/${c.doctorId}`}>Dr {c.doctor.name}</Link> · <span className="mono">{c.field}</span></div>

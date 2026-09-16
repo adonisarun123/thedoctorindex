@@ -28,7 +28,7 @@ export default async function AdminReports({ searchParams }: { searchParams: Pro
         <div className="chart-head"><span className="t">Profile reports</span><span className="m">{reports.length}</span></div>
         {reports.length === 0 ? <div className="panel pad" style={{ color: "var(--muted)" }}>None open.</div> : null}
         {reports.map((r) => (
-          <div className="qcard" key={r.id}>
+          <div className="qcard" id={r.id} key={r.id}>
             <div className="qh">
               <div><div className="qt">{r.reason} <span className={`pill ${r.priority === "safety" ? "warn" : r.priority === "high" ? "wait" : "neut"}`} style={{ marginLeft: "6px" }}>{r.priority}</span></div><div className="qm">on <Link href={`/admin/doctors/${r.doctorId}`}>Dr {r.doctor.name}</Link> · {toDisplay(r.createdAt)}{r.contact ? ` · contact ${r.contact}` : ""}</div></div>
               <span className={`pill ${r.status === "open" ? "wait" : r.status === "resolved" ? "ok" : "neut"}`}>{r.status}</span>
@@ -52,7 +52,7 @@ export default async function AdminReports({ searchParams }: { searchParams: Pro
         <div className="chart-head"><span className="t">Corrections</span><span className="m">{corrections.length}</span></div>
         {corrections.length === 0 ? <div className="panel pad" style={{ color: "var(--muted)" }}>None open.</div> : null}
         {corrections.map((c) => (
-          <div className="qcard" key={c.id}>
+          <div className="qcard" id={c.id} key={c.id}>
             <div className="qh">
               <div><div className="qt">{c.field} · <Link href={`/admin/doctors/${c.doctorId}`}>Dr {c.doctor.name}</Link></div><div className="qm">{toDisplay(c.createdAt)} · {c.isDoctorOrStaff ? "from the doctor or their staff" : "from the public"}{c.contact ? ` · contact ${c.contact}` : ""}</div></div>
               <span className={`pill ${c.status === "open" ? "wait" : c.status === "applied" ? "ok" : "neut"}`}>{c.status}</span>

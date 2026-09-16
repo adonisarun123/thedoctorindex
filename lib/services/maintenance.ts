@@ -9,6 +9,7 @@ import { recomputeQuality } from "@/lib/services/doctors";
 import { deleteFile } from "@/lib/services/files";
 import { absoluteUrl, paths } from "@/lib/site";
 import { recomputeSeoRoutes } from "@/lib/services/seo";
+import { snapshotDailyStats } from "@/lib/services/admin-stats";
 
 /**
  * Scheduled housekeeping (plan §13 retention, §11.4 gates). Idempotent;
@@ -28,6 +29,8 @@ export interface MaintenanceReport {
   seoRoutes: number;
   /** URLs pushed to IndexNow this run (profiles verified in the last two days, plus the sitemap index). 0 without INDEXNOW_KEY. */
   indexNowSubmitted: number;
+  /** Calendar day (Asia/Kolkata) whose admin_daily_stats row was written. */
+  statsDay: string;
   ms: number;
 }
 
@@ -80,6 +83,9 @@ export async function runMaintenance(actorUserId: string | null = null): Promise
   const { submitToIndexNow } = await import("@/lib/seo/indexnow");
   const indexNow = await submitToIndexNow([absoluteUrl("/sitemap.xml"), ...changed.map((r) => absoluteUrl(paths.doctor(r.slug)))]);
 
+  // Dashboard history: today's stock figures, after the recompute above so the row reflects it.
+  const stats = await snapshotDailyStats();
+
   const report: MaintenanceReport = {
     evidencePurged: due.length,
     otpsDeleted: otps.length,
@@ -90,6 +96,7 @@ export async function runMaintenance(actorUserId: string | null = null): Promise
     qualityRecomputed: published.length,
     seoRoutes,
     indexNowSubmitted: indexNow.submitted,
+    statsDay: stats.day,
     ms: Date.now() - t0,
   };
   await audit({ actorUserId, actorRole: actorUserId ? "staff" : "system", action: "maintenance.ran", entityType: "system", after: report });

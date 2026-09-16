@@ -646,6 +646,31 @@ export const doctorEnrichment = pgTable(
   (t) => [index("doctor_enrichment_nmc_idx").on(t.nmcStatus), index("doctor_enrichment_google_idx").on(t.googleStatus)],
 );
 
+/**
+ * Daily snapshot of the stock figures the admin dashboard charts over time
+ * (published, verified, indexable, claimed …). One row per day, upserted by
+ * the maintenance job via lib/services/admin-stats.ts. Flows such as
+ * enquiries per day come from dated columns and are not stored here.
+ */
+export const adminDailyStats = pgTable("admin_daily_stats", {
+  day: date("day").primaryKey(),
+  published: integer("published").notNull().default(0),
+  verified: integer("verified").notNull().default(0),
+  indexable: integer("indexable").notNull().default(0),
+  claimed: integer("claimed").notNull().default(0),
+  registrationVerified: integer("registration_verified").notNull().default(0),
+  practiceConfirmed: integer("practice_confirmed").notNull().default(0),
+  nmcConfirmed: integer("nmc_confirmed").notNull().default(0),
+  nmcPending: integer("nmc_pending").notNull().default(0),
+  nmcQueue: integer("nmc_queue").notNull().default(0),
+  googleMatched: integer("google_matched").notNull().default(0),
+  seoRoutesIndexable: integer("seo_routes_indexable").notNull().default(0),
+  queueOpen: integer("queue_open").notNull().default(0),
+  reviewsPublished: integer("reviews_published").notNull().default(0),
+  doctorAccounts: integer("doctor_accounts").notNull().default(0),
+  capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const seoRoutes = pgTable(
   "seo_routes",
   {

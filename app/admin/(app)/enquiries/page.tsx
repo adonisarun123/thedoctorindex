@@ -27,7 +27,7 @@ export default async function AdminEnquiries({ searchParams }: { searchParams: P
         <tbody>
           {rows.length === 0 ? <tr><td colSpan={6} style={{ color: "var(--muted)" }}>None.</td></tr> : null}
           {rows.map((e) => (
-            <tr key={e.id}>
+            <tr key={e.id} id={e.id}>
               <td className="mono">{toDisplay(e.createdAt)}</td>
               <td style={{ fontSize: "13px" }}><Link href={`/admin/doctors/${e.doctorId}`}>Dr {e.doctor.name}</Link><div style={{ color: "var(--muted)" }}>{e.practice?.facility.name ?? "—"}</div></td>
               <td className="mono">{e.contact}</td>
