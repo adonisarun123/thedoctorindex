@@ -187,7 +187,9 @@ function toView(row: DoctorRow, locality: (key: string) => Locality | null, roll
         : null,
     slug: row.slug,
     name: row.name,
-    gender: (row.gender === "M" ? "M" : "F") as "F" | "M",
+    // "X" and an absent value both mean "not on record". Do not fall back to a
+    // guess: the value is published in JSON-LD and drives the gender filter.
+    gender: (row.gender === "M" || row.gender === "F" ? row.gender : null) as "F" | "M" | null,
     specialty: row.specialtyKey,
     subspecialties: row.subspecialties,
     registration: {

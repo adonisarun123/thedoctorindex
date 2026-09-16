@@ -2,6 +2,7 @@ import type { Guide } from "@/lib/data/guides";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 import type { DoctorView, Practice, Specialty, SpecialtyKey } from "@/lib/types";
+import { registrationState } from "@/lib/verification";
 
 /**
  * Structured data (project plan §11.6).
@@ -229,6 +230,15 @@ export function doctorLd(d: DoctorView): Json {
     return parts.length > 1 ? [parts[0], parts.slice(1).join(" ")] : [parts[0], undefined];
   })();
 
+  const credentials = d.qualifications
+    .filter((q) => q.state === "verified")
+    .map((q) => ({
+      "@type": "EducationalOccupationalCredential",
+      credentialCategory: "degree",
+      name: q.degree,
+      recognizedBy: { "@type": "Organization", name: q.institution },
+    }));
+
   // IndividualPhysician is schema.org's type for a practitioner as opposed to
   // a practice; paired with Person so consumers that only know Person still
   // read the name, credentials and languages.
@@ -239,26 +249,26 @@ export function doctorLd(d: DoctorView): Json {
     givenName: first,
     ...(last ? { familyName: last } : {}),
     honorificPrefix: "Dr",
-    gender: d.gender === "F" ? "Female" : "Male",
+    ...(d.gender ? { gender: d.gender === "F" ? "Female" : "Male" } : {}),
     jobTitle: specialty.one,
     url,
     ...(d.photoUrl ? { image: absoluteUrl(d.photoUrl) } : {}),
     ...(MEDICAL_SPECIALTY[d.specialty] ? { medicalSpecialty: MEDICAL_SPECIALTY[d.specialty] } : {}),
     knowsAbout: [specialty.name, ...d.subspecialties],
     knowsLanguage: d.languages,
-    identifier: {
-      "@type": "PropertyValue",
-      propertyID: `${d.registration.council} registration`,
-      value: d.registration.number,
-    },
-    hasCredential: d.qualifications
-      .filter((q) => q.state === "verified")
-      .map((q) => ({
-        "@type": "EducationalOccupationalCredential",
-        credentialCategory: "degree",
-        name: q.degree,
-        recognizedBy: { "@type": "Organization", name: q.institution },
-      })),
+    // Only a real number is published. `db-source` fills an absent registration
+    // with an em dash for display; emitting that as a machine-readable
+    // identifier would assert a registration that does not exist.
+    ...(registrationState(d) !== "none"
+      ? {
+          identifier: {
+            "@type": "PropertyValue",
+            propertyID: `${d.registration.council} registration`,
+            value: d.registration.number,
+          },
+        }
+      : {}),
+    ...(credentials.length ? { hasCredential: credentials } : {}),
     ...(d.services.length ? { availableService: d.services.map((name) => ({ "@type": "MedicalProcedure", name })) } : {}),
     ...(clinics.length ? { address: (clinics[0] as { address: Json }).address, hospitalAffiliation: clinics } : {}),
     ...(d.googleListing ? { sameAs: [d.googleListing.mapsUri] } : {}),

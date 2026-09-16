@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     index: doctor.indexable,
     type: "profile",
     image: "segment",
-    profile: { firstName, lastName: rest.join(" ") || undefined, gender: doctor.gender === "F" ? "female" : "male" },
+    profile: { firstName, lastName: rest.join(" ") || undefined, ...(doctor.gender ? { gender: doctor.gender === "F" ? "female" : "male" } : {}) },
   });
 }
 

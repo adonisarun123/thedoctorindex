@@ -168,7 +168,8 @@ export interface Doctor {
   /** name-slug + "-" + id. */
   slug: string;
   name: string;
-  gender: "F" | "M";
+  /** Null when no gender is on record — most imported records. Never guessed. */
+  gender: "F" | "M" | null;
   specialty: SpecialtyKey;
   subspecialties: string[];
   registration: MedicalRegistration;

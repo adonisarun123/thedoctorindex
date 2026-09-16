@@ -62,7 +62,7 @@ export default async function DashboardProfile() {
                 <div className="two">
                   <div className="field">
                     <label htmlFor="gender">Gender (optional, shown as a filter) <span className="pill wait" style={{ marginLeft: "6px" }}>re-verified</span></label>
-                    <select id="gender" name="gender" defaultValue={doctor.gender}>
+                    <select id="gender" name="gender" defaultValue={doctor.gender ?? ""}>
                       <option value="F">Female</option>
                       <option value="M">Male</option>
                       <option value="X">Other</option>

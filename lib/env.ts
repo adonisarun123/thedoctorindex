@@ -80,8 +80,13 @@ export const env = {
      */
     listingIndexMode: (str("LISTING_INDEX_MODE", str("PROFILE_INDEX_MODE", "all")) === "verified" ? "verified" : "all") as "all" | "verified",
     profileQuality: num("GATE_PROFILE_QUALITY", 70),
-    citySpecialty: num("GATE_CITY_SPECIALTY_MIN_DOCTORS", 3),
-    localitySpecialty: num("GATE_LOCALITY_SPECIALTY_MIN_DOCTORS", 5),
+    /**
+     * Two is the floor, not a tuning knob: a listing page with one doctor is a
+     * wrapper around a profile that already indexes on its own, which is a
+     * doorway page. Raise these to shrink the index; do not drop them to 1.
+     */
+    citySpecialty: num("GATE_CITY_SPECIALTY_MIN_DOCTORS", 2),
+    localitySpecialty: num("GATE_LOCALITY_SPECIALTY_MIN_DOCTORS", 3),
     nationalSpecialty: num("GATE_NATIONAL_SPECIALTY_MIN_DOCTORS", 3),
     /** Localities with at least this many indexable doctors get a link from the city page. */
     localityLinkMin: num("GATE_LOCALITY_LINK_MIN_DOCTORS", 2),
