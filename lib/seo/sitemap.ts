@@ -1,3 +1,4 @@
+import { POSTS } from "@/lib/blog";
 import { GUIDES } from "@/lib/data/guides";
 import { POLICIES } from "@/lib/data/policies";
 import { countsByCity, countsByCitySpecialty, countsByLocalityAll, countsBySpecialty, countsByState, listIndexableSlugs } from "@/lib/data";
@@ -112,6 +113,11 @@ export function editorialEntries(): SitemapEntry[] {
     { loc: absoluteUrl("/about") },
     { loc: absoluteUrl(paths.forDoctors()) },
     { loc: absoluteUrl("/health-guides") },
+    { loc: absoluteUrl(paths.blog()) },
+    ...POSTS.map((p) => ({
+      loc: absoluteUrl(paths.blogPost(p.slug)),
+      lastmod: toIsoDate(p.updatedOn),
+    })),
     ...GUIDES.map((g) => ({
       loc: absoluteUrl(`/health-guides/${g.slug}`),
       lastmod: toIsoDate(g.reviewedOn),

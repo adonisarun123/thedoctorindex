@@ -443,3 +443,72 @@ export function faqLd(pagePath: string, faqs: Array<{ q: string; a: string }>): 
     })),
   };
 }
+
+/* ---------------------------------------------------------------------------
+   The blog. Non-clinical editorial, so BlogPosting rather than MedicalWebPage:
+   these pieces describe registers, credentials, costs and procedure, and make
+   no medical claim that a reviewer would need to stand behind.
+--------------------------------------------------------------------------- */
+
+export function blogPostLd(
+  post: Pick<BlogPostSeo, "slug" | "title" | "standfirst" | "author" | "publishedOn" | "updatedOn">,
+  extra: { wordCount: number; readingMinutes: number; abstract: string; keywords?: string[] },
+): Json {
+  const url = absoluteUrl(`/blog/${post.slug}`);
+  const image = `${url}/opengraph-image`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "@id": `${url}#post`,
+    url,
+    mainEntityOfPage: url,
+    headline: post.title,
+    description: post.standfirst,
+    abstract: extra.abstract,
+    image: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+    datePublished: isoDate(post.publishedOn) ?? post.publishedOn,
+    dateModified: isoDate(post.updatedOn) ?? post.updatedOn,
+    author: { "@type": "Organization", name: post.author, url: absoluteUrl("/about") },
+    publisher: { "@id": ORG_ID() },
+    isPartOf: { "@id": `${absoluteUrl("/blog")}#blog` },
+    inLanguage: "en-IN",
+    isAccessibleForFree: true,
+    wordCount: extra.wordCount,
+    timeRequired: `PT${extra.readingMinutes}M`,
+    ...(extra.keywords?.length ? { keywords: extra.keywords } : {}),
+  };
+}
+
+/** Minimal shape blogPostLd needs, so this module does not import the blog registry. */
+export interface BlogPostSeo {
+  slug: string;
+  title: string;
+  standfirst: string;
+  author: string;
+  publishedOn: string;
+  updatedOn: string;
+}
+
+/** The blog itself, as a Blog whose entries are the published posts. */
+export function blogLd(input: { description: string; posts: Array<{ slug: string; title: string; standfirst: string; publishedOn: string }> }): Json {
+  const url = absoluteUrl("/blog");
+  return {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "@id": `${url}#blog`,
+    url,
+    name: `${SITE.name} — notes on finding and checking a doctor`,
+    description: input.description,
+    inLanguage: "en-IN",
+    isPartOf: { "@id": SITE_ID() },
+    publisher: { "@id": ORG_ID() },
+    blogPost: input.posts.map((p) => ({
+      "@type": "BlogPosting",
+      "@id": `${absoluteUrl(`/blog/${p.slug}`)}#post`,
+      url: absoluteUrl(`/blog/${p.slug}`),
+      headline: p.title,
+      description: p.standfirst,
+      datePublished: isoDate(p.publishedOn) ?? p.publishedOn,
+    })),
+  };
+}

@@ -1,4 +1,5 @@
 import { totals } from "@/lib/data";
+import { POSTS } from "@/lib/blog";
 import { GUIDES } from "@/lib/data/guides";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
@@ -63,6 +64,13 @@ photograph of a doctor sourced from a third party until that doctor claims the p
 ## Editorial
 
 ${GUIDES.map((g) => `- [${g.title}](${absoluteUrl(`/health-guides/${g.slug}`)}): ${g.standfirst}${g.reviewer ? ` Medically reviewed by ${g.reviewer}.` : " Not medically reviewed — informational only."}`).join("\n")}
+
+## Blog — non-clinical
+
+Registers, credentials, costs, records, rights and process. These make no medical claim, which is
+why they carry no clinical reviewer and need none. [Index](${absoluteUrl(paths.blog())}) · [RSS](${absoluteUrl("/blog/feed.xml")})
+
+${POSTS.map((p) => `- [${p.title}](${absoluteUrl(paths.blogPost(p.slug))}): ${p.standfirst}`).join("\n")}
 
 ## Browse
 

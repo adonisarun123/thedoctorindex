@@ -51,7 +51,9 @@ export default function GuidesIndexPage() {
           <p style={{ maxWidth: "66ch" }}>
             These exist to help you decide which kind of doctor to see and what to expect when you get
             there. They are not diagnosis and they never recommend a particular doctor — guidance and
-            the directory are kept separate on purpose.
+            the directory are kept separate on purpose. For the non-clinical side of the same
+            argument — registers, credentials, costs, records and patient rights — see the{" "}
+            <Link href="/blog">blog</Link>.
           </p>
 
           <div className="guidegrid">

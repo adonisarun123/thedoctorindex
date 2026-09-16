@@ -73,4 +73,6 @@ export const paths = {
   account: () => "/account",
   claimProfile: () => "/claim-profile",
   policy: (slug: string) => `/policies/${slug}`,
+  blog: () => "/blog",
+  blogPost: (slug: string) => `/blog/${slug}`,
 } as const;

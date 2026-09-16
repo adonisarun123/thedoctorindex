@@ -30,6 +30,9 @@ export function SiteHeader() {
           <HeaderSearch />
         </Suspense>
         <nav className="hnav" aria-label="Primary">
+          <Link className="plain" href="/blog">
+            Blog
+          </Link>
           <Link className="plain" href="/health-guides">
             Health guides
           </Link>
@@ -62,6 +65,7 @@ export function SiteHeader() {
             </Link>
           ))}
           <div className="h">Learn</div>
+          <Link href="/blog">Blog</Link>
           <Link href="/health-guides">Health guides</Link>
           <Link href={paths.policy("verification")}>How verification works</Link>
           <Link href={paths.policy("ranking")}>How ranking works</Link>
