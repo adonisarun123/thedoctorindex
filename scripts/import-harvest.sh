@@ -15,7 +15,11 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 DRY=""
-[ "${1:-}" = "--dry" ] && DRY="--dry"
+WITH_DRAFTS=""
+for a in "$@"; do
+  [ "$a" = "--dry" ] && DRY="--dry"
+  [ "$a" = "--with-drafts" ] && WITH_DRAFTS="yes"
+done
 
 # Human-readable source names, so every profile says where it came from.
 declare -A SITE=(
@@ -43,6 +47,14 @@ npm run --silent db:build-import || exit 1
 for csv in data/private/import/*-publish.csv data/private/import/*-draft.csv; do
   [ -e "$csv" ] || continue
   base=$(basename "$csv" .csv)
+  # Drafts only once matching is finished. A doctor imported as a draft today and
+  # matched on the register tomorrow would come back as a SECOND, published
+  # profile — the importer deduplicates on registration number, and a draft has
+  # none. Import each doctor once, in their final state.
+  if [[ "$base" == *-draft && -z "$WITH_DRAFTS" ]]; then
+    echo "=== $base  (skipped: pass --with-drafts once db:match has finished)"
+    continue
+  fi
   site=${base%-publish}; site=${site%-draft}
   name=${SITE[$site]:-hospital:$site}
   publish=""
