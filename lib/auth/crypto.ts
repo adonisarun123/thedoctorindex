@@ -10,7 +10,21 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
  */
 function keys(): Buffer[] {
   const raw = process.env.FIELD_ENCRYPTION_KEY?.trim();
-  if (raw) return raw.split(",").map((k) => Buffer.from(k.trim(), "base64")).filter((b) => b.length === 32);
+  if (raw) {
+    // Accept any non-empty key material: a 32-byte base64 value is used as-is,
+    // anything else (48-byte, hex, passphrase) is normalised to 32 bytes by
+    // hashing. Previously a key of the wrong length was silently dropped,
+    // leaving no key at all and breaking authenticator enrolment.
+    const out = raw
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean)
+      .map((k) => {
+        const b = Buffer.from(k, "base64");
+        return b.length === 32 ? b : createHash("sha256").update(`field:${k}`).digest();
+      });
+    if (out.length) return out;
+  }
   const secret = process.env.AUTH_SECRET;
   if (!secret) throw new Error("AUTH_SECRET or FIELD_ENCRYPTION_KEY is required to encrypt secrets");
   return [createHash("sha256").update(`field:${secret}`).digest()];
