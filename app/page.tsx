@@ -5,6 +5,7 @@ import { HomeSearch } from "@/components/HomeSearch";
 import { RouteMeta } from "@/components/RouteMeta";
 import { countsByCity, countsByCitySpecialty, countsBySpecialty, totals } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
+import { isMetroCity } from "@/lib/geo-names";
 import { GUIDES } from "@/lib/data/guides";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { pageMeta } from "@/lib/seo/meta";
@@ -19,6 +20,29 @@ export const metadata: Metadata = {
 export const revalidate = 3600;
 
 const fmt = (n: number) => n.toLocaleString("en-IN");
+
+/** Non-metro cities on the homepage grid; seven plus "All locations" fills two rows of four. */
+const OTHER_CITIES_SHOWN = 7;
+
+interface CityCard {
+  stateSlug: string;
+  citySlug: string;
+  n: number;
+  specialties: number;
+  city: { name: string } | null;
+}
+
+/** One card in the "Browse by city" grid. */
+function cityCard(c: CityCard) {
+  return (
+    <Link key={`${c.stateSlug}/${c.citySlug}`} className="citycard" href={`/doctors/${c.stateSlug}/${c.citySlug}`}>
+      <span className="n">{c.city!.name}</span>
+      <span className="c">
+        {fmt(c.n)} doctors{c.specialties ? ` · ${c.specialties} specialities` : ""}
+      </span>
+    </Link>
+  );
+}
 
 /** Round a live total down to a figure that stays true until the next revalidation. */
 function roundedTotal(n: number): string {
@@ -49,17 +73,24 @@ export default async function HomePage() {
     }
   }
 
-  const topCities = cityListed
+  // Every city with published supply, busiest first.
+  const openCities = cityListed
     .filter((c) => c.n > 0)
     .map((c) => ({ ...c, city: geo.city(c.stateSlug, c.citySlug), specialties: specialtiesPerCity.get(`${c.stateSlug}/${c.citySlug}`) ?? 0 }))
     .filter((c) => c.city)
-    .sort((a, b) => b.n - a.n)
-    .slice(0, 7);
+    .sort((a, b) => b.n - a.n);
+
+  // The grid leads with the metros a patient searches by name, then the
+  // deepest of the rest. Both groups read alphabetically; supply only decides
+  // which non-metros make the cut, never the order they are shown in.
+  const byName = (a: (typeof openCities)[number], b: (typeof openCities)[number]) => a.city!.name.localeCompare(b.city!.name, "en-IN");
+  const metroCities = openCities.filter((c) => isMetroCity(c.citySlug)).sort(byName);
+  const otherCities = openCities.filter((c) => !isMetroCity(c.citySlug)).slice(0, OTHER_CITIES_SHOWN).sort(byName);
   const statesOpen = new Set(cityListed.filter((c) => c.n > 0).map((c) => c.stateSlug)).size;
   const topSpecialties = [...SPECIALTY_KEYS].filter((k) => (listedBySpecialty[k] ?? 0) > 0).sort((a, b) => (listedBySpecialty[b] ?? 0) - (listedBySpecialty[a] ?? 0)).slice(0, 9);
 
   // Popular specialities in the busiest city, for the chips under the search.
-  const topCity = topCities[0] ?? null;
+  const topCity = openCities[0] ?? null;
   const popular: SpecialtyKey[] = topCity
     ? citySpecialty
         .filter((r) => r.stateSlug === topCity.stateSlug && r.citySlug === topCity.citySlug && r.n > 0 && r.specialty in SPECIALTIES)
@@ -150,25 +181,31 @@ export default async function HomePage() {
               All {statesOpen || ""} states →
             </Link>
           </div>
-          <div className="citygrid">
-            {topCities.map((c) => (
-              <Link key={`${c.stateSlug}/${c.citySlug}`} className="citycard" href={`/doctors/${c.stateSlug}/${c.citySlug}`}>
-                <span className="n">{c.city!.name}</span>
-                <span className="c">
-                  {fmt(c.n)} doctors{c.specialties ? ` · ${c.specialties} specialities` : ""}
-                </span>
-              </Link>
-            ))}
-            {topCities.length === 0 ? (
+          {metroCities.length > 0 ? (
+            <>
+              <h3 className="citygroup">Metro cities</h3>
+              <div className="citygrid">{metroCities.map(cityCard)}</div>
+            </>
+          ) : null}
+          {otherCities.length > 0 ? (
+            <>
+              <h3 className="citygroup">Other cities</h3>
+              <div className="citygrid">
+                {otherCities.map(cityCard)}
+                <Link className="citycard more" href="/doctors">
+                  All locations →
+                </Link>
+              </div>
+            </>
+          ) : null}
+          {openCities.length === 0 ? (
+            <div className="citygrid">
               <Link className="citycard" href="/doctors">
                 <span className="n">No city has profiles yet</span>
                 <span className="c">browse states</span>
               </Link>
-            ) : null}
-            <Link className="citycard more" href="/doctors">
-              All locations →
-            </Link>
-          </div>
+            </div>
+          ) : null}
         </div>
       </section>
 
