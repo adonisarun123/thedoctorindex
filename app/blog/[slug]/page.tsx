@@ -87,81 +87,106 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
       />
       <Breadcrumbs items={crumbs} />
 
-      <div className="wrap">
-        <article className="doc post">
+      <article className="wrap post">
+        <header className="posthead">
           <span className="eyebrow">
-            {category.name} · {readingMinutes(post)} min read
+            <Link href={paths.blog()}>{category.name}</Link> · {readingMinutes(post)} min read ·{" "}
+            {wordCount(post).toLocaleString("en-IN")} words
           </span>
-          <h1 style={{ marginTop: "10px" }}>{post.title}</h1>
+          <h1>{post.title}</h1>
           <p className="standfirst">{post.standfirst}</p>
+        </header>
 
-          <div className="register" style={{ margin: "20px 0 26px" }}>
-            <div className="rrow">
-              <span className="dot ok" />
+        <div className="postgrid">
+          <div className="postbody doc">
+            <ArticleBody blocks={post.body} />
+
+            <FaqList faqs={post.faqs} />
+
+            <div className="endcta">
               <div>
-                <div className="lbl">Written by {post.author}</div>
-                <div className="src">
-                  Published {post.publishedOn}
-                  {post.updatedOn !== post.publishedOn ? ` · updated ${post.updatedOn}` : ""}
-                </div>
+                <div className="eyebrow">Put it to use</div>
+                <p>
+                  Every profile shows what was checked — registration, qualifications, current
+                  practice — against which source and on what date, and says so plainly where nothing
+                  has been verified yet.
+                </p>
               </div>
-              <span className="when">{post.updatedOn}</span>
+              <Link className="btn" href="/doctors">
+                Browse doctors
+              </Link>
             </div>
-            <div className="rrow">
-              <span className="dot" />
-              <div>
-                <div className="lbl">Not medical advice</div>
-                <div className="src">
-                  This post is about registers, credentials, costs and process. It makes no claim about
-                  any medical condition or treatment, which is why it carries no clinical reviewer.
-                </div>
-              </div>
-              <span className="when">Non-clinical</span>
-            </div>
-          </div>
 
-          <Contents items={contents(post)} />
-
-          <ArticleBody blocks={post.body} />
-
-          <FaqList faqs={post.faqs} />
-
-          <div className="panel pad" style={{ marginTop: "30px" }}>
-            <div className="eyebrow">Put it to use</div>
-            <p style={{ marginTop: "8px", marginBottom: "12px" }}>
-              Every profile in the directory shows what was checked — registration, qualifications,
-              current practice — against which source and on what date, and says so plainly where
-              nothing has been verified yet.
+            <p className="postfoot">
+              General information about how healthcare in India is organised and regulated, current at{" "}
+              {post.updatedOn}. Not advice about your situation, and not for emergencies — call{" "}
+              {SITE.emergencyNumber}. Errors can be reported through the{" "}
+              <Link href={paths.policy("corrections")}>corrections process</Link>.
             </p>
-            <Link className="btn" href="/doctors" style={{ display: "inline-block" }}>
-              Browse doctors by city and speciality
-            </Link>
           </div>
 
-          {related.length ? (
-            <section style={{ marginTop: "34px" }}>
-              <h2 style={{ fontSize: "1.15rem" }}>Read next</h2>
-              <div className="guidegrid">
-                {related.map((r) => (
-                  <Link key={r.slug} className="guide" href={paths.blogPost(r.slug)}>
-                    <div className="eyebrow">{BLOG_CATEGORIES[r.category].name}</div>
-                    <div className="t">{r.title}</div>
-                    <div className="d">{r.standfirst}</div>
-                    <div className="m">{readingMinutes(r)} min</div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
+          <aside className="rail" aria-label="About this post">
+            <div className="railcard">
+              <div className="eyebrow">About this post</div>
+              <dl className="railmeta">
+                <div>
+                  <dt>Written by</dt>
+                  <dd>{post.author}</dd>
+                </div>
+                <div>
+                  <dt>Published</dt>
+                  <dd>{post.publishedOn}</dd>
+                </div>
+                {post.updatedOn !== post.publishedOn ? (
+                  <div>
+                    <dt>Updated</dt>
+                    <dd>{post.updatedOn}</dd>
+                  </div>
+                ) : null}
+                <div>
+                  <dt>Clinical review</dt>
+                  <dd>
+                    Not required. This post is about registers, credentials, costs and process, and
+                    makes no claim about any condition or treatment.
+                  </dd>
+                </div>
+              </dl>
+            </div>
 
-          <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "24px" }}>
-            General information about how healthcare in India is organised and regulated, current at{" "}
-            {post.updatedOn}. Not advice about your situation, and not for emergencies — call{" "}
-            {SITE.emergencyNumber}. Errors can be reported through the{" "}
-            <Link href={paths.policy("corrections")}>corrections process</Link>.
-          </p>
-        </article>
-      </div>
+            <Contents items={contents(post)} />
+
+            <div className="railcard railcta">
+              <div className="eyebrow">The directory</div>
+              <p>Verified doctors by city and speciality, each showing what was checked and when.</p>
+              <Link className="btn" href="/doctors">
+                Browse doctors
+              </Link>
+              <Link className="plainlink" href="/health-guides">
+                Health guides →
+              </Link>
+            </div>
+          </aside>
+        </div>
+
+        {related.length ? (
+          <section className="readnext" aria-labelledby="readnext-heading">
+            <div className="section-head">
+              <h2 id="readnext-heading">Read next</h2>
+              <Link href={paths.blog()}>All posts</Link>
+            </div>
+            <div className="guidegrid">
+              {related.map((r) => (
+                <Link key={r.slug} className="guide" href={paths.blogPost(r.slug)}>
+                  <div className="eyebrow">{BLOG_CATEGORIES[r.category].name}</div>
+                  <div className="t">{r.metaTitle ?? r.title}</div>
+                  <div className="d">{r.standfirst}</div>
+                  <div className="m">{readingMinutes(r)} min read</div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </article>
     </>
   );
 }

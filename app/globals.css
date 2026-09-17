@@ -1089,28 +1089,155 @@ img, svg, video { max-width: 100%; height: auto; }
 .honest p.mono { font-size: 12px; color: var(--muted); border-top: 1px solid var(--hair); padding-top: 10px; margin-top: 2px; }
 
 /* --- blog ---------------------------------------------------------------- */
-.doc h3 { font-size: 1.05rem; margin-top: 20px; margin-bottom: 6px; }
+
+/* Additions to the shared .doc typography, used by posts and guides alike. */
+.doc h3 { font-size: 1.08rem; margin-top: 22px; margin-bottom: 6px; }
 .doc ol { margin: 0 0 14px; padding-left: 20px; color: var(--ink-2); font-size: 15px; }
 .doc caption { text-align: left; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 8px; }
-.doc code.mono { font-size: 12.5px; background: var(--surface); border: 1px solid var(--hair); border-radius: 4px; padding: 1px 5px; }
-.post .standfirst { font-size: 17px; color: var(--ink-2); margin-top: 10px; max-width: 62ch; }
-.post blockquote.pull { margin: 20px 0; padding: 4px 0 4px 18px; border-left: 3px solid var(--accent); }
-.post blockquote.pull p { font-size: 16px; margin-bottom: 6px; }
+.doc code.mono { font-size: 12.5px; background: var(--surface-2); border: 1px solid var(--hair); border-radius: 4px; padding: 1px 5px; }
+
+/* The shell. A full-width head, then the body at a comfortable measure beside
+   a fixed rail. The rail is what earns the page its width: a single 70ch
+   column inside a 1140px wrap left roughly 460px of dead gutter. */
+.post { padding-top: 22px; }
+.posthead { border-bottom: 1px solid var(--hair); padding-bottom: 26px; margin-bottom: 30px; }
+.posthead h1 { font-size: 2.6rem; margin-top: 12px; max-width: 30ch; }
+.posthead .eyebrow a { color: var(--muted); }
+.posthead .eyebrow a:hover { color: var(--accent); }
+.post .standfirst { font-size: 18px; line-height: 1.5; color: var(--ink-2); margin-top: 14px; max-width: 62ch; }
+
+.postgrid { display: grid; grid-template-columns: minmax(0, 1fr) 296px; gap: 56px; align-items: start; }
+.postgrid > *, .bloghead > * { min-width: 0; }
+.tablewrap { max-width: 100%; }
+.postgrid .doc { max-width: none; padding-top: 0; }
+.postbody p { font-size: 16.5px; line-height: 1.62; margin-bottom: 15px; }
+.postbody ul, .postbody ol { font-size: 16.5px; line-height: 1.6; }
+.postbody li { margin-bottom: 7px; }
+/* scroll-margin keeps an anchored heading clear of the sticky header. */
+.postbody h2 { font-size: 1.55rem; margin-top: 40px; margin-bottom: 10px; scroll-margin-top: 78px; }
+.postbody h2:first-child { margin-top: 0; }
+.postbody table { min-width: 460px; }
+.postbody .notice { font-size: 14.5px; }
+
+/* The rail. Sticky, and scrollable in its own right so a long contents list
+   never pushes the calls to action off a short viewport. */
+.rail { position: sticky; top: 78px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 96px); overflow-y: auto; }
+.railcard { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 16px 18px; }
+.railcard p { font-size: 13.5px; color: var(--ink-2); margin: 9px 0 13px; }
+.railcard .btn { display: block; text-align: center; }
+.railcard .plainlink { display: block; margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+.railcard .plainlink:hover { color: var(--accent); }
+.railcta { border-color: var(--hair-strong); }
+.railmeta { margin: 11px 0 0; display: grid; gap: 10px; }
+.railmeta dt { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.railmeta dd { margin: 3px 0 0; font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+
+.toc { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 16px 18px; }
+.toc ol { list-style: none; counter-reset: toc; margin: 11px 0 0; padding: 0; font-size: 13px; }
+.toc li { counter-increment: toc; margin-bottom: 8px; padding-left: 23px; position: relative; line-height: 1.35; }
+.toc li::before { content: counter(toc); position: absolute; left: 0; top: 1px; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.toc a { color: var(--ink-2); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+.toc a:hover { color: var(--accent); }
+
+/* Article furniture. */
+ol.procedure { list-style: decimal; padding-left: 20px; margin: 4px 0 18px; }
+ol.procedure li { margin-bottom: 14px; }
+ol.procedure b { display: block; color: var(--ink); font-weight: 600; font-size: 16px; margin-bottom: 3px; }
+ol.procedure span { display: block; color: var(--ink-2); font-size: 16.5px; line-height: 1.6; }
+.post blockquote.pull { margin: 22px 0; padding: 4px 0 4px 18px; border-left: 3px solid var(--accent); }
+.post blockquote.pull p { font-size: 17px; margin-bottom: 6px; }
 .post blockquote.pull cite { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); font-style: normal; }
-.toc { border: 1px solid var(--hair); border-radius: var(--r); background: var(--surface); padding: 16px 18px; margin: 4px 0 28px; }
-.toc ol { margin: 8px 0 0; padding-left: 18px; font-size: 14px; }
-.toc li { margin-bottom: 4px; }
-.toc a { color: var(--ink-2); }
-ol.procedure { list-style: decimal; padding-left: 20px; margin: 0 0 16px; }
-ol.procedure li { margin-bottom: 12px; }
-ol.procedure b { display: block; color: var(--ink); font-weight: 600; font-size: 15px; margin-bottom: 3px; }
-ol.procedure span { display: block; color: var(--ink-2); font-size: 15px; }
-.faq { margin-top: 34px; border-top: 1px solid var(--hair); padding-top: 8px; }
+
+.faq { margin-top: 44px; border-top: 1px solid var(--hair); padding-top: 24px; }
+.faq h2 { margin-top: 0; }
 .faq dl { margin: 0; }
-.faq dt { font-weight: 600; font-size: 15.5px; margin-top: 18px; }
-.faq dd { margin: 6px 0 0; color: var(--ink-2); font-size: 15px; }
-.postlead { display: block; background: var(--surface); border: 1px solid var(--hair-strong); border-radius: var(--r); padding: 22px; color: var(--ink); margin-top: 8px; box-shadow: var(--shadow); }
+.faq dt { font-weight: 600; font-size: 16px; margin-top: 20px; color: var(--ink); }
+.faq dd { margin: 7px 0 0; color: var(--ink-2); font-size: 16px; line-height: 1.6; }
+
+.endcta { display: flex; gap: 22px; align-items: center; justify-content: space-between; border: 1px solid var(--hair-strong); border-radius: var(--r); background: var(--surface); padding: 20px 22px; margin-top: 36px; }
+.endcta p { margin: 8px 0 0; font-size: 14.5px; color: var(--ink-2); max-width: 54ch; }
+.endcta .btn { flex: none; white-space: nowrap; }
+.postfoot { font-size: 12.5px; color: var(--muted); margin-top: 26px; max-width: 78ch; }
+
+.readnext { margin-top: 46px; border-top: 1px solid var(--hair); padding-top: 24px; }
+.readnext .section-head, .blogsection .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.readnext h2, .blogsection h2 { font-size: 1.3rem; }
+.blogsection .section-head { border-bottom: 1px solid var(--hair); padding-bottom: 9px; margin-bottom: 8px; }
+.blogsection .section-head .mono { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+
+/* Index. */
+.bloghead { display: grid; grid-template-columns: minmax(0, 1fr) 296px; gap: 56px; align-items: start; border-bottom: 1px solid var(--hair); padding-bottom: 28px; margin-bottom: 30px; }
+.bloghead h1 { font-size: 2.6rem; margin-top: 12px; max-width: 20ch; }
+.blogsection { margin-top: 40px; }
+.sectionblurb { font-size: 14px; color: var(--muted); margin: 0 0 18px; max-width: 68ch; }
+.postlead { display: grid; grid-template-columns: minmax(0, 1fr) 208px; gap: 34px; align-items: center; background: var(--surface); border: 1px solid var(--hair-strong); border-left: 3px solid var(--accent); border-radius: var(--r); padding: 26px 28px; color: var(--ink); box-shadow: var(--shadow); }
 .postlead:hover { border-color: var(--accent); text-decoration: none; }
-.postlead .t { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; line-height: 1.2; margin-top: 8px; }
-.postlead .d { font-size: 14.5px; color: var(--ink-2); margin-top: 8px; max-width: 62ch; }
-.postlead .m { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 12px; }
+.postlead .t { font-family: var(--font-display); font-size: 1.7rem; font-weight: 600; line-height: 1.16; margin-top: 10px; }
+.postlead .d { font-size: 15.5px; color: var(--ink-2); margin-top: 11px; max-width: 72ch; }
+.leadmeta { display: flex; flex-direction: column; gap: 7px; border-left: 1px solid var(--hair); padding-left: 26px; }
+.leadmeta .mono { font-size: 11.5px; color: var(--muted); }
+.leadgo { margin-top: 12px; font-size: 14.5px; color: var(--accent); font-weight: 600; }
+
+/* A three-column table is unreadable at phone width and a horizontal scroll
+   hides half of it. Below this breakpoint each row restacks as a labelled
+   card, using the column heading carried on the cell as its label. */
+@media (max-width: 620px) {
+  .postbody table, .postbody tbody, .postbody tr, .postbody td { display: block; width: auto; }
+  .postbody table { min-width: 0; }
+  .postbody thead { display: none; }
+  .postbody tr { border: 1px solid var(--hair); border-radius: var(--r); background: var(--surface); padding: 13px 15px; margin-bottom: 10px; }
+  .postbody td { border: 0; padding: 0 0 10px; font-size: 15px; }
+  .postbody td:last-child { padding-bottom: 0; }
+  .postbody td::before { content: attr(data-h); display: block; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  /* a table-caption inside a display:block table collapses to its own
+     narrow column, so it becomes a block like everything else */
+  .postbody caption { display: block; padding-bottom: 11px; }
+}
+
+@media (max-width: 860px) {
+  .postlead { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+  .leadmeta { border-left: 0; padding-left: 0; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16px; }
+  .leadgo { margin-top: 0; }
+}
+
+/* Below the rail breakpoint the rail stops being a column and becomes a band
+   above the article: two cards side by side, with the contents across both. */
+@media (max-width: 1040px) {
+  .postgrid, .bloghead { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  /* without the rail beside it the body would run to ~110ch, so it keeps
+     its measure and centres under the full-width band above it */
+  .postgrid .doc { max-width: 74ch; margin: 0 auto; }
+  .postgrid .rail { order: -1; }
+  .rail { position: static; max-height: none; overflow: visible; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .rail .railcta { order: 1; }
+  .rail .toc { order: 2; grid-column: 1 / -1; }
+  .toc ol { columns: 2; column-gap: 28px; max-height: 260px; }
+  .bloghead .railcard { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 20px; }
+  .bloghead .railcard p { grid-column: 1; margin-bottom: 0; }
+  .bloghead .railcard .btn { grid-column: 2; grid-row: 1; }
+  .bloghead .railcard .plainlink { grid-column: 1 / -1; display: inline-block; margin-right: 18px; }
+}
+
+@media (max-width: 760px) {
+  .posthead h1, .bloghead h1 { font-size: 1.9rem; max-width: none; }
+  .post .standfirst { font-size: 16.5px; }
+  .postbody p, .postbody ul, .postbody ol, ol.procedure span { font-size: 16px; }
+  .postbody h2 { font-size: 1.35rem; margin-top: 32px; }
+  .rail { grid-template-columns: 1fr; }
+  .toc ol { columns: 1; max-height: 240px; overflow-y: auto; }
+  .endcta { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .endcta .btn { width: 100%; text-align: center; }
+  .postlead { padding: 18px 20px; }
+  .postlead .t { font-size: 1.3rem; max-width: none; }
+  .bloghead .railcard { grid-template-columns: 1fr; }
+  .bloghead .railcard p { margin-bottom: 12px; }
+  .bloghead .railcard .btn { grid-column: 1; grid-row: auto; }
+}
+
+@media (max-width: 480px) {
+  .post { padding-top: 14px; }
+  .posthead { padding-bottom: 20px; margin-bottom: 24px; }
+  .posthead h1, .bloghead h1 { font-size: 1.68rem; }
+  .railcard, .toc { padding: 14px 15px; }
+}

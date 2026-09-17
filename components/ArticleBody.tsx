@@ -83,7 +83,12 @@ export function ArticleBody({ blocks }: { blocks: Block[] }) {
                     {block.rows.map((row, j) => (
                       <tr key={`${key}-r${j}`}>
                         {row.map((cell, c) => (
-                          <td key={`${key}-r${j}c${c}`}>{rich(cell, `${key}-r${j}c${c}`)}</td>
+                          // data-h carries the column heading so a narrow
+                          // screen can restack the row as a labelled card
+                          // instead of forcing a horizontal scroll.
+                          <td key={`${key}-r${j}c${c}`} data-h={block.head[c]}>
+                            {rich(cell, `${key}-r${j}c${c}`)}
+                          </td>
                         ))}
                       </tr>
                     ))}
