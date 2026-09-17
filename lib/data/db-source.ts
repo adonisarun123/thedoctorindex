@@ -466,6 +466,20 @@ export const dbSource: DataSource = {
     const shares = (d: DoctorView) => d.localities.some((l) => doctor.localities.includes(l));
     return [...pool.filter(shares), ...pool.filter((d) => !shares(d))].slice(0, limit);
   },
+
+  /**
+   * Colleagues at the same address. Matched on facility id, never on the
+   * facility name, so "Apollo Hospital" in two cities never merges and a
+   * misspelt clinic never splits. Capped: a large hospital can hold hundreds
+   * of doctors and this is a context block, not a listing.
+   */
+  async getAtFacility(facilityId: string, excludeSlug: string, limit = 6): Promise<DoctorView[]> {
+    if (!facilityId) return [];
+    const where = sql`${published()} and ${s.doctors.slug} <> ${excludeSlug} and ${s.doctors.id} in (
+      select p.doctor_id from doctor_practices p where p.active and p.facility_id = ${facilityId}
+    )`;
+    return views(where, limit, "card");
+  },
   async getFeatured(limit: number, place?: Place): Promise<DoctorView[]> {
     const rows = (await getDb().execute(sql`
       select d.id ${INDEXABLE_JOIN} ${placeSql(place)}

@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import { SEED_DOCTORS } from "../../lib/data/doctors";
 import { doctorLd } from "../../lib/seo/structured-data";
+import { seedSource } from "../../lib/data/seed-source";
 import type { DoctorView } from "../../lib/types";
 
 /**
@@ -36,4 +37,22 @@ test("hasCredential is dropped rather than emitted empty", () => {
   assert.ok(!("hasCredential" in unverified));
   const verified = mainEntity({ ...base, qualifications: base.qualifications.map((q) => ({ ...q, state: "verified" as const })) });
   assert.ok(Array.isArray(verified.hasCredential) && (verified.hasCredential as unknown[]).length > 0);
+});
+
+test("aggregateRating is emitted only from a real rollup, and never per review", async () => {
+  const [first] = await seedSource.getListing("cardiology", {}, 1);
+  const d = (await seedSource.getDoctorBySlug(first.slug))!;
+
+  const none = doctorLd({ ...d, rating: { average: 0, count: 0, distribution: [0, 0, 0, 0, 0] } } as typeof d) as Record<string, any>;
+  assert.equal("aggregateRating" in (none.mainEntity as Record<string, unknown>), false);
+
+  const rated = doctorLd({ ...d, rating: { average: 4.26, count: 17, distribution: [0, 1, 2, 5, 9] } } as typeof d) as Record<string, any>;
+  const agg = (rated.mainEntity as Record<string, any>).aggregateRating;
+  assert.equal(agg.ratingValue, 4.3);
+  assert.equal(agg.reviewCount, 17);
+  assert.equal(agg.bestRating, 5);
+  // Individual reviews carry four dimension scores and no overall star, so no
+  // per-review rating may appear anywhere in the graph.
+  assert.ok(!JSON.stringify(rated).includes('"reviewRating"'));
+  assert.ok(!JSON.stringify(rated).includes('"Review"'));
 });

@@ -24,6 +24,7 @@ export const emptySource: DataSource = {
   searchDoctors: async () => [],
   suggestDoctors: async () => [],
   getNearby: async () => [],
+  getAtFacility: async () => [],
   getFeatured: async () => [],
   listIndexableSlugs: async () => [],
   getDoctorByDbId: async () => null,

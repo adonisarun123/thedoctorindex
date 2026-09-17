@@ -7,13 +7,14 @@ import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { CallButton, DirectionsButton, ViewBeacon } from "@/components/ContactActions";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
-import { canonicalDoctorPath, getDoctorBySlug, getNearby } from "@/lib/data";
-import { SPECIALTIES } from "@/lib/data/taxonomy";
+import { canonicalDoctorPath, countIndexable, countsByLocality, countsBySpecialty, getAtFacility, getDoctorBySlug, getNearby, totals } from "@/lib/data";
+import { getGeo } from "@/lib/data/geo";
+import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { hasDate, registrationLabel, registrationSource, registrationState } from "@/lib/verification";
 import { GATES, profileGate } from "@/lib/seo/gates";
 import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, doctorLd, faqLd } from "@/lib/seo/structured-data";
-import { addressLine, buildFaq, facilityLabel, summarySentence, verificationLine } from "@/lib/seo/profile-content";
+import { addressLine, buildFaq, facilityLabel, summarySentence, supplySentence, verificationLine } from "@/lib/seo/profile-content";
 import { GoogleListingCard } from "@/components/GoogleListing";
 import { absoluteUrl, paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
@@ -79,10 +80,22 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
   const listingPath = primary?.citySlug ? paths.citySpecialty(primary.stateSlug, primary.citySlug, specialty.slug) : paths.specialty(specialty.key);
   const faqs = buildFaq(doctor);
 
+  // A locality step is added only when the locality × speciality page behind it
+  // holds enough doctors to be indexed. A breadcrumb that points at a page we
+  // have decided not to index spends crawl budget for nothing, and reads to a
+  // patient as a promise of a list that is not there.
+  const localityKey = doctor.localities[0];
+  const localityCount = localityKey ? await countIndexable(doctor.specialty, { localityKey }, "published") : 0;
+  const localityCrumb =
+    primary?.localitySlug && primary.localityName && primary.localityName !== primary.city && localityCount >= GATES.localitySpecialty
+      ? [{ name: primary.localityName, path: paths.localitySpecialty(primary.stateSlug, primary.citySlug, primary.localitySlug, specialty.slug) }]
+      : [];
+
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
     ...(primary?.citySlug ? [{ name: primary.city, path: `/doctors/${primary.stateSlug}/${primary.citySlug}` }] : []),
     { name: specialty.plural, path: listingPath },
+    ...localityCrumb,
     { name: `Dr ${doctor.name}` },
   ];
 
@@ -114,7 +127,9 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
       },
       {
         label: "Review markup",
-        text: "Not emitted. Google's review snippet feature does not support a standalone Person the way it supports a qualifying local business, so promising stars on doctor pages would be selling something we cannot deliver.",
+        text: doctor.rating.count > 0
+          ? "AggregateRating is emitted from the stored rollup, which is a real aggregate. Individual Review objects are not: a review here scores four named dimensions and carries no single overall star, so any per-review rating would be a number no reviewer gave. Google does not show review snippets for a Person regardless."
+          : "Not emitted — there are no published reviews on this profile. Nothing is emitted until there are, and even then only the aggregate.",
       },
       {
         label: "URL stability",
@@ -243,18 +258,18 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                   </div>
                 ))}
               </dl>
-              <p className="lede" style={{ fontSize: "15px", color: "var(--ink-2)", maxWidth: "70ch", marginTop: "14px" }}>
+              <p className="blocklede">
                 {summarySentence(doctor)}
               </p>
               {doctor.about && doctor.about.trim().length >= 40 ? (
-                <p style={{ fontSize: "15px", color: "var(--ink-2)", maxWidth: "70ch", marginTop: "10px" }}>{doctor.about}</p>
+                <p className="blockbody">{doctor.about}</p>
               ) : null}
             </section>
 
             {doctor.practices.length ? (
               <section className="block">
                 <h2>{doctor.practices.length > 1 ? "Practices" : "Practice"}</h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div className="practices">
                   {doctor.practices.map((p, i) => {
                     const confirmed = hasDate(p.confirmedOn) && doctor.status !== "stale";
                     const gaps = [
@@ -306,7 +321,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
             <section className="block">
               <div className="section-head" style={{ marginBottom: "12px" }}>
                 <h2>Verification record</h2>
-                <span className="mono" style={{ fontSize: "12px", color: "var(--muted)" }}>
+                <span className="mono blockmeta">
                   Last checked {doctor.lastVerifiedOn}
                 </span>
               </div>
@@ -349,7 +364,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 />
                 {doctor.hprVerified ? <Row tone="ok" label="HPR ID verified" source="Healthcare Professionals Registry, used as a secondary signal only" when={doctor.registration.checkedOn} /> : null}
               </div>
-              <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
+              <p className="blocknote">
                 Registration verification confirms that a doctor is on the register. It does not measure clinical skill, outcomes, current employment or the
                 authenticity of any review. <Link href={paths.policy("verification")}>How verification works</Link>
               </p>
@@ -382,7 +397,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                     </span>
                   ))}
                 </div>
-                <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>Drawn from a controlled list. Free-text claims go to review before they appear here.</p>
+                <p className="blocknote">Drawn from a controlled list. Free-text claims go to review before they appear here.</p>
               </section>
             ) : null}
 
@@ -396,7 +411,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                   </details>
                 ))}
               </div>
-              <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
+              <p className="blocknote">
                 Answers come from the verified record on this page, not from opinion. Where a fact has not been confirmed, the answer says so.
               </p>
             </section>
@@ -404,13 +419,17 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
             <Reviews doctor={doctor} />
 
             <Nearby doctor={doctor} nearby={await getNearby(doctor)} />
+
+            <AtFacility doctor={doctor} />
+
+            <InTheArea doctor={doctor} />
           </div>
 
           <aside className="sticky">
             {doctor.claimed ? (
               <div className="panel pad">
                 <div className="eyebrow">Claimed by the doctor</div>
-                <p style={{ fontSize: "14px", color: "var(--ink-2)", margin: "8px 0 12px" }}>The doctor controls the editable fields on this page.</p>
+                <p className="panelbody">The doctor controls the editable fields on this page.</p>
                 <Link className="btn quiet" href={claimHref}>
                   Manage this profile
                 </Link>
@@ -434,7 +453,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 Public ID {doctor.id} · last verified {doctor.lastVerifiedOn}
               </p>
             </div>
-            <p style={{ fontSize: "12.5px", color: "var(--muted)", padding: "0 4px" }}>Not for emergencies. If someone is in immediate danger, call 108.</p>
+            <p className="railnote">Not for emergencies. If someone is in immediate danger, call 108.</p>
           </aside>
         </div>
       </div>
@@ -600,7 +619,7 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "10px", marginTop: "16px", flexWrap: "wrap" }}>
+      <div className="blockacts">
         <Link className="btn" href={`${paths.doctor(doctor.slug)}/review`}>
           Write a review
         </Link>
@@ -608,8 +627,140 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
           Report a review
         </Link>
       </div>
-      <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "12px" }}>
+      <p className="blocknote">
         Reviews describe patient experience, not clinical outcome. We do not rate treatment effectiveness. <Link href={paths.policy("reviews")}>Review policy</Link>
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Colleagues at the same address, any speciality.
+ *
+ * Matched on facility id, so this is a fact the record holds rather than a
+ * guess from a name. It is the one block on this page whose contents are
+ * unique to this doctor's address, and it gives a large hospital's doctors a
+ * crawlable path to each other that the sitemap alone does not.
+ */
+async function AtFacility({ doctor }: { doctor: DoctorView }) {
+  const primary = doctor.practices[0];
+  if (!primary?.facilityId) return null;
+  const peers = await getAtFacility(primary.facilityId, doctor.slug, 6);
+  if (!peers.length) return null;
+  const where = facilityLabel(primary);
+  return (
+    <section className="block">
+      <h2>Other doctors at {where}</h2>
+      <div className="rows">
+        {peers.map((d) => {
+          const sp = SPECIALTIES[d.specialty];
+          return (
+            <div className="mini" key={d.slug}>
+              <Avatar name={d.name} id={d.id} size={40} photoUrl={d.photoUrl} />
+              <div>
+                <Link className="nm" href={paths.doctor(d.slug)}>
+                  Dr {d.name}
+                </Link>
+                <div className="s">
+                  {sp.one}
+                  {d.qualifications.length ? ` · ${d.qualifications.map((q) => q.degree).slice(0, 2).join(", ")}` : ""}
+                </div>
+              </div>
+              <div className="r">
+                {registrationState(d) === "verified" ? <span className="badge ok">Registered</span> : <span className="badge neut">Listed</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="blocknote">
+        Doctors with an active practice recorded at the same address. Sharing an address is not an endorsement by either doctor, and the list is not
+        ordered by payment.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Where this doctor sits in the local supply, and the browse pages either side
+ * of this profile.
+ *
+ * Every number here is a count the database returned for this exact locality,
+ * city and speciality, so no two profiles carry the same paragraph. Links are
+ * emitted only for combinations that clear the same gate the listing page
+ * itself uses — a profile should never point a crawler at a page we have
+ * decided not to index.
+ */
+async function InTheArea({ doctor }: { doctor: DoctorView }) {
+  const p = doctor.practices[0];
+  if (!p?.citySlug) return null;
+  const sp = SPECIALTIES[doctor.specialty];
+  const localityKey = doctor.localities[0];
+  const place = { stateSlug: p.stateSlug, citySlug: p.citySlug };
+
+  const [inLocality, inCity, cityTotals, byLocality, bySpecialty, geo] = await Promise.all([
+    localityKey ? countIndexable(doctor.specialty, { localityKey }, "published") : Promise.resolve(0),
+    countIndexable(doctor.specialty, place, "published"),
+    totals(place),
+    countsByLocality(p.citySlug, doctor.specialty, "published"),
+    countsBySpecialty(place, "published"),
+    getGeo(),
+  ]);
+
+  const sentence = supplySentence(doctor, { locality: inLocality, city: inCity, cityAllSpecialties: cityTotals.published });
+
+  // Other localities in this city that hold enough of this speciality to be worth a link.
+  const localityLinks = Object.entries(byLocality)
+    .filter(([key, n]) => key !== localityKey && n >= GATES.localitySpecialty)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([key, n]) => ({ loc: geo.locality(key), n }))
+    .filter((x): x is { loc: NonNullable<ReturnType<typeof geo.locality>>; n: number } => Boolean(x.loc));
+
+  // Other specialities in this city, same gate as the city × speciality page.
+  const specialtyLinks = SPECIALTY_KEYS.filter((k) => k !== doctor.specialty && (bySpecialty[k] ?? 0) >= GATES.citySpecialty)
+    .map((k) => ({ sp: SPECIALTIES[k], n: bySpecialty[k] ?? 0 }))
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 12);
+
+  if (!sentence && !localityLinks.length && !specialtyLinks.length) return null;
+
+  return (
+    <section className="block">
+      <h2>
+        {sp.name} in {p.city}
+      </h2>
+      {sentence ? <p className="blocklede">{sentence}</p> : null}
+      <div className="ctxlinks">
+        {inCity >= GATES.citySpecialty ? (
+          <Link className="ctxlink lead" href={paths.citySpecialty(p.stateSlug, p.citySlug, sp.slug)}>
+            <span className="n">All {sp.plural.toLowerCase()} in {p.city}</span>
+            <span className="c">{inCity.toLocaleString("en-IN")}</span>
+          </Link>
+        ) : null}
+        {localityLinks.map(({ loc, n }) => (
+          <Link className="ctxlink" key={loc.key} href={paths.localitySpecialty(loc.stateSlug, loc.citySlug, loc.slug, sp.slug)}>
+            <span className="n">{loc.name}</span>
+            <span className="c">{n}</span>
+          </Link>
+        ))}
+      </div>
+      {specialtyLinks.length ? (
+        <>
+          <h3 className="ctxhead">Other specialities in {p.city}</h3>
+          <div className="ctxlinks">
+            {specialtyLinks.map(({ sp: other, n }) => (
+              <Link className="ctxlink" key={other.key} href={paths.citySpecialty(p.stateSlug, p.citySlug, other.slug)}>
+                <span className="n">{other.plural}</span>
+                <span className="c">{n.toLocaleString("en-IN")}</span>
+              </Link>
+            ))}
+          </div>
+        </>
+      ) : null}
+      <p className="blocknote">
+        Counts are of profiles this index holds, taken from the database when the page was last built. They are not a census of doctors practising in{" "}
+        {p.city}.
       </p>
     </section>
   );
@@ -646,7 +797,7 @@ function Nearby({ doctor, nearby }: { doctor: DoctorView; nearby: DoctorView[] }
           </div>
         ))}
       </div>
-      <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
+      <p className="blocknote">
         Same locality first, then the rest of {doctor.practices[0]?.city || "the city"}; doctors with a registration on record come before those without. Nobody pays to appear here.
       </p>
     </section>

@@ -163,6 +163,10 @@ export const seedSource: DataSource = {
     const shares = (d: DoctorView) => d.localities.some((l) => doctor.localities.includes(l));
     return [...pool.filter(shares), ...pool.filter((d) => !shares(d))].slice(0, limit);
   },
+  async getAtFacility(facilityId: string, excludeSlug: string, limit = 6): Promise<DoctorView[]> {
+    if (!facilityId) return [];
+    return ALL.filter((d) => d.slug !== excludeSlug && d.practices.some((p) => p.facilityId === facilityId)).slice(0, limit);
+  },
   async getFeatured(limit: number, place?: Place): Promise<DoctorView[]> {
     return indexable(place)
       .sort((a, b) => Number(b.claimed) - Number(a.claimed) || Number(Boolean(b.photoUrl)) - Number(Boolean(a.photoUrl)) || b.qualityScore - a.qualityScore)

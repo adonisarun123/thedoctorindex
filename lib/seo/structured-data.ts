@@ -272,6 +272,26 @@ export function doctorLd(d: DoctorView): Json {
     ...(d.services.length ? { availableService: d.services.map((name) => ({ "@type": "MedicalProcedure", name })) } : {}),
     ...(clinics.length ? { address: (clinics[0] as { address: Json }).address, hospitalAffiliation: clinics } : {}),
     ...(d.googleListing ? { sameAs: [d.googleListing.mapsUri] } : {}),
+    ...(d.practices[0] ? { areaServed: [{ "@type": "City", name: d.practices[0].city }, { "@type": "State", name: d.practices[0].state }] } : {}),
+    // Published ratings only, and only the rollup.
+    //
+    // A review on this site scores four named dimensions; it carries no single
+    // overall star. Averaging the four into a `reviewRating` would publish a
+    // number no reviewer gave — the same defect as the guessed gender and the
+    // em-dash registration. So the rollup, which is a real stored aggregate,
+    // is emitted and individual Review objects are not. Google does not show
+    // review snippets for a Person in any case.
+    ...(d.rating.count > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: Number(d.rating.average.toFixed(1)),
+            reviewCount: d.rating.count,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
     isAcceptingNewPatients: d.status === "active",
   };
 

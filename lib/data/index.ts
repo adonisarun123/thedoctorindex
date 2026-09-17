@@ -114,6 +114,8 @@ export type DataSource = {
   /** Published doctors whose name is close to a partial, possibly misspelt, query — the search box's suggestions. Light rows, no hydration. */
   suggestDoctors(query: string, limit?: number, place?: Place): Promise<DoctorSuggestion[]>;
   getNearby(doctor: DoctorView, limit?: number): Promise<DoctorView[]>;
+  /** Other published doctors with an active practice at the same facility, any speciality. */
+  getAtFacility(facilityId: string, excludeSlug: string, limit?: number): Promise<DoctorView[]>;
   /** Indexable doctors with a photo or a claim first — the home page strip. */
   getFeatured(limit: number, place?: Place): Promise<DoctorView[]>;
   /** Slug + last verification date for every indexable doctor (sitemap). */
@@ -173,6 +175,7 @@ export const totals = cached("totals", async (place?: Place) => (await source())
 export const searchDoctors = async (q: string, place?: Place) => (await source()).searchDoctors(q, place);
 export const suggestDoctors = async (q: string, limit?: number, place?: Place) => (await source()).suggestDoctors(q, limit, place);
 export const getNearby = async (d: DoctorView, limit?: number) => (await source()).getNearby(d, limit);
+export const getAtFacility = cached("getAtFacility", async (facilityId: string, excludeSlug: string, limit?: number) => (await source()).getAtFacility(facilityId, excludeSlug, limit));
 export const getFeatured = cached("getFeatured", async (limit: number, place?: Place) => (await source()).getFeatured(limit, place));
 export const listIndexableSlugs = cached("listIndexableSlugs", async () => (await source()).listIndexableSlugs());
 

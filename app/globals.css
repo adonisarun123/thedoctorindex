@@ -1241,3 +1241,72 @@ ol.procedure span { display: block; color: var(--ink-2); font-size: 16.5px; line
   .posthead h1, .bloghead h1 { font-size: 1.68rem; }
   .railcard, .toc { padding: 14px 15px; }
 }
+
+/* --- profile: shared body copy, context blocks, narrow-screen repairs -------
+   The profile page used to carry these as inline styles, which meant no
+   breakpoint could reach them. As classes they scale with the viewport.     */
+.blocknote { font-size: 12.5px; color: var(--muted); margin-top: 10px; max-width: 78ch; }
+.blocklede { font-size: 15px; color: var(--ink-2); max-width: 70ch; margin-top: 14px; }
+.blockbody { font-size: 15px; color: var(--ink-2); max-width: 70ch; margin-top: 10px; }
+.blockmeta { font-size: 12px; color: var(--muted); }
+.blockacts { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.panelbody { font-size: 14px; color: var(--ink-2); margin: 8px 0 12px; }
+.railnote { font-size: 12.5px; color: var(--muted); padding: 0 4px; }
+.practices { display: flex; flex-direction: column; gap: 12px; }
+
+/* Local-supply context: browse links with their measured counts. */
+.ctxhead { font-size: 13.5px; font-weight: 600; color: var(--ink-2); margin: 18px 0 10px; }
+.ctxlinks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ctxlink {
+  display: inline-flex; align-items: baseline; gap: 8px; min-width: 0;
+  padding: 8px 12px; border: 1px solid var(--hair); border-radius: var(--r);
+  background: var(--surface); color: var(--ink); text-decoration: none; font-size: 14px;
+}
+.ctxlink:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.ctxlink .n { min-width: 0; overflow-wrap: anywhere; }
+.ctxlink .c { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.ctxlink:hover .c { color: var(--accent); }
+.ctxlink.lead { border-color: var(--hair-strong); font-weight: 600; }
+
+/* Long facility and locality names must wrap rather than widen the row. */
+.mini .s { overflow-wrap: anywhere; }
+.idband-name h1 { overflow-wrap: anywhere; }
+
+@media (max-width: 620px) {
+  .block > h2 { font-size: 1.1rem; }
+  .ctxhead { margin-top: 14px; }
+  .faq-acc summary { padding: 12px 14px; font-size: 14.5px; }
+  .faq-acc p { padding: 0 14px 12px; font-size: 13.5px; }
+  .blocklede, .blockbody { font-size: 14.5px; }
+}
+
+/* Below ~480px the three-column rows stop fitting: the trailing mono column
+   (a date, or a Registered/Listed badge) is what breaks first, so it drops to
+   its own line instead of squeezing the label beside it. */
+@media (max-width: 480px) {
+  .rrow { grid-template-columns: 14px minmax(0, 1fr); row-gap: 4px; padding: 12px 14px; }
+  .rrow .when { grid-column: 2; text-align: left; }
+  .mini { grid-template-columns: 40px minmax(0, 1fr); row-gap: 6px; padding: 12px 14px; }
+  .mini .r { grid-column: 2; }
+  .rev .dims { gap: 8px 12px; }
+  .practice .acts { display: grid; grid-template-columns: 1fr; }
+  .practice .acts .btn { width: 100%; }
+  .blockacts { display: grid; grid-template-columns: 1fr; }
+  .blockacts .btn { width: 100%; }
+}
+
+/* The four check labels under the meter are the tightest thing on the page.
+   They stay four across — the meter reads as four checks — but shrink, and
+   the two long ones are allowed to break. */
+@media (max-width: 420px) {
+  .idband-name h1 { font-size: 1.32rem; }
+  .idband .role { font-size: 13px; }
+  .meter-labels { font-size: 9.5px; gap: 3px; line-height: 1.3; letter-spacing: -0.01em; overflow-wrap: normal; word-break: keep-all; hyphens: none; }
+  .meter-head { font-size: 12.5px; }
+  .meter-bars { gap: 3px; }
+  .mobile-actions { grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); }
+  .mobile-actions .btn { font-size: 13px; padding: 8px 4px; }
+  .ctxlink { font-size: 13.5px; padding: 7px 10px; }
+  .revsum { padding: 14px; }
+  .revsum .big { font-size: 2.2rem; }
+}

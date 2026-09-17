@@ -125,6 +125,42 @@ function specialtyAnswer(d: DoctorView): string {
   return `Dr ${d.name} is listed under ${sp.name.toLowerCase()}${subs.length ? ` (${subs.join(", ")})` : ""}.${services.length ? ` Services on record: ${services.join(", ")}.` : ""}${sp.guide ? ` See the guide to when to consult ${sp.aOne} for what this speciality covers.` : ""}`;
 }
 
+function languagesAnswer(d: DoctorView): string {
+  const langs = d.languages.filter(isStated);
+  if (langs.length) return `${langs.join(", ")} are on record for Dr ${d.name}. Languages are supplied by the practice or the doctor, not independently checked.`;
+  return `No consultation languages are on record for Dr ${d.name}. Ask the practice when you call. Once the doctor claims this profile, the languages they list appear here.`;
+}
+
+function modesAnswer(d: DoctorView): string {
+  const online = d.modes.some((m) => /online|video|tele/i.test(m));
+  if (!d.modes.length) return `Consultation modes are not on record for Dr ${d.name}. Ask the practice whether an online consultation is possible.`;
+  if (online) return `Yes. Dr ${d.name} is listed for ${d.modes.join(" and ").toLowerCase()} consultation. Availability changes; confirm with the practice before you book.`;
+  return `Only ${d.modes.join(" and ").toLowerCase()} consultation is on record for Dr ${d.name}. No online consultation is listed. Ask the practice whether one is possible.`;
+}
+
+function experienceAnswer(d: DoctorView): string {
+  if (d.practiceStartYear && d.yearsOfExperience > 0) return `Dr ${d.name} has been in practice since ${d.practiceStartYear}, about ${d.yearsOfExperience} years. The start year comes from the record and has not been independently checked.`;
+  if (d.registration.registeredYear) {
+    const yrs = new Date().getFullYear() - d.registration.registeredYear;
+    return `A practice start year is not on record. Council registration dates from ${d.registration.registeredYear}, ${yrs > 0 ? `about ${yrs} years ago` : "this year"}, which is the earliest date this profile can evidence — it is not the same as years in practice.`;
+  }
+  return `Neither a practice start year nor a registration year is on record for Dr ${d.name}, so this profile does not state years of experience. It will not estimate one.`;
+}
+
+function claimAnswer(d: DoctorView): string {
+  if (d.claimed) return `Yes. Dr ${d.name} has claimed this profile and controls the editable fields on it. Verification of registration and qualifications is still carried out by The Doctor Index, not by the doctor.`;
+  return `No. This record was compiled from permitted public sources and Dr ${d.name} takes no part in it. Nothing on this page was written or approved by the doctor. Claiming the profile is free and lets the doctor correct it.`;
+}
+
+/** How a reader checks this doctor without trusting this page — the site's own argument, stated per record. */
+function selfCheckAnswer(d: DoctorView): string {
+  const reg = registrationState(d);
+  const base = reg === "none"
+    ? `No registration number is on record here, so there is nothing to look up yet. Ask the practice for the doctor's council registration number, then search for it on the National Medical Commission register.`
+    : `Search No. ${d.registration.number} on the National Medical Commission register, or on the ${d.registration.council} register directly. That is the authoritative source; this page only records what the search returned and when.`;
+  return `${base} Do not take a profile on any directory, including this one, as proof on its own.`;
+}
+
 /** Four to six question–answer pairs, each answered only from the record. */
 export function buildFaq(d: DoctorView): Faq[] {
   const where = placePhrase(d);
@@ -138,5 +174,39 @@ export function buildFaq(d: DoctorView): Faq[] {
     faqs.push({ q: `What are the consultation timings?`, a: timingsAnswer(d) });
     faqs.push({ q: `How do I contact or book Dr ${d.name}?`, a: contactAnswer(d) });
   }
+  faqs.push({ q: `How many years has Dr ${d.name} been practising?`, a: experienceAnswer(d) });
+  faqs.push({ q: `Does Dr ${d.name} consult online?`, a: modesAnswer(d) });
+  faqs.push({ q: `What languages does Dr ${d.name} consult in?`, a: languagesAnswer(d) });
+  faqs.push({ q: `Has Dr ${d.name} claimed this profile?`, a: claimAnswer(d) });
+  faqs.push({ q: `How can I check Dr ${d.name}'s registration myself?`, a: selfCheckAnswer(d) });
   return faqs;
+}
+
+/**
+ * One sentence placing this doctor in the local supply, built from counts the
+ * database returned for this exact locality, city and speciality. Every number
+ * is measured; a count of zero or one produces a shorter sentence rather than
+ * a padded one.
+ */
+export function supplySentence(d: DoctorView, counts: { locality: number; city: number; cityAllSpecialties: number }): string | null {
+  const p = d.practices[0];
+  const sp = SPECIALTIES[d.specialty];
+  if (!p || !isStated(p.city)) return null;
+  const plural = sp.plural.toLowerCase();
+  const parts: string[] = [];
+  const hasLocality = isStated(p.localityName) && p.localityName !== p.city && counts.locality > 0;
+  if (hasLocality) {
+    parts.push(counts.locality === 1
+      ? `Dr ${d.name} is the only ${sp.one.toLowerCase()} on record in ${p.localityName}.`
+      : `${counts.locality} ${plural} are on record in ${p.localityName}, including Dr ${d.name}.`);
+  }
+  if (counts.city > 0) {
+    parts.push(hasLocality
+      ? `Across ${p.city} the index holds ${counts.city.toLocaleString("en-IN")}.`
+      : `${counts.city.toLocaleString("en-IN")} ${plural} are on record in ${p.city}, including Dr ${d.name}.`);
+  }
+  if (counts.cityAllSpecialties > 0) parts.push(`${counts.cityAllSpecialties.toLocaleString("en-IN")} doctors across all specialities are listed in ${p.city}.`);
+  if (!parts.length) return null;
+  parts.push("Counts are of profiles compiled by this index, not of every doctor practising there.");
+  return parts.join(" ");
 }
