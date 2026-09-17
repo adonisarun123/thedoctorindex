@@ -1,8 +1,9 @@
-import { photoAction, saveProfileAction } from "@/app/dashboard/actions";
+import { addCredentialAction, photoAction, removeCredentialAction, saveProfileAction } from "@/app/dashboard/actions";
 import { ActionForm } from "@/components/ActionForm";
 import { Avatar } from "@/components/Avatar";
 import { getDashboardContext } from "@/lib/dashboard";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import type { DoctorCredential } from "@/lib/types";
 
 export const metadata = { title: "Profile & credentials" };
 
@@ -143,6 +144,84 @@ export default async function DashboardProfile() {
           </section>
         </ActionForm>
       )}
+
+      {asManager ? null : <CredentialsEditor credentials={doctor.credentials} />}
     </>
+  );
+}
+
+/**
+ * Awards, memberships and publications.
+ *
+ * Its own forms rather than fields on the main save: each entry is a row, not
+ * a value, and each publishes immediately labelled "as supplied by you". None
+ * of it moves the quality score, and the copy here says so — a doctor who
+ * thinks awards will get them indexed should learn otherwise here, not from
+ * a support email three weeks later.
+ */
+function CredentialsEditor({ credentials }: { credentials: DoctorCredential[] }) {
+  const thisYear = new Date().getFullYear();
+  return (
+    <section className="panel pad" style={{ marginTop: "18px" }}>
+      <h2>Awards, memberships and publications</h2>
+      <p className="hint" style={{ marginBottom: "12px" }}>
+        These publish straight away, marked <b>as supplied by you</b>. We confirm them with the awarding body, society or journal when we can, and the
+        mark changes then. They do not count towards your verification checks or your profile&rsquo;s quality score, and an unconfirmed entry is not
+        published to search engines as a credential.
+      </p>
+
+      {credentials.length ? (
+        <ul className="credlist" style={{ marginBottom: "14px" }}>
+          {credentials.map((c) => (
+            <li key={c.id}>
+              <div className="ct">{c.title}</div>
+              <div className="cm">
+                {c.kind} · {[c.issuer, c.year ? String(c.year) : null].filter(Boolean).join(" · ") || "issuer not stated"}
+              </div>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <span className={`badge ${c.state === "verified" ? "ok" : "neut"}`}>{c.state === "verified" ? "Checked with the issuer" : "As supplied by you"}</span>
+                <ActionForm action={removeCredentialAction} submitLabel="Remove" variant="quiet" inline>
+                  <input type="hidden" name="id" value={c.id} />
+                </ActionForm>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="hint" style={{ marginBottom: "14px" }}>Nothing added yet.</p>
+      )}
+
+      <ActionForm action={addCredentialAction} submitLabel="Add entry" variant="outline" className="stack">
+        <div className="two">
+          <div className="field">
+            <label htmlFor="cred-kind">Type</label>
+            <select id="cred-kind" name="kind" defaultValue="award">
+              <option value="award">Award or honour</option>
+              <option value="membership">Professional membership</option>
+              <option value="publication">Publication</option>
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="cred-year">Year (optional)</label>
+            <input id="cred-year" name="year" type="number" inputMode="numeric" min={1900} max={thisYear} placeholder={String(thisYear)} />
+          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="cred-title">Title</label>
+          <input id="cred-title" name="title" type="text" required minLength={3} maxLength={160} placeholder="Young Investigator Award" />
+          <div className="hint">As the issuer names it. Superlatives such as &ldquo;best&rdquo; are rejected.</div>
+        </div>
+        <div className="field">
+          <label htmlFor="cred-issuer">Awarding body, society or journal (optional)</label>
+          <input id="cred-issuer" name="issuer" type="text" maxLength={160} placeholder="Cardiological Society of India" />
+          <div className="hint">We confirm the entry with whoever you name here, so an entry without one stays unconfirmed.</div>
+        </div>
+        <div className="field">
+          <label htmlFor="cred-url">Link (optional)</label>
+          <input id="cred-url" name="url" type="url" maxLength={500} placeholder="https://" />
+          <div className="hint">A citation or announcement a reader can check. Published with rel=&ldquo;nofollow&rdquo;.</div>
+        </div>
+      </ActionForm>
+    </section>
   );
 }

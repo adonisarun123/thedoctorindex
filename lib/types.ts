@@ -100,6 +100,25 @@ export interface ExperienceEntry {
   to: number | null;
 }
 
+/**
+ * An award, professional membership or publication the doctor has claimed.
+ *
+ * These are self-reported. `state` is "submitted" until a verification officer
+ * confirms it against the awarding body, society or journal; the page says
+ * which, and only a verified entry reaches structured data.
+ */
+export interface DoctorCredential {
+  id: string;
+  kind: "award" | "membership" | "publication";
+  title: string;
+  /** Awarding body, society or journal. */
+  issuer: string | null;
+  year: number | null;
+  /** Citation or announcement a reader can check. Rendered rel="nofollow ugc". */
+  url: string | null;
+  state: "verified" | "submitted";
+}
+
 export interface Practice {
   /** Database ids, present when the record came from Postgres. */
   id?: string;
@@ -181,6 +200,8 @@ export interface Doctor {
   about: string;
   services: string[];
   experience: ExperienceEntry[];
+  /** Self-reported awards, memberships and publications; never scored, verified separately. */
+  credentials: DoctorCredential[];
   practices: Practice[];
   /** True once a verified doctor has taken control of the page. */
   claimed: boolean;

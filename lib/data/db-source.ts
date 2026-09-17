@@ -46,6 +46,7 @@ async function loadRows(ids: string[]) {
       enrichment: true,
       qualifications: { orderBy: (q, { asc }) => [asc(q.sort)] },
       experience: { orderBy: (e, { asc }) => [asc(e.sort), asc(e.fromYear)] },
+      credentials: { orderBy: (c, { asc, desc }) => [asc(c.sort), desc(c.year)] },
       practices: { where: (p, { eq }) => eq(p.active, true), orderBy: (p, { asc }) => [asc(p.sort)], with: { facility: true } },
       reviews: {
         where: (r, { inArray }) => inArray(r.status, ["published", "redacted"]),
@@ -102,6 +103,7 @@ async function loadCardRows(ids: string[]) {
       services: [] as string[],
       enrichment: null,
       experience: [] as DoctorRow["experience"],
+      credentials: [] as DoctorRow["credentials"],
       reviews: [] as DoctorRow["reviews"],
       qualifications: r.qualifications.map((q) => ({ ...q, degree: "", institution: "", year: null })),
     })) as unknown as DoctorRow[];
@@ -210,6 +212,17 @@ function toView(row: DoctorRow, locality: (key: string) => Locality | null, roll
     about: row.about,
     services: row.services,
     experience: row.experience.map((e) => ({ role: e.role, place: e.place, from: e.fromYear, to: e.toYear })),
+    credentials: row.credentials.map((c) => ({
+      id: c.id,
+      kind: c.kind,
+      title: c.title,
+      issuer: c.issuer,
+      year: c.year,
+      url: c.url,
+      // "rejected" is a staff decision to not show it as confirmed, not a
+      // third public state: it reads as submitted, like everything unchecked.
+      state: (c.state === "verified" ? "verified" : "submitted") as "verified" | "submitted",
+    })),
     practices,
     claimed: row.claimed,
     qualityScore: row.qualityScore,

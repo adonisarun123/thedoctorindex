@@ -45,6 +45,9 @@ export function normalizeKey(v: string): string {
 }
 
 /** Fields that return to verification before they change publicly (plan §4). */
+/** Marketing language the editorial line rejects wherever a doctor supplies free text. */
+export const SUPERLATIVE = /\b(best|no\.?\s*1|number one|top|most trusted|world[- ]class|leading)\b/i;
+
 export const SENSITIVE_FIELDS = new Set(["name", "specialtyKey", "registration", "qualification", "gender"]);
 
 /* ------------------------------------------------------------------------- */
@@ -477,6 +480,68 @@ export async function addPractice(doctorId: string, p: { facilityId?: string; fa
   await audit({ actorUserId, action: "doctor.practice_added", entityType: "doctor", entityId: doctorId, after: row });
   await recomputeQuality(doctorId);
   return row;
+}
+
+/**
+ * Add a self-reported award, membership or publication.
+ *
+ * Deliberately not routed through submitChange: these are not fields of the
+ * doctor record, they never re-verify identity, and they carry their own
+ * verification state instead of a queue. They also never touch the quality
+ * score — recomputeQuality is not called here, and CREDENTIAL kinds are not
+ * scored, so a doctor cannot type their way towards the index gate.
+ */
+export async function addCredential(
+  doctorId: string,
+  input: { kind: "award" | "membership" | "publication"; title: string; issuer?: string | null; year?: number | null; url?: string | null },
+  actorUserId: string | null,
+) {
+  const db = getDb();
+  const title = String(input.title ?? "").trim();
+  if (title.length < 3 || title.length > 160) throw new Error("Give the award, society or paper a title between 3 and 160 characters.");
+  if (SUPERLATIVE.test(title)) throw new Error("Superlatives such as “best” are not allowed here. Name the award, society or paper as the issuer names it.");
+  const issuer = input.issuer ? String(input.issuer).trim().slice(0, 160) : null;
+  if (issuer && SUPERLATIVE.test(issuer)) throw new Error("Superlatives such as “best” are not allowed here. Name the award, society or paper as the issuer names it.");
+  const year = input.year ? Number(input.year) : null;
+  const thisYear = new Date().getFullYear();
+  if (year !== null && (!Number.isInteger(year) || year < 1900 || year > thisYear)) throw new Error(`Year must be between 1900 and ${thisYear}.`);
+  let url: string | null = null;
+  if (input.url && String(input.url).trim()) {
+    const raw = String(input.url).trim();
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      throw new Error("The link must be a full URL, starting with https://.");
+    }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") throw new Error("The link must be an http or https URL.");
+    url = parsed.toString().slice(0, 500);
+  }
+  const [count] = await db.select({ n: sql<number>`count(*)::int` }).from(s.doctorCredentials).where(eq(s.doctorCredentials.doctorId, doctorId));
+  if (Number(count?.n ?? 0) >= 40) throw new Error("A profile holds at most 40 awards, memberships and publications.");
+  const [row] = await db.insert(s.doctorCredentials).values({ doctorId, kind: input.kind, title, issuer, year, url, state: "submitted", sort: 99 }).returning();
+  await audit({ actorUserId, action: "doctor.credential_added", entityType: "doctor", entityId: doctorId, after: row });
+  return row;
+}
+
+export async function removeCredential(doctorId: string, id: string, actorUserId: string | null) {
+  const db = getDb();
+  const [row] = await db.select().from(s.doctorCredentials).where(and(eq(s.doctorCredentials.id, id), eq(s.doctorCredentials.doctorId, doctorId))).limit(1);
+  if (!row) throw new Error("entry not found");
+  await db.delete(s.doctorCredentials).where(eq(s.doctorCredentials.id, id));
+  await audit({ actorUserId, action: "doctor.credential_removed", entityType: "doctor", entityId: doctorId, before: row });
+}
+
+/** Staff confirm an entry against the issuer named beside it. */
+export async function setCredentialState(doctorId: string, id: string, state: "verified" | "submitted" | "rejected", staffUserId: string, note?: string) {
+  const db = getDb();
+  const [row] = await db.select().from(s.doctorCredentials).where(and(eq(s.doctorCredentials.id, id), eq(s.doctorCredentials.doctorId, doctorId))).limit(1);
+  if (!row) throw new Error("entry not found");
+  await db
+    .update(s.doctorCredentials)
+    .set({ state, verifiedOn: state === "verified" ? todayIso() : null, verifiedByUserId: state === "verified" ? staffUserId : null })
+    .where(eq(s.doctorCredentials.id, id));
+  await audit({ actorUserId: staffUserId, actorRole: "staff", action: "doctor.credential_state", entityType: "doctor", entityId: doctorId, before: { state: row.state }, after: { state }, reason: note });
 }
 
 export async function listFacilities(q?: string) {

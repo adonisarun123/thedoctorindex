@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getDashboardContext } from "@/lib/dashboard";
 import { setEnquiryStatus } from "@/lib/services/cases";
-import { addPractice } from "@/lib/services/doctors";
+import { SUPERLATIVE, addCredential, addPractice, removeCredential } from "@/lib/services/doctors";
 import { removeDoctorPhoto, setDoctorPhoto } from "@/lib/services/photos";
 import { reportReview, submitResponse } from "@/lib/services/reviews";
 import { inviteManager, revokeManager, submitChange } from "@/lib/services/workflow";
@@ -48,7 +48,7 @@ export async function saveProfileAction(_prev: DashState, form: FormData): Promi
     let queued = 0;
     for (const [field, to, from] of candidates) {
       if (JSON.stringify(to) === JSON.stringify(from)) continue;
-      if (field === "about" && /\b(best|no\.?\s*1|top|most trusted)\b/i.test(String(to))) return { error: "Superlatives such as “best” are not allowed. Describe what you treat and where." };
+      if (field === "about" && SUPERLATIVE.test(String(to))) return { error: "Superlatives such as “best” are not allowed. Describe what you treat and where." };
       const r = await submitChange(ctx.doctorId, ctx.user.id, field, to, from);
       if (r.queued) queued++;
       else applied++;
@@ -137,6 +137,37 @@ export async function addPracticeAction(_prev: DashState, form: FormData): Promi
     );
     after(ctx);
     return { ok: true, message: "Practice added. It appears publicly once the practice confirms the address; a verification officer will contact them." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Add a self-reported award, membership or publication. Publishes labelled, never as verified. */
+export async function addCredentialAction(_prev: DashState, form: FormData): Promise<DashState> {
+  try {
+    const ctx = await getDashboardContext();
+    if (ctx.asManager) return { error: "Clinic managers cannot edit credential fields." };
+    const kind = String(form.get("kind") ?? "");
+    if (kind !== "award" && kind !== "membership" && kind !== "publication") return { error: "Choose an award, a membership or a publication." };
+    await addCredential(
+      ctx.doctorId,
+      { kind, title: String(form.get("title") ?? ""), issuer: String(form.get("issuer") ?? "") || null, year: Number(form.get("year")) || null, url: String(form.get("url") ?? "") || null },
+      ctx.user.id,
+    );
+    after(ctx);
+    return { ok: true, message: "Added. It shows on your profile as supplied by you until we confirm it with the issuer." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function removeCredentialAction(_prev: DashState, form: FormData): Promise<DashState> {
+  try {
+    const ctx = await getDashboardContext();
+    if (ctx.asManager) return { error: "Clinic managers cannot edit credential fields." };
+    await removeCredential(ctx.doctorId, String(form.get("id") ?? ""), ctx.user.id);
+    after(ctx);
+    return { ok: true, message: "Removed." };
   } catch (e) {
     return fail(e);
   }

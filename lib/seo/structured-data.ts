@@ -269,6 +269,27 @@ export function doctorLd(d: DoctorView): Json {
         }
       : {}),
     ...(credentials.length ? { hasCredential: credentials } : {}),
+    // Awards, memberships and publications are self-reported, so only an entry
+    // a verification officer confirmed with the issuer is asserted here. The
+    // page shows the unverified ones, labelled; the markup does not, because a
+    // consumer reading `award` has no way to see the label.
+    ...(() => {
+      const ok = d.credentials.filter((c) => c.state === "verified");
+      const awards = ok.filter((c) => c.kind === "award").map((c) => [c.title, c.issuer, c.year].filter(Boolean).join(", "));
+      const memberships = ok.filter((c) => c.kind === "membership" && c.issuer).map((c) => ({ "@type": "Organization", name: c.issuer as string }));
+      const papers = ok.filter((c) => c.kind === "publication").map((c) => ({
+        "@type": "ScholarlyArticle",
+        name: c.title,
+        ...(c.issuer ? { isPartOf: { "@type": "Periodical", name: c.issuer } } : {}),
+        ...(c.year ? { datePublished: String(c.year) } : {}),
+        ...(c.url ? { url: c.url } : {}),
+      }));
+      return {
+        ...(awards.length ? { award: awards } : {}),
+        ...(memberships.length ? { memberOf: memberships } : {}),
+        ...(papers.length ? { subjectOf: papers } : {}),
+      };
+    })(),
     ...(d.services.length ? { availableService: d.services.map((name) => ({ "@type": "MedicalProcedure", name })) } : {}),
     ...(clinics.length ? { address: (clinics[0] as { address: Json }).address, hospitalAffiliation: clinics } : {}),
     ...(d.googleListing ? { sameAs: [d.googleListing.mapsUri] } : {}),

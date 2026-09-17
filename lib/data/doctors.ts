@@ -83,6 +83,11 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "29 Aug 2026",
     hprVerified: true,
     rating: { average: 4.6, count: 38, distribution: [1, 1, 3, 9, 24] },
+    credentials: [
+      { id: "cr-anita-1", kind: "award", title: "Young Investigator Award", issuer: "Cardiological Society of India", year: 2016, url: null, state: "verified" },
+      { id: "cr-anita-2", kind: "membership", title: "Fellow", issuer: "Cardiological Society of India", year: 2014, url: null, state: "submitted" },
+      { id: "cr-anita-3", kind: "publication", title: "Radial versus femoral access in primary PCI: a single-centre series", issuer: "Indian Heart Journal", year: 2019, url: "https://example.org/ihj/2019/radial-access", state: "verified" },
+    ],
     reviews: [
       {
         id: "r-d8f4c2-1",
@@ -162,6 +167,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "18 Aug 2026",
     hprVerified: true,
     rating: { average: 4.4, count: 21, distribution: [0, 1, 2, 7, 11] },
+    credentials: [],
     reviews: [
       {
         id: "r-c1a730-1",
@@ -218,6 +224,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "01 Sep 2026",
     hprVerified: false,
     rating: { average: 4.7, count: 29, distribution: [0, 0, 2, 6, 21] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -262,6 +269,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "27 Aug 2026",
     hprVerified: true,
     rating: { average: 4.5, count: 44, distribution: [1, 1, 4, 12, 26] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -306,6 +314,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "30 Aug 2026",
     hprVerified: false,
     rating: { average: 4.3, count: 12, distribution: [0, 1, 1, 4, 6] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -349,6 +358,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "12 Aug 2026",
     hprVerified: false,
     rating: { average: 4.2, count: 7, distribution: [0, 0, 2, 2, 3] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -389,6 +399,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "14 Mar 2026",
     hprVerified: false,
     rating: { average: 0, count: 0, distribution: [0, 0, 0, 0, 0] },
+    credentials: [],
     reviews: [],
   },
 
@@ -433,6 +444,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "02 Sep 2026",
     hprVerified: true,
     rating: { average: 4.8, count: 63, distribution: [1, 1, 2, 8, 51] },
+    credentials: [],
     reviews: [
       {
         id: "r-aa3f19-1",
@@ -499,6 +511,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "26 Aug 2026",
     hprVerified: true,
     rating: { average: 4.4, count: 52, distribution: [2, 2, 5, 15, 28] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -541,6 +554,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "21 Aug 2026",
     hprVerified: false,
     rating: { average: 4.5, count: 24, distribution: [0, 1, 2, 7, 14] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -583,6 +597,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "31 Aug 2026",
     hprVerified: true,
     rating: { average: 4.6, count: 18, distribution: [0, 0, 2, 4, 12] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -622,6 +637,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "09 Aug 2026",
     hprVerified: false,
     rating: { average: 4.1, count: 9, distribution: [0, 1, 1, 3, 4] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -664,6 +680,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "28 Aug 2026",
     hprVerified: false,
     rating: { average: 4.4, count: 11, distribution: [0, 0, 1, 4, 6] },
+    credentials: [],
     reviews: [],
   },
 
@@ -720,6 +737,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "03 Sep 2026",
     hprVerified: true,
     rating: { average: 4.5, count: 57, distribution: [2, 2, 4, 15, 34] },
+    credentials: [],
     reviews: [
       {
         id: "r-c7e9a1-1",
@@ -776,6 +794,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "25 Aug 2026",
     hprVerified: true,
     rating: { average: 4.3, count: 31, distribution: [1, 2, 3, 10, 15] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -818,6 +837,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "20 Aug 2026",
     hprVerified: false,
     rating: { average: 4.7, count: 26, distribution: [0, 0, 2, 4, 20] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -861,6 +881,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "29 Aug 2026",
     hprVerified: true,
     rating: { average: 4.6, count: 35, distribution: [1, 0, 3, 8, 23] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -903,6 +924,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "15 Aug 2026",
     hprVerified: false,
     rating: { average: 4.2, count: 14, distribution: [0, 1, 2, 5, 6] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -945,6 +967,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "27 Aug 2026",
     hprVerified: false,
     rating: { average: 4.5, count: 16, distribution: [0, 0, 2, 4, 10] },
+    credentials: [],
     reviews: [],
   },
 
@@ -989,6 +1012,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "02 Sep 2026",
     hprVerified: true,
     rating: { average: 4.8, count: 88, distribution: [1, 1, 3, 12, 71] },
+    credentials: [],
     reviews: [
       {
         id: "r-e8c451-1",
@@ -1055,6 +1079,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "30 Aug 2026",
     hprVerified: true,
     rating: { average: 4.6, count: 41, distribution: [1, 1, 3, 9, 27] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -1098,6 +1123,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "26 Aug 2026",
     hprVerified: true,
     rating: { average: 4.7, count: 33, distribution: [0, 1, 2, 6, 24] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -1140,6 +1166,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "18 Aug 2026",
     hprVerified: false,
     rating: { average: 4.4, count: 22, distribution: [0, 1, 2, 7, 12] },
+    credentials: [],
     reviews: [],
   },
   {
@@ -1183,6 +1210,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
     lastVerifiedOn: "22 Aug 2026",
     hprVerified: false,
     rating: { average: 4.5, count: 19, distribution: [0, 1, 1, 5, 12] },
+    credentials: [],
     reviews: [],
   },
 ];

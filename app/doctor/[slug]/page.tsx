@@ -17,7 +17,7 @@ import { breadcrumbLd, doctorLd, faqLd } from "@/lib/seo/structured-data";
 import { addressLine, buildFaq, facilityLabel, summarySentence, supplySentence, verificationLine } from "@/lib/seo/profile-content";
 import { GoogleListingCard } from "@/components/GoogleListing";
 import { absoluteUrl, paths } from "@/lib/site";
-import type { DoctorView } from "@/lib/types";
+import type { DoctorCredential, DoctorView } from "@/lib/types";
 
 type Params = { slug: string };
 
@@ -401,6 +401,8 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               </section>
             ) : null}
 
+            <Credentials doctor={doctor} />
+
             <section className="block" aria-labelledby="faq-h">
               <h2 id="faq-h">Questions people ask</h2>
               <div className="faq-acc">
@@ -629,6 +631,64 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
       </div>
       <p className="blocknote">
         Reviews describe patient experience, not clinical outcome. We do not rate treatment effectiveness. <Link href={paths.policy("reviews")}>Review policy</Link>
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Awards, memberships and publications.
+ *
+ * All of it is self-reported: no import carries these and no register confirms
+ * most of them. So each entry states which of the two it is, in the same words
+ * the qualifications use, and an unverified one is never dressed as a
+ * distinction. They earn no quality-score points either, so this section can
+ * never move a profile towards the index gate.
+ */
+function Credentials({ doctor }: { doctor: DoctorView }) {
+  if (!doctor.credentials.length) return null;
+  const groups: Array<{ kind: DoctorCredential["kind"]; heading: string }> = [
+    { kind: "award", heading: "Awards and honours" },
+    { kind: "membership", heading: "Professional memberships" },
+    { kind: "publication", heading: "Publications" },
+  ];
+  const anyUnverified = doctor.credentials.some((c) => c.state !== "verified");
+  return (
+    <section className="block">
+      <h2>Awards, memberships and publications</h2>
+      {groups.map(({ kind, heading }) => {
+        const items = doctor.credentials.filter((c) => c.kind === kind);
+        if (!items.length) return null;
+        return (
+          <div className="credgroup" key={kind}>
+            <h3 className="ctxhead">{heading}</h3>
+            <ul className="credlist">
+              {items.map((c) => (
+                <li key={c.id}>
+                  <div className="ct">
+                    {c.url ? (
+                      <a href={c.url} rel="nofollow ugc noopener" target="_blank">
+                        {c.title}
+                      </a>
+                    ) : (
+                      c.title
+                    )}
+                  </div>
+                  <div className="cm">{[c.issuer, c.year ? String(c.year) : null].filter(Boolean).join(" · ") || "Issuer not stated"}</div>
+                  <span className={`badge ${c.state === "verified" ? "ok" : "neut"}`}>
+                    {c.state === "verified" ? "Checked with the issuer" : "As supplied by the doctor"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+      <p className="blocknote">
+        Supplied by the doctor. An entry marked as checked was confirmed with the awarding body, society or journal named beside it; the rest have not
+        been. None of this counts towards the profile&rsquo;s verification checks or its quality score, and an unchecked entry is not published to search
+        engines as a credential. Links are the doctor&rsquo;s own.{anyUnverified ? " " : ""}
+        {anyUnverified ? <Link href={paths.policy("verification")}>How verification works</Link> : null}
       </p>
     </section>
   );

@@ -71,6 +71,13 @@
       "when": 1789553098978,
       "tag": "0009_zippy_power_man",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789654198565,
+      "tag": "0010_lush_trish_tilby",
+      "breakpoints": true
     }
   ]
 }

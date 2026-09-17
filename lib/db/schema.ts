@@ -83,6 +83,7 @@ export const changeStatus = pgEnum("change_status", ["pending", "published", "re
 export const checkKind = pgEnum("check_kind", ["registration", "qualification", "practice", "hpr", "claim", "identity", "disciplinary"]);
 export const checkResult = pgEnum("check_result", ["verified", "failed", "pending", "not_found"]);
 export const managerStatus = pgEnum("manager_status", ["invited", "active", "revoked"]);
+export const credentialKind = pgEnum("credential_kind", ["award", "membership", "publication"]);
 export const fileBucket = pgEnum("file_bucket", ["private", "quarantine", "public"]);
 export const scanResult = pgEnum("scan_result", ["pending", "clean", "infected", "skipped"]);
 export const seoRouteKind = pgEnum("seo_route_kind", ["national", "city", "locality"]);
@@ -284,6 +285,38 @@ export const doctorQualifications = pgTable("doctor_qualifications", {
   checkedOn: date("checked_on"),
   sort: integer("sort").notNull().default(0),
 });
+
+/**
+ * Awards, professional memberships and publications.
+ *
+ * Every row here is a claim the doctor made about themselves — no import
+ * supplies them and no register can confirm most of them. They carry the same
+ * `verification_state` the qualifications do, they default to "submitted", and
+ * nothing outside this table reads them as a trust signal: they are excluded
+ * from the quality score, so a doctor cannot type their way past the index
+ * gate, and only a row staff have marked `verified` is ever asserted in
+ * machine-readable markup.
+ */
+export const doctorCredentials = pgTable(
+  "doctor_credentials",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    kind: credentialKind("kind").notNull(),
+    title: text("title").notNull(),
+    /** Awarding body, society, or journal. */
+    issuer: text("issuer"),
+    year: integer("year"),
+    /** Citation or announcement the reader can check for themselves. */
+    url: text("url"),
+    state: verificationState("state").notNull().default("submitted"),
+    verifiedOn: date("verified_on"),
+    verifiedByUserId: uuid("verified_by_user_id").references(() => users.id),
+    sort: integer("sort").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("doctor_credentials_doctor_idx").on(t.doctorId, t.kind)],
+);
 
 export const doctorExperience = pgTable("doctor_experience", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -768,6 +801,7 @@ export const doctorsRelations = relations(doctors, ({ one, many }) => ({
   registrations: many(medicalRegistrations),
   qualifications: many(doctorQualifications),
   experience: many(doctorExperience),
+  credentials: many(doctorCredentials),
   practices: many(doctorPractices),
   reviews: many(reviews),
   changeRequests: many(profileChangeRequests),
@@ -788,6 +822,9 @@ export const doctorQualificationsRelations = relations(doctorQualifications, ({ 
 }));
 export const doctorExperienceRelations = relations(doctorExperience, ({ one }) => ({
   doctor: one(doctors, { fields: [doctorExperience.doctorId], references: [doctors.id] }),
+}));
+export const doctorCredentialsRelations = relations(doctorCredentials, ({ one }) => ({
+  doctor: one(doctors, { fields: [doctorCredentials.doctorId], references: [doctors.id] }),
 }));
 export const doctorPracticesRelations = relations(doctorPractices, ({ one }) => ({
   doctor: one(doctors, { fields: [doctorPractices.doctorId], references: [doctors.id] }),

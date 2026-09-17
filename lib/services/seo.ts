@@ -77,7 +77,7 @@ export async function setSeoOverride(path: string, override: "force_index" | "fo
 }
 
 /** Effective indexability for a listing path, honouring staff overrides. */
-let overrideCache: { map: Map<string, "force_index" | "force_noindex">; at: number } | null = null;
+let overrideCache: { map: Map<string, "force_index" | "force_noindex">; at: number; degraded?: boolean } | null = null;
 
 /**
  * All staff overrides, cached for a minute. Overrides are rare (tens of rows)
@@ -85,12 +85,26 @@ let overrideCache: { map: Map<string, "force_index" | "force_noindex">; at: numb
  */
 export async function routeOverrides(): Promise<Map<string, "force_index" | "force_noindex">> {
   if (!process.env.DATABASE_URL) return new Map();
-  if (overrideCache && Date.now() - overrideCache.at < 60_000) return overrideCache.map;
-  const rows = await getDb().select({ path: s.seoRoutes.path, override: s.seoRoutes.override }).from(s.seoRoutes).where(isNotNull(s.seoRoutes.override));
-  const map = new Map<string, "force_index" | "force_noindex">();
-  for (const r of rows) if (r.override) map.set(r.path, r.override);
-  overrideCache = { map, at: Date.now() };
-  return map;
+  if (overrideCache && Date.now() - overrideCache.at < (overrideCache.degraded ? 10_000 : 60_000)) return overrideCache.map;
+  try {
+    const rows = await getDb().select({ path: s.seoRoutes.path, override: s.seoRoutes.override }).from(s.seoRoutes).where(isNotNull(s.seoRoutes.override));
+    const map = new Map<string, "force_index" | "force_noindex">();
+    for (const r of rows) if (r.override) map.set(r.path, r.override);
+    overrideCache = { map, at: Date.now() };
+    return map;
+  } catch (err) {
+    // A failure is cached too, briefly.
+    //
+    // Without this, an unreachable database turns the one query this function
+    // promises into one failed query per asking path. The sitemap asks about
+    // thousands, sequentially, so a database blip stopped being a slow sitemap
+    // and became a build that times out and fails. Overrides are an
+    // enhancement — no override is the correct answer to fall back to — so the
+    // empty map is served and retried in ten seconds rather than immediately.
+    console.warn("[seo] route overrides unavailable, continuing without them:", err instanceof Error ? err.message : err);
+    overrideCache = { map: new Map(), at: Date.now(), degraded: true };
+    return overrideCache.map;
+  }
 }
 
 export function invalidateOverrides(): void {

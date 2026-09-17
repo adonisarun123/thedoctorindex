@@ -56,3 +56,37 @@ test("aggregateRating is emitted only from a real rollup, and never per review",
   assert.ok(!JSON.stringify(rated).includes('"reviewRating"'));
   assert.ok(!JSON.stringify(rated).includes('"Review"'));
 });
+
+test("only credentials checked with the issuer reach structured data", async () => {
+  const [first] = await seedSource.getListing("cardiology", {}, 1);
+  const base = (await seedSource.getDoctorBySlug(first.slug))!;
+  const d = {
+    ...base,
+    credentials: [
+      { id: "a1", kind: "award" as const, title: "Young Investigator Award", issuer: "Cardiological Society of India", year: 2016, url: null, state: "verified" as const },
+      { id: "a2", kind: "award" as const, title: "Clinician of the Year", issuer: "Somewhere", year: 2021, url: null, state: "submitted" as const },
+      { id: "m1", kind: "membership" as const, title: "Fellow", issuer: "Royal College", year: null, url: null, state: "verified" as const },
+      { id: "m2", kind: "membership" as const, title: "Member", issuer: "Unchecked Society", year: null, url: null, state: "submitted" as const },
+      { id: "p1", kind: "publication" as const, title: "Radial versus femoral access", issuer: "Indian Heart Journal", year: 2019, url: "https://example.org/x", state: "verified" as const },
+      { id: "p2", kind: "publication" as const, title: "Unchecked paper", issuer: null, year: null, url: null, state: "submitted" as const },
+    ],
+  };
+  const ld = doctorLd(d as typeof base) as Record<string, any>;
+  const me = ld.mainEntity as Record<string, any>;
+  const json = JSON.stringify(ld);
+
+  assert.deepEqual(me.award, ["Young Investigator Award, Cardiological Society of India, 2016"]);
+  assert.deepEqual(me.memberOf, [{ "@type": "Organization", name: "Royal College" }]);
+  assert.equal(me.subjectOf.length, 1);
+  assert.equal(me.subjectOf[0]["@type"], "ScholarlyArticle");
+  assert.equal(me.subjectOf[0].url, "https://example.org/x");
+
+  // Nothing the doctor merely asserted is published as a credential.
+  for (const unchecked of ["Clinician of the Year", "Unchecked Society", "Unchecked paper"]) {
+    assert.ok(!json.includes(unchecked), `${unchecked} must not appear in the graph`);
+  }
+
+  // A profile with nothing checked emits none of these keys at all.
+  const noneChecked = doctorLd({ ...d, credentials: d.credentials.filter((c) => c.state === "submitted") } as typeof base) as Record<string, any>;
+  for (const key of ["award", "memberOf", "subjectOf"]) assert.equal(key in (noneChecked.mainEntity as Record<string, unknown>), false, key);
+});

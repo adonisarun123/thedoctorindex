@@ -4,7 +4,7 @@ import { POLICIES } from "@/lib/data/policies";
 import { countsByCity, countsByCitySpecialty, countsByLocalityAll, countsBySpecialty, countsByState, listIndexableSlugs } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
-import { withOverride } from "@/lib/seo/override";
+import { applyOverride, overrideMap } from "@/lib/seo/override";
 import { listingGate, type GateResult } from "@/lib/seo/gates";
 import { absoluteUrl, paths } from "@/lib/site";
 import { DOCTORS_PER_FILE, doctorFileCount, doctorFilePath, latestLastmod, toIsoDate, type SitemapEntry } from "@/lib/seo/sitemap-xml";
@@ -60,13 +60,14 @@ export async function indexEntries(): Promise<SitemapEntry[]> {
  * serverless route does not have.
  */
 export async function directoryEntries(): Promise<SitemapEntry[]> {
-  const [geo, stateCounts, cityTotals, nationalCounts, byCitySpecialty, byLocalitySpecialty] = await Promise.all([
+  const [geo, stateCounts, cityTotals, nationalCounts, byCitySpecialty, byLocalitySpecialty, overrides] = await Promise.all([
     getGeo(),
     countsByState("eligible"),
     countsByCity(undefined, "eligible"),
     countsBySpecialty(undefined, "eligible"),
     countsByCitySpecialty("eligible"),
     countsByLocalityAll("eligible"),
+    overrideMap(),
   ]);
 
   const entries: SitemapEntry[] = [
@@ -77,14 +78,16 @@ export async function directoryEntries(): Promise<SitemapEntry[]> {
   for (const st of geo.states) if ((stateCounts[st.slug] ?? 0) > 0) entries.push({ loc: absoluteUrl(`/doctors/${st.slug}`) });
   for (const c of cityTotals) if (c.n > 0 && geo.city(c.stateSlug, c.citySlug)) entries.push({ loc: absoluteUrl(`/doctors/${c.stateSlug}/${c.citySlug}`) });
 
-  // Gate decisions can be overridden per route by staff; the override table is
-  // cached, so asking per candidate costs nothing extra.
-  const keep = async (path: string, gate: GateResult) => (await withOverride(path, gate)).indexable;
+  // Gate decisions can be overridden per route by staff. The override table is
+  // fetched once above and applied synchronously here: this loop decides tens
+  // of thousands of paths, and awaiting a lookup inside it made the cost of a
+  // single slow read scale with the number of candidate routes.
+  const keep = (path: string, gate: GateResult) => applyOverride(path, gate, overrides).indexable;
 
   for (const key of SPECIALTY_KEYS) {
     const specialty = SPECIALTIES[key];
     const hasGuide = Boolean(specialty.guide);
-    if (await keep(paths.specialty(key), listingGate("national", nationalCounts[key] ?? 0, hasGuide))) {
+    if (keep(paths.specialty(key), listingGate("national", nationalCounts[key] ?? 0, hasGuide))) {
       entries.push({ loc: absoluteUrl(paths.specialty(key)) });
     }
   }
@@ -93,7 +96,7 @@ export async function directoryEntries(): Promise<SitemapEntry[]> {
     const specialty = SPECIALTIES[r.specialty];
     if (!specialty || !geo.city(r.stateSlug, r.citySlug)) continue;
     const path = paths.citySpecialty(r.stateSlug, r.citySlug, specialty.slug);
-    if (await keep(path, listingGate("city", r.n, Boolean(specialty.guide)))) entries.push({ loc: absoluteUrl(path) });
+    if (keep(path, listingGate("city", r.n, Boolean(specialty.guide)))) entries.push({ loc: absoluteUrl(path) });
   }
 
   for (const r of byLocalitySpecialty) {
@@ -102,7 +105,7 @@ export async function directoryEntries(): Promise<SitemapEntry[]> {
     const loc = geo.locality(r.localityKey);
     if (!loc || loc.stateSlug !== r.stateSlug || loc.citySlug !== r.citySlug) continue;
     const path = paths.localitySpecialty(r.stateSlug, r.citySlug, loc.slug, specialty.slug);
-    if (await keep(path, listingGate("locality", r.n, Boolean(specialty.guide)))) entries.push({ loc: absoluteUrl(path) });
+    if (keep(path, listingGate("locality", r.n, Boolean(specialty.guide)))) entries.push({ loc: absoluteUrl(path) });
   }
 
   return entries;
