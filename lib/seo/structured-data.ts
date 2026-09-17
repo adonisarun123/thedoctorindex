@@ -274,7 +274,7 @@ export function doctorLd(d: DoctorView): Json {
     // page shows the unverified ones, labelled; the markup does not, because a
     // consumer reading `award` has no way to see the label.
     ...(() => {
-      const ok = d.credentials.filter((c) => c.state === "verified");
+      const ok = (d.credentials ?? []).filter((c) => c.state === "verified");
       const awards = ok.filter((c) => c.kind === "award").map((c) => [c.title, c.issuer, c.year].filter(Boolean).join(", "));
       const memberships = ok.filter((c) => c.kind === "membership" && c.issuer).map((c) => ({ "@type": "Organization", name: c.issuer as string }));
       const papers = ok.filter((c) => c.kind === "publication").map((c) => ({

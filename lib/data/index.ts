@@ -152,10 +152,25 @@ export { DATA_CACHE_TAG } from "@/lib/data/cache-tag";
 import { DATA_CACHE_TAG } from "@/lib/data/cache-tag";
 const DATA_CACHE_SECONDS = 3600;
 
+/**
+ * Bump this whenever a cached shape gains, loses or renames a field.
+ *
+ * Vercel's data cache outlives a deployment: an entry written by the previous
+ * build is handed to the new one, and `unstable_cache` keys on the arguments,
+ * not on the shape of what comes back. On 17 Sep `credentials` was added to
+ * DoctorView without a bump, so every profile still holding a pre-deploy cache
+ * entry was served an object with no `credentials` field and threw on the first
+ * read of it — a 500 on a page that had rendered a minute earlier, for as long
+ * as the stale entry lived. Including a version in the key orphans the old
+ * entries outright, which is the only thing that makes the old and new shapes
+ * incapable of meeting.
+ */
+const SHAPE_VERSION = "2026-09-17-credentials";
+
 function cached<A extends unknown[], R>(name: string, fn: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
   return (...args: A) => {
     if (!process.env.NEXT_RUNTIME || activeSourceName() !== "db" || isBuildPhase()) return fn(...args);
-    return unstable_cache(() => fn(...args), [name, JSON.stringify(args)], { revalidate: DATA_CACHE_SECONDS, tags: [DATA_CACHE_TAG] })();
+    return unstable_cache(() => fn(...args), [SHAPE_VERSION, name, JSON.stringify(args)], { revalidate: DATA_CACHE_SECONDS, tags: [DATA_CACHE_TAG] })();
   };
 }
 

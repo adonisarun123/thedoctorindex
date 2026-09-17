@@ -646,18 +646,20 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
  * never move a profile towards the index gate.
  */
 function Credentials({ doctor }: { doctor: DoctorView }) {
-  if (!doctor.credentials.length) return null;
+  // Tolerates an object cached by an older build that predates this field.
+  const credentials = doctor.credentials ?? [];
+  if (!credentials.length) return null;
   const groups: Array<{ kind: DoctorCredential["kind"]; heading: string }> = [
     { kind: "award", heading: "Awards and honours" },
     { kind: "membership", heading: "Professional memberships" },
     { kind: "publication", heading: "Publications" },
   ];
-  const anyUnverified = doctor.credentials.some((c) => c.state !== "verified");
+  const anyUnverified = credentials.some((c) => c.state !== "verified");
   return (
     <section className="block">
       <h2>Awards, memberships and publications</h2>
       {groups.map(({ kind, heading }) => {
-        const items = doctor.credentials.filter((c) => c.kind === kind);
+        const items = credentials.filter((c) => c.kind === kind);
         if (!items.length) return null;
         return (
           <div className="credgroup" key={kind}>

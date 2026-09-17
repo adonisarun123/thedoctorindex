@@ -90,3 +90,21 @@ test("only credentials checked with the issuer reach structured data", async () 
   const noneChecked = doctorLd({ ...d, credentials: d.credentials.filter((c) => c.state === "submitted") } as typeof base) as Record<string, any>;
   for (const key of ["award", "memberOf", "subjectOf"]) assert.equal(key in (noneChecked.mainEntity as Record<string, unknown>), false, key);
 });
+
+test("a doctor object cached before credentials existed does not throw", async () => {
+  // Vercel's data cache outlives a deployment, so the new code can be handed an
+  // object written by the old one. SHAPE_VERSION in lib/data/index.ts is what
+  // stops that; this proves the read itself degrades rather than throwing, which
+  // is what turned one missing field into a 500 on every recently-viewed profile
+  // on 17 Sep.
+  const [first] = await seedSource.getListing("cardiology", {}, 1);
+  const d = (await seedSource.getDoctorBySlug(first.slug))!;
+  const stale = { ...d } as Record<string, unknown>;
+  delete stale.credentials;
+
+  const ld = doctorLd(stale as unknown as DoctorView) as Record<string, any>;
+  assert.equal(typeof ld.mainEntity, "object");
+  for (const key of ["award", "memberOf", "subjectOf"]) {
+    assert.equal(key in (ld.mainEntity as Record<string, unknown>), false, key);
+  }
+});
