@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { submitProfileAction, type SubmitState } from "@/app/add-doctor/actions";
+import { CouncilSelect } from "@/components/CouncilSelect";
 import { TrustBadges } from "@/components/TrustBadges";
 import { PlacePicker } from "@/components/PlacePicker";
+import { COUNCIL_NAMES } from "@/lib/data/councils";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
-
-const COUNCILS = ["Karnataka Medical Council", "Tamil Nadu Medical Council", "Maharashtra Medical Council", "Delhi Medical Council", "Telangana State Medical Council", "Kerala State Medical Council", "Andhra Pradesh Medical Council", "Gujarat Medical Council", "West Bengal Medical Council", "Uttar Pradesh Medical Council"];
 
 /**
  * Registration-first submission (plan §9.2). Step 1 checks council +
@@ -21,7 +21,7 @@ const COUNCILS = ["Karnataka Medical Council", "Tamil Nadu Medical Council", "Ma
 export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string) => Promise<DoctorView | null> }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [registration, setRegistration] = useState("");
-  const [council, setCouncil] = useState(COUNCILS[0]);
+  const [council, setCouncil] = useState(COUNCIL_NAMES[0]);
   const [match, setMatch] = useState<DoctorView | null>(null);
   const [checking, setChecking] = useState(false);
   const [state, act, pending] = useActionState<SubmitState, FormData>(submitProfileAction, {});
@@ -57,15 +57,11 @@ export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string)
       {step === 1 ? (
         <div className="panel pad">
           <div className="notice good" style={{ marginBottom: "20px" }}>
-            <b>Registration first.</b> We ask for your council registration before anything else. It is how we tell two doctors with the same name apart, and it is what stops someone else creating a page in your name.
+            <b>Registration first.</b> We ask for your council or professional-body registration before anything else — medical, dental, AYUSH and allied-health registrations are all accepted. It is how we tell two doctors with the same name apart, and it is what stops someone else creating a page in your name.
           </div>
           <div className="field">
-            <label htmlFor="council">Medical council</label>
-            <select id="council" value={council} onChange={(e) => setCouncil(e.target.value)}>
-              {COUNCILS.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+            <label htmlFor="council">Council or registering body</label>
+            <CouncilSelect id="council" name="council-picker" value={council} onChange={setCouncil} />
           </div>
           <div className="field">
             <label htmlFor="reg">Registration number</label>
@@ -73,7 +69,7 @@ export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string)
             <div className="hint">Exactly as it appears in the register. We match on council + number, never on name.</div>
           </div>
           <div className="flowacts">
-            <button className="btn solid" style={{ flex: 1 }} onClick={check} disabled={checking || !registration.trim()}>
+            <button className="btn solid" style={{ flex: 1 }} onClick={check} disabled={checking || !registration.trim() || !council.trim()}>
               {checking ? "Checking…" : "Check the register"}
             </button>
           </div>

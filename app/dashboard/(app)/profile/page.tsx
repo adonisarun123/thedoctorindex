@@ -1,3 +1,4 @@
+import { registrationNoun } from "@/lib/data/councils";
 import { addCredentialAction, photoAction, removeCredentialAction, saveProfileAction } from "@/app/dashboard/actions";
 import { ActionForm } from "@/components/ActionForm";
 import { Avatar } from "@/components/Avatar";
@@ -80,7 +81,7 @@ export default async function DashboardProfile() {
           </section>
 
           <section className="panel pad">
-            <div className="chart-head"><span className="t">Medical registration</span><span className="pill ok">verified {doctor.registration.checkedOn}</span></div>
+            <div className="chart-head"><span className="t">{registrationNoun(doctor.registration.council)}</span><span className="pill ok">verified {doctor.registration.checkedOn}</span></div>
             <table className="table">
               <thead><tr><th>Council</th><th>Number</th><th>Year</th><th>Status</th></tr></thead>
               <tbody><tr><td>{doctor.registration.council}</td><td className="mono">{doctor.registration.number}</td><td className="mono">{doctor.registration.registeredYear || "—"}</td><td><span className="pill ok">active</span></td></tr></tbody>

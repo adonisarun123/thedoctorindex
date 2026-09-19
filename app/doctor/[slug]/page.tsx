@@ -1,3 +1,4 @@
+import { registrationNoun } from "@/lib/data/councils";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -328,7 +329,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               <div className="register">
                 <Row
                   tone={registrationState(doctor) === "verified" ? "ok" : registrationState(doctor) === "submitted" ? "wait" : "none"}
-                  label={registrationState(doctor) === "verified" ? "Medical registration verified" : registrationLabel(doctor)}
+                  label={registrationState(doctor) === "verified" ? `${registrationNoun(doctor.registration.council)} verified` : registrationLabel(doctor)}
                   source={registrationSource(doctor)}
                   when={registrationState(doctor) === "verified" ? doctor.registration.checkedOn : registrationState(doctor) === "submitted" ? "pending" : "—"}
                 />

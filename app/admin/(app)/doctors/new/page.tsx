@@ -2,13 +2,12 @@ import Link from "next/link";
 
 import { createDoctorAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
+import { CouncilSelect } from "@/components/CouncilSelect";
 import { PlacePicker } from "@/components/PlacePicker";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { requireStaff } from "@/lib/auth/session";
 
 export const metadata = { title: "Create profile" };
-
-const COUNCILS = ["Karnataka Medical Council", "Tamil Nadu Medical Council", "Maharashtra Medical Council", "Delhi Medical Council", "Telangana State Medical Council", "Kerala State Medical Council", "Andhra Pradesh Medical Council", "Gujarat Medical Council", "West Bengal Medical Council", "Uttar Pradesh Medical Council", "National Medical Commission"];
 
 export default async function AdminNewDoctor() {
   await requireStaff();
@@ -25,11 +24,11 @@ export default async function AdminNewDoctor() {
       <ActionForm action={createDoctorAction} submitLabel="Create profile" variant="solid" className="panel pad">
         <h3 style={{ marginTop: 0 }}>Registration</h3>
         <div className="two" style={{ gridTemplateColumns: "1fr 1fr 120px" }}>
-          <div className="field"><label>Medical council</label><select name="council" defaultValue={COUNCILS[0]}>{COUNCILS.map((c) => <option key={c}>{c}</option>)}</select></div>
+          <div className="field"><label>Council or registering body</label><CouncilSelect name="council" /></div>
           <div className="field"><label>Registration number</label><input type="text" name="registration" required placeholder="KMC-12345" /></div>
           <div className="field"><label>Registered year</label><input type="number" name="regYear" min={1950} max={2030} /></div>
         </div>
-        <label className="fopt"><input type="checkbox" name="regVerified" /> I matched this council + number in the register today</label>
+        <label className="fopt"><input type="checkbox" name="regVerified" /> I matched this council + number in that body’s register today</label>
 
         <h3>Identity</h3>
         <div className="two" style={{ gridTemplateColumns: "1fr 140px 1fr" }}>

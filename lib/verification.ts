@@ -44,7 +44,7 @@ export function registrationSource(d: Pick<Doctor, "registration">): string {
     case "submitted":
       return `${r.council} · ${r.number} as supplied, awaiting a check against the register`;
     default:
-      return "The doctor or a permitted source has not supplied a council registration number";
+      return "The doctor or a permitted source has not supplied a registration number from a council or professional body";
   }
 }
 

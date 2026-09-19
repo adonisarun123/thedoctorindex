@@ -1,3 +1,4 @@
+import { registrationNoun } from "@/lib/data/councils";
 import Link from "next/link";
 
 import { getDashboardContext } from "@/lib/dashboard";
@@ -30,7 +31,7 @@ export default async function DashboardVerification() {
 
       <div className="register">
         <div className="rhead"><span className="t">Your verification record · as shown publicly</span><span className="n">{doctor.lastVerifiedOn}</span></div>
-        <Row tone="ok" label="Medical registration verified" source={`${doctor.registration.council} · ${doctor.registration.number}`} when={doctor.registration.checkedOn} />
+        <Row tone="ok" label={`${registrationNoun(doctor.registration.council)} verified`} source={`${doctor.registration.council} · ${doctor.registration.number}`} when={doctor.registration.checkedOn} />
         {doctor.qualifications.map((q) => (
           <Row key={`${q.degree}-${q.year}`} tone={q.state === "verified" ? "ok" : "wait"} label={q.state === "verified" ? "Qualification verified" : "Qualification submitted — pending"} source={`${q.degree} · ${q.institution} · ${q.year || ""}`} when={q.state === "verified" ? doctor.registration.checkedOn : "pending"} />
         ))}

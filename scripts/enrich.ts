@@ -1,3 +1,4 @@
+import { isMedicalCouncil } from "@/lib/data/councils";
 import { config } from "dotenv";
 import { and, asc, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -165,7 +166,8 @@ async function main() {
 
     /* ---- NMC ---- */
     if (wantNmc && (!enr || enr.nmcStatus === "pending" || SLUG)) {
-      if (!sp || sp.system !== "modern") {
+      if (!sp || sp.system !== "modern" || (primaryReg && !isMedicalCouncil(primaryReg.council) && primaryReg.council !== "Council not stated")) {
+        // Dental, AYUSH and allied-health numbers are on other registers; a name search on the NMC register would only find a namesake.
         bump("nmc:not_applicable");
         if (!DRY) await db.update(s.doctorEnrichment).set({ nmcStatus: "not_applicable", nmcCheckedAt: new Date(), updatedAt: new Date() }).where(eq(s.doctorEnrichment.doctorId, d.id));
       } else if (primaryReg?.checkedOn && !SLUG) {

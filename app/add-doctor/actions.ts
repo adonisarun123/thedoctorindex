@@ -62,7 +62,10 @@ export async function submitProfileAction(_prev: SubmitState, form: FormData): P
     if (!payload.name || !payload.specialtyKey) return { error: "Name and speciality are required." };
     if (!payload.consents.publish || !payload.consents.accurate) return { error: "The publication and accuracy consents are required." };
     if (/\b(best|no\.?\s*1|top|most trusted)\b/i.test(payload.about ?? "")) return { error: "Superlatives such as “best” are not allowed in the introduction. Describe what you treat and where." };
-    const row = await createSubmission(user.id, String(form.get("council") ?? ""), String(form.get("registration") ?? ""), payload);
+    const council = String(form.get("council") ?? "").trim();
+    const registration = String(form.get("registration") ?? "").trim();
+    if (!council || !registration) return { error: "The council or registering body and the registration number are required." };
+    const row = await createSubmission(user.id, council, registration, payload);
     await track("profile_submitted");
     return { ok: true, id: row.id };
   } catch (e) {

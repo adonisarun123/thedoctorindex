@@ -110,7 +110,7 @@ export const COUNCILS_BY_STATE: Record<string, number[]> = {
 export function councilId(name: string | null | undefined): number | null {
   if (!name) return null;
   const n = name.toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
-  if (/dental|homoeo|homeo|ayur|unani|siddha|paramedical|rehabilitation|nursing|pharmacy|physio|indian medicine/.test(n)) return null;
+  if (/dental|homoeo|homeo|ayur|unani|siddha|sowa|naturopath|paramedical|rehabilitation|nursing|pharmac|physio|occupational|allied|indian medicine|indian system/.test(n)) return null;
   const aliases: Array<[RegExp, number]> = [
     [/\bmpmc\b|madhya pradesh|^mp\b|^m p\b/, 15],
     [/mahakoshal|mahakaushal/, 35],

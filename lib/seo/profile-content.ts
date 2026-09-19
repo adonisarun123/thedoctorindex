@@ -1,3 +1,4 @@
+import { isMedicalCouncil, registerName } from "@/lib/data/councils";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { hasDate, registrationState } from "@/lib/verification";
 import type { DoctorView } from "@/lib/types";
@@ -52,6 +53,15 @@ export function placePhrase(d: DoctorView): string | null {
   return `${locality}${p.city}, ${p.state}`;
 }
 
+/** "medical council" for modern medicine, otherwise the body the profession registers with. Driven by the speciality's system, so it is right even when no number is on file. */
+function registrationWord(d: DoctorView): string {
+  const sys = SPECIALTIES[d.specialty]?.system;
+  if (sys === "dental") return "dental council";
+  if (sys === "ayush") return "AYUSH council";
+  if (sys === "allied" || sys === "alternative") return "professional council or body";
+  return "medical council";
+}
+
 /** One factual sentence a reader or an answer engine can lift: who, what, where, and how the record was checked. */
 export function summarySentence(d: DoctorView): string {
   const sp = SPECIALTIES[d.specialty];
@@ -65,7 +75,7 @@ export function summarySentence(d: DoctorView): string {
   if (degrees.length) parts.push(`Qualifications on record: ${degrees.join(", ")}.`);
   if (reg === "verified") parts.push(`Registered with the ${d.registration.council} (No. ${d.registration.number}), checked against the register on ${d.registration.checkedOn}.`);
   else if (reg === "submitted") parts.push(`Council registration ${d.registration.number} (${d.registration.council}) is on record and awaiting a check against the register.`);
-  else parts.push("No medical council registration number is on record yet.");
+  else parts.push(`No ${registrationWord(d)} registration number is on record yet.`);
   if (d.yearsOfExperience > 0 && d.practiceStartYear) parts.push(`In practice since ${d.practiceStartYear}.`);
   return parts.join(" ");
 }
@@ -108,7 +118,7 @@ function registrationAnswer(d: DoctorView): string {
   const reg = registrationState(d);
   if (reg === "verified") return `Yes. Dr ${d.name} holds registration No. ${d.registration.number} with the ${d.registration.council}${d.registration.registeredYear ? `, registered in ${d.registration.registeredYear}` : ""}. It was matched against the register on ${d.registration.checkedOn}. Registration confirms the doctor is on the register; it is not a measure of clinical skill.`;
   if (reg === "submitted") return `A registration number (${d.registration.number}, ${d.registration.council}) is on record for Dr ${d.name} but has not yet been checked against the register. The profile says so until the check is done.`;
-  return `No medical council registration number is on record for Dr ${d.name}. The profile is marked accordingly. If you are the doctor, claiming the profile lets you add it for verification.`;
+  return `No ${registrationWord(d)} registration number is on record for Dr ${d.name}. The profile is marked accordingly. If you are the doctor, claiming the profile lets you add it for verification.`;
 }
 
 function qualificationsAnswer(d: DoctorView): string {
@@ -156,8 +166,10 @@ function claimAnswer(d: DoctorView): string {
 function selfCheckAnswer(d: DoctorView): string {
   const reg = registrationState(d);
   const base = reg === "none"
-    ? `No registration number is on record here, so there is nothing to look up yet. Ask the practice for the doctor's council registration number, then search for it on the National Medical Commission register.`
-    : `Search No. ${d.registration.number} on the National Medical Commission register, or on the ${d.registration.council} register directly. That is the authoritative source; this page only records what the search returned and when.`;
+    ? `No registration number is on record here, so there is nothing to look up yet. Ask the practice for the doctor's registration number and the body that issued it, then search for it on that body's register.`
+    : isMedicalCouncil(d.registration.council)
+      ? `Search No. ${d.registration.number} on the National Medical Commission register, or on the ${d.registration.council} register directly. That is the authoritative source; this page only records what the search returned and when.`
+      : `Search No. ${d.registration.number} on the ${d.registration.council} register (${registerName(d.registration.council)}). That is the authoritative source; this page only records what the search returned and when.`;
   return `${base} Do not take a profile on any directory, including this one, as proof on its own.`;
 }
 
@@ -166,7 +178,7 @@ export function buildFaq(d: DoctorView): Faq[] {
   const where = placePhrase(d);
   const faqs: Faq[] = [];
   if (where) faqs.push({ q: `Where does Dr ${d.name} practise?`, a: `${d.practices.map((p) => addressLine(p)).join("; ")}.${d.practices.length > 1 ? ` ${d.practices.length} practice locations are on record.` : ""}` });
-  faqs.push({ q: `Is Dr ${d.name} registered with a medical council?`, a: registrationAnswer(d) });
+  faqs.push({ q: `Is Dr ${d.name} registered with a ${registrationWord(d)}?`, a: registrationAnswer(d) });
   faqs.push({ q: `What are Dr ${d.name}'s qualifications?`, a: qualificationsAnswer(d) });
   faqs.push({ q: `What does Dr ${d.name} treat?`, a: specialtyAnswer(d) });
   if (d.practices[0]) {
