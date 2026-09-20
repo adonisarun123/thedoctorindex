@@ -28,6 +28,8 @@ type DoctorRow = Awaited<ReturnType<typeof loadRows>>[number];
 
 const CURRENT_YEAR = new Date().getUTCFullYear();
 const CAP = 200;
+// Internal search cap; mirrors SEARCH_CAP in lib/data/index.ts (kept local to avoid a value import cycle).
+const SEARCH_CAP = 100;
 
 /**
  * Hydration is a two-step: the ids that match come from a plain query the
@@ -446,7 +448,7 @@ export const dbSource: DataSource = {
              or exists (select 1 from unnest(d.subspecialties) x where lower(x) like ${"%" + q + "%"}))
         ${place && Object.keys(place).length ? sql`and ${inPlaceSubquery(place)}` : sql``}
       order by (d.specialty_key = ${spec}) desc, d.quality_score desc, similarity(lower(d.name), ${q}) desc
-      limit 50
+      limit ${SEARCH_CAP}
     `)) as unknown as Array<{ id: string }>;
     if (!rows.length) return [];
     return viewsByIds(rows.map((r) => r.id), "card");

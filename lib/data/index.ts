@@ -86,6 +86,10 @@ export interface Totals {
 export const LISTING_CAP = 200;
 /** Rows rendered per page of a listing; further pages are `?page=` facets (noindex, canonical unchanged). */
 export const LISTING_PAGE = 60;
+/** Internal search returns at most this many matches; the page is noindex, so the cap is a cost decision, not a crawl one. */
+export const SEARCH_CAP = 100;
+/** Rows rendered per page of internal search results (`?page=`). */
+export const SEARCH_PAGE = 10;
 
 export type DataSource = {
   getDoctorBySlug(slug: string): Promise<DoctorView | null>;
