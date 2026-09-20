@@ -82,8 +82,14 @@ export interface Totals {
   cities: number;
 }
 
-/** Listings are capped: a city with 4,000 family physicians is browsed by locality and filter, not scrolled. */
-export const LISTING_CAP = 200;
+/**
+ * Listings are capped. The cap was 200 until 20 Sep 2026, which left 17
+ * city × speciality pairs (Indore GP 719, Jabalpur AYUSH 671, ...) with
+ * roughly 2,900 profiles that no listing page linked to — sitemap-only URLs.
+ * 1,000 clears every pair with headroom. A listing is one cached entry
+ * (card rows, ~1 KB each), so keep this under the data cache's 2 MB ceiling.
+ */
+export const LISTING_CAP = 1000;
 /** Rows rendered per page of a listing; further pages are `?page=` facets (noindex, canonical unchanged). */
 export const LISTING_PAGE = 60;
 /** Internal search returns at most this many matches; the page is noindex, so the cap is a cost decision, not a crawl one. */

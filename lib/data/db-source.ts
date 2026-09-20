@@ -27,7 +27,7 @@ import type { DoctorView, Locality, SpecialtyKey } from "@/lib/types";
 type DoctorRow = Awaited<ReturnType<typeof loadRows>>[number];
 
 const CURRENT_YEAR = new Date().getUTCFullYear();
-const CAP = 200;
+const CAP = 1000; // mirrors LISTING_CAP in lib/data/index.ts
 // Internal search cap; mirrors SEARCH_CAP in lib/data/index.ts (kept local to avoid a value import cycle).
 const SEARCH_CAP = 100;
 
@@ -67,7 +67,7 @@ async function loadRows(ids: string[]) {
  * A listing renders name, speciality, one practice, the verification badges
  * and the rating — it never renders review text, career history, the
  * introduction or the service list. Loading those anyway cost the most
- * expensive part of a listing: at LISTING_CAP that is 200 doctors' worth of
+ * expensive part of a listing: at LISTING_CAP that is up to 1,000 doctors' worth of
  * review bodies and prose serialised out of Postgres and then again into the
  * RSC payload, to be thrown away.
  *
