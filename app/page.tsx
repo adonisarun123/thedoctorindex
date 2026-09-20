@@ -89,15 +89,10 @@ export default async function HomePage() {
   const statesOpen = new Set(cityListed.filter((c) => c.n > 0).map((c) => c.stateSlug)).size;
   const topSpecialties = [...SPECIALTY_KEYS].filter((k) => (listedBySpecialty[k] ?? 0) > 0).sort((a, b) => (listedBySpecialty[b] ?? 0) - (listedBySpecialty[a] ?? 0)).slice(0, 9);
 
-  // Popular specialities in the busiest city, for the chips under the search.
+  // The search pre-fills the busiest city; the chips under it stay national,
+  // so the hero does not read as a directory for one city.
   const topCity = openCities[0] ?? null;
-  const popular: SpecialtyKey[] = topCity
-    ? citySpecialty
-        .filter((r) => r.stateSlug === topCity.stateSlug && r.citySlug === topCity.citySlug && r.n > 0 && r.specialty in SPECIALTIES)
-        .sort((a, b) => b.n - a.n)
-        .slice(0, 5)
-        .map((r) => r.specialty as SpecialtyKey)
-    : [];
+  const popular: SpecialtyKey[] = topSpecialties.slice(0, 5);
 
   return (
     <>
@@ -129,14 +124,14 @@ export default async function HomePage() {
             checked against the medical registers
           </span>
           <h1 className="rise">Find a doctor near you, and see what has actually been checked.</h1>
-          <div className="rise rise-2">
+          <div className="rise rise-2 hero-search">
             <HomeSearch defaultLocation={topCity?.city?.name ?? ""} />
           </div>
-          {topCity && popular.length ? (
+          {popular.length ? (
             <div className="quick rise rise-3">
-              <span>Popular near {topCity.city!.name}:</span>
+              <span>Popular searches:</span>
               {popular.map((k) => (
-                <Link key={k} className="chip" href={paths.citySpecialty(topCity.stateSlug, topCity.citySlug, SPECIALTIES[k].slug)}>
+                <Link key={k} className="chip" href={paths.specialty(k)}>
                   {SPECIALTIES[k].plural}
                 </Link>
               ))}

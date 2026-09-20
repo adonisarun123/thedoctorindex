@@ -927,7 +927,10 @@ img, svg, video { max-width: 100%; height: auto; }
 .hero-dark .bigsearch input { font-size: 16px; }
 .hero-dark .bigsearch button { background: var(--hd-bg); color: var(--hd-fg); border-radius: 4px; padding: 0 30px; font-size: 16px; min-height: 58px; }
 .hero-dark .bigsearch button:hover { background: var(--accent); color: var(--accent-on); }
-.hero-dark .quick { margin-top: 0; color: color-mix(in srgb, var(--hd-fg) 70%, transparent); }
+/* The rise animation gives each row its own stacking context, so the chips row
+   (a later sibling) painted over the search suggestions; lift the search row. */
+.hero-dark .hero-search { position: relative; z-index: 6; width: 100%; max-width: 880px; }
+.hero-dark .quick { position: relative; z-index: 1; margin-top: 0; color: color-mix(in srgb, var(--hd-fg) 70%, transparent); }
 .hero-dark .chip { background: transparent; border-color: color-mix(in srgb, var(--hd-fg) 28%, transparent); color: var(--hd-fg); padding: 5px 12px; border-radius: 4px; font-size: 13px; }
 .hero-dark .chip:hover { border-color: var(--hd-fg); }
 @media (max-width: 760px) {
