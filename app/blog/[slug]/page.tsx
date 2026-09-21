@@ -47,7 +47,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
   const crumbs = [
     { name: "Home", path: paths.home() },
     { name: "Blog", path: paths.blog() },
-    { name: post.metaTitle ?? post.title },
+    { name: post.metaTitle ?? post.title, path: paths.blogPost(post.slug) },
   ];
 
   return (

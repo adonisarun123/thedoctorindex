@@ -25,10 +25,11 @@ export default async function PolicyPage({ params }: { params: Promise<Params> }
   const policy = policyBySlug((await params).slug);
   if (!policy) notFound();
 
+  // No /policies index exists, so there is no middle step to link to; a crumb
+  // without a URL is exactly what Search Console flags.
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
-    { name: "Policies" },
-    { name: policy.title },
+    { name: policy.title, path: paths.policy(policy.slug) },
   ];
 
   return (

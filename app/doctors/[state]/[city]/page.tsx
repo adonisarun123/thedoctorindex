@@ -65,7 +65,7 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
     { name: "Home", path: paths.home() },
     { name: "Doctors by location", path: "/doctors" },
     { name: c.state, path: `/doctors/${state}` },
-    { name: c.name },
+    { name: c.name, path: `/doctors/${state}/${city}` },
   ];
 
   return (

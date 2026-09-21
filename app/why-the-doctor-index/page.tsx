@@ -19,7 +19,7 @@ export const metadata: Metadata = pageMeta({
 export const revalidate = 86400;
 
 export default function WhyPage() {
-  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Why this exists" }];
+  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Why this exists", path: paths.whyThisSite() }];
 
   return (
     <>

@@ -53,7 +53,7 @@ export default async function StatePage({ params }: { params: Promise<Params> })
   const crumbs = [
     { name: "Home", path: paths.home() },
     { name: "Doctors by location", path: "/doctors" },
-    { name: st.name },
+    { name: st.name, path: `/doctors/${state}` },
   ];
 
   return (

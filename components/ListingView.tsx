@@ -84,7 +84,9 @@ export async function ListingView({
     { name: "Home", path: paths.home() },
     { name: city.state, path: `/doctors/${city.stateSlug}` },
     { name: city.name, path: `/doctors/${city.stateSlug}/${city.slug}` },
-    ...(locality ? [{ name: specialty.plural, path: cityPath }, { name: locality.name }] : [{ name: specialty.plural }]),
+    ...(locality
+      ? [{ name: specialty.plural, path: cityPath }, { name: locality.name, path: canonicalPath }]
+      : [{ name: specialty.plural, path: cityPath }]),
   ];
 
   // Localities that clear the supply gate get a crawlable link from this page.

@@ -3,7 +3,13 @@ import { Fragment } from "react";
 
 export interface Crumb {
   name: string;
-  path?: string;
+  /**
+   * Every crumb carries its own URL, the current page included. The trail
+   * below renders the last one as plain text, but BreadcrumbList must emit an
+   * `item` for every ListItem: Search Console reports a missing `item` as an
+   * error, and a trail whose ancestors have no URL is not a trail.
+   */
+  path: string;
 }
 
 /**
@@ -17,7 +23,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
         {items.map((item, i) => (
           <Fragment key={`${item.name}-${i}`}>
             {i > 0 ? <span className="sep">/</span> : null}
-            {item.path ? <Link href={item.path}>{item.name}</Link> : <span>{item.name}</span>}
+            {i < items.length - 1 ? <Link href={item.path}>{item.name}</Link> : <span aria-current="page">{item.name}</span>}
           </Fragment>
         ))}
       </nav>

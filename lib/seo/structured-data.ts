@@ -132,7 +132,12 @@ export function webSiteLd(): Json {
   };
 }
 
-export function breadcrumbLd(items: Array<{ name: string; path?: string }>): Json {
+/**
+ * `path` is required on every crumb, the current page included. Google treats a
+ * ListItem without `item` as an error ("Missing field item"), so the type makes
+ * the omission impossible rather than leaving it to each call site.
+ */
+export function breadcrumbLd(items: Array<{ name: string; path: string }>): Json {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -140,7 +145,7 @@ export function breadcrumbLd(items: Array<{ name: string; path?: string }>): Jso
       "@type": "ListItem",
       position: i + 1,
       name: item.name,
-      ...(item.path ? { item: absoluteUrl(item.path) } : {}),
+      item: absoluteUrl(item.path),
     })),
   };
 }

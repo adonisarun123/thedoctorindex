@@ -64,7 +64,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
         items={[
           { name: "Home", path: paths.home() },
           { name: `Dr ${doctor.name}`, path: paths.doctor(doctor.slug) },
-          { name: TITLE },
+          { name: TITLE, path: `${paths.doctor(doctor.slug)}/report` },
         ]}
       />
       <div className="wrap">

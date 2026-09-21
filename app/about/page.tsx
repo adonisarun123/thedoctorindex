@@ -17,7 +17,7 @@ export const metadata: Metadata = pageMeta({
 
 export default async function AboutPage() {
   const t = await totals();
-  const crumbs = [{ name: "Home", path: paths.home() }, { name: "About" }];
+  const crumbs = [{ name: "Home", path: paths.home() }, { name: "About", path: "/about" }];
   return (
     <>
       <RouteMeta

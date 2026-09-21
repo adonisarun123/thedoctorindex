@@ -54,6 +54,8 @@ export function absoluteUrl(path: string): string {
 export const paths = {
   home: () => "/",
   doctor: (slug: string) => `/doctor/${slug}`,
+  /** Index of every speciality and department. */
+  specialties: () => "/specialties",
   /** Hub page, addressed by speciality key: /specialties/cardiology */
   specialty: (specialtyKey: string) => `/specialties/${specialtyKey}`,
   citySpecialty: (stateSlug: string, citySlug: string, specialtySlug: string) =>

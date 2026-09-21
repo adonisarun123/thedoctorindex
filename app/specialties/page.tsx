@@ -35,7 +35,7 @@ export const revalidate = 3600;
 
 export default async function SpecialtiesIndexPage() {
   const [counts, listed] = await Promise.all([countsBySpecialty(), countsBySpecialty(undefined, "published")]);
-  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Specialities" }];
+  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Specialities", path: paths.specialties() }];
   return (
     <>
       <RouteMeta

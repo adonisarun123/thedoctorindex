@@ -18,7 +18,7 @@ export const metadata: Metadata = pageMeta({
 });
 
 export default function GuidesIndexPage() {
-  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Health guides" }];
+  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Health guides", path: "/health-guides" }];
   return (
     <>
       <RouteMeta

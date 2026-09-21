@@ -97,7 +97,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
     ...(primary?.citySlug ? [{ name: primary.city, path: `/doctors/${primary.stateSlug}/${primary.citySlug}` }] : []),
     { name: specialty.plural, path: listingPath },
     ...localityCrumb,
-    { name: `Dr ${doctor.name}` },
+    { name: `Dr ${doctor.name}`, path: paths.doctor(doctor.slug) },
   ];
 
   const routeMeta: RouteMetaData = {

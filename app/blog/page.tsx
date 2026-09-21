@@ -23,7 +23,7 @@ export const metadata: Metadata = pageMeta({
 export const revalidate = 3600;
 
 export default function BlogIndexPage() {
-  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Blog" }];
+  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Blog", path: paths.blog() }];
   const [lead, ...rest] = POSTS;
 
   return (

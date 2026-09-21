@@ -19,7 +19,7 @@ export default function ForDoctorsPage() {
   return (
     <>
       <RouteMeta data={{ route: "For doctors (landing)", title: String(metadata.title), canonical: absoluteUrl(paths.forDoctors()), index: true, structuredData: "BreadcrumbList" }} />
-      <JsonLd data={breadcrumbLd([{ name: "Home", path: paths.home() }, { name: "For doctors" }])} />
+      <JsonLd data={breadcrumbLd([{ name: "Home", path: paths.home() }, { name: "For doctors", path: paths.forDoctors() }])} />
       <div className="wrap" style={{ paddingTop: "34px", paddingBottom: "50px" }}>
         <span className="eyebrow">For doctors</span>
         <h1 style={{ marginTop: "8px", maxWidth: "22ch" }}>A free profile you control. Nothing to pay, ever, to be found.</h1>

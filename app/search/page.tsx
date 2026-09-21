@@ -75,7 +75,7 @@ export default async function SearchPage({
           ],
         }}
       />
-      <Breadcrumbs items={[{ name: "Home", path: paths.home() }, { name: "Search" }]} />
+      <Breadcrumbs items={[{ name: "Home", path: paths.home() }, { name: "Search", path: "/search" }]} />
 
       <div className="wrap" style={{ paddingTop: "22px" }}>
         <h1 style={{ fontSize: "1.75rem" }}>

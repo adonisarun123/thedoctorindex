@@ -42,7 +42,7 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
   const crumbs = [
     { name: "Home", path: paths.home() },
     { name: "Health guides", path: "/health-guides" },
-    { name: guide.title },
+    { name: guide.title, path: `/health-guides/${guide.slug}` },
   ];
 
   return (

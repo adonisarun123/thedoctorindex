@@ -28,7 +28,7 @@ export const revalidate = 3600;
 export default async function DoctorsIndexPage() {
   const [geo, byState, published, t] = await Promise.all([getGeo(), countsByState(), countsByState("published"), totals()]);
   const states = geo.states.map((st) => ({ ...st, n: byState[st.slug] ?? 0, p: published[st.slug] ?? 0 })).filter((st) => st.p > 0).sort((a, b) => b.n - a.n || b.p - a.p || a.name.localeCompare(b.name));
-  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Doctors by location" }];
+  const crumbs = [{ name: "Home", path: paths.home() }, { name: "Doctors by location", path: "/doctors" }];
 
   return (
     <>

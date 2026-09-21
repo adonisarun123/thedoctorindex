@@ -68,8 +68,8 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   const gate = await withOverride(paths.specialty(specialty.key), listingGate("national", eligible, Boolean(specialty.guide)));
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
-    { name: "Specialities" },
-    { name: specialty.name },
+    { name: "Specialities", path: paths.specialties() },
+    { name: specialty.name, path: paths.specialty(specialty.key) },
   ];
 
   const routeMeta: RouteMetaData = {
