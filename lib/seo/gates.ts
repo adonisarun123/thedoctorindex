@@ -130,9 +130,9 @@ export function listingGate(
       // In "all" mode the guidance is still written and still shown on the
       // page; it just no longer decides whether the page may index, so the 39
       // specialities without a reviewed guide are not held out of the index.
-      label: all ? "Original medically reviewed guidance (shown, not required)" : "Original medically reviewed guidance",
+      label: all ? "Original speciality guidance (shown, not required)" : "Original speciality guidance",
       pass: hasOriginalGuidance,
-      detail: "Speciality guidance written and reviewed for this page, not swapped city names",
+      detail: "Guidance written for this speciality, not another speciality's copy with the nouns swapped. A clinician's review is a separate claim, made only where `reviewedOn` is set.",
     },
   ];
   const required = all ? checks.slice(0, 2) : checks;

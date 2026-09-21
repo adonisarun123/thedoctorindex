@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
-import { countsByLocalitySpecialty, countsBySpecialty, totals } from "@/lib/data";
+import { countsByLocalitySpecialty, countsBySpecialty, supplyProfile, totals } from "@/lib/data";
+import { SupplyPanel } from "@/components/SupplyPanel";
+import { concentrationSentence, councilSentence, countPhrase, gapSentence, placementSentence, qualificationSentence, singletonSentence, supplyFacts, verificationSentence } from "@/lib/content/supply";
 import { getGeo } from "@/lib/data/geo";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
@@ -19,11 +21,21 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { state, city } = await params;
   const c = (await getGeo()).city(state, city);
   if (!c) return { title: "Not found", robots: { index: false, follow: false } };
-  const n = Object.values(await countsBySpecialty({ stateSlug: state, citySlug: city }, "eligible")).reduce((a, b) => a + b, 0);
+  const place = { stateSlug: state, citySlug: city };
+  const [bySpecialty, profile] = await Promise.all([countsBySpecialty(place, "eligible"), supplyProfile(place, undefined, "published")]);
+  const n = Object.values(bySpecialty).reduce((a, b) => a + b, 0);
+  // Data-derived, so 269 city pages do not ship 269 copies of one sentence.
+  const specialities = Object.values(bySpecialty).filter((v) => v > 0).length;
+  const scope = [
+    specialities > 0 ? `${specialities} ${specialities === 1 ? "speciality" : "specialities"}` : null,
+    profile.localities > 0 ? `${profile.localities} ${profile.localities === 1 ? "locality" : "localities"}` : null,
+  ].filter(Boolean).join(" and ");
   return pageMeta({
-    title: `Verified doctors in ${c.name}`,
-    ogTitle: `Verified doctors in ${c.name} by speciality and locality`,
-    description: `Browse verified ${c.name} doctors by speciality and locality. Every profile shows registration, qualification and current practice, dated when checked.`,
+    // Not "Verified doctors in X": verified supply is 6 profiles site-wide,
+    // so that title asserted a check the page's own counts contradict.
+    title: `Doctors in ${c.name}`,
+    ogTitle: `Doctors in ${c.name} by speciality and locality`,
+    description: `${profile.total.toLocaleString("en-IN")} doctors listed in ${c.name}${scope ? ` across ${scope}` : ""}${profile.withRegistration > 0 ? `, ${profile.withRegistration.toLocaleString("en-IN")} with a council registration on record` : ""}. Every profile shows what has been checked, and when.`,
     path: `/doctors/${state}/${city}`,
     index: n > 0,
   });
@@ -48,7 +60,7 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
   if (!c) notFound();
 
   const place = { stateSlug: state, citySlug: city };
-  const [countBySpecialty, listedBySpecialty, perLocality, t] = await Promise.all([countsBySpecialty(place), countsBySpecialty(place, "published"), countsByLocalitySpecialty(city, "eligible"), totals(place)]);
+  const [countBySpecialty, listedBySpecialty, perLocality, t, profile] = await Promise.all([countsBySpecialty(place), countsBySpecialty(place, "published"), countsByLocalitySpecialty(city, "eligible"), totals(place), supplyProfile(place, undefined, "published")]);
   const verified = t.indexable;
   const openSpecialties = SPECIALTY_KEYS.filter((k) => (listedBySpecialty[k] ?? 0) > 0).sort((a, b) => (countBySpecialty[b] ?? 0) - (countBySpecialty[a] ?? 0) || (listedBySpecialty[b] ?? 0) - (listedBySpecialty[a] ?? 0));
   const localities = geo.localitiesIn(city).filter((l) => l.stateSlug === state);
@@ -68,13 +80,33 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
     { name: c.name, path: `/doctors/${state}/${city}` },
   ];
 
+  /*
+   * Measured composition. Every figure below comes from the same pool the
+   * counts on this page already agree on, so the prose cannot drift from the
+   * numbers beside it. The locality distribution is totalled from its own rows
+   * rather than from `t.published`, so its percentage stays internally
+   * consistent whatever the index mode counts.
+   */
+  const specialtyMix = openSpecialties.map((k) => ({ name: SPECIALTIES[k].plural, n: listedBySpecialty[k] ?? 0 })).filter((e) => e.n > 0);
+  const localityMix = sortedLocalities.map((l) => ({ name: l.name, n: localityInfo.get(l.key)?.n ?? 0 })).filter((e) => e.n > 0);
+  const localityTotal = localityMix.reduce((a, e) => a + e.n, 0);
+  const supplySentences = [
+    placementSentence(profile, countPhrase(profile.total, "doctor", "doctors"), c.name),
+    concentrationSentence(specialtyMix, profile.total, { singular: "speciality", plural: "specialities" }),
+    concentrationSentence(localityMix, localityTotal, { singular: "locality", plural: "localities" }, c.name),
+    singletonSentence(localityMix, { singular: "locality", plural: "localities" }),
+    verificationSentence(profile),
+    qualificationSentence(profile),
+    councilSentence(profile),
+  ];
+
   return (
     <>
       <RouteMeta
         data={{
           route: "City hub",
-          title: `Verified doctors in ${c.name} by speciality and locality | The Doctor Index`,
-          h1: `Verified doctors in ${c.name}`,
+          title: `Doctors in ${c.name} by speciality and locality | The Doctor Index`,
+          h1: `Doctors in ${c.name}`,
           canonical: absoluteUrl(`/doctors/${state}/${city}`),
           index: verified > 0,
           structuredData: "CollectionPage, BreadcrumbList",
@@ -86,7 +118,7 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
           ],
         }}
       />
-      <JsonLd data={[collectionLd({ name: `Verified doctors in ${c.name}`, path: `/doctors/${state}/${city}`, items: openSpecialties.map((k) => ({ name: `${SPECIALTIES[k].plural} in ${c.name}`, path: paths.citySpecialty(state, city, SPECIALTIES[k].slug) })) }), breadcrumbLd(crumbs)]} />
+      <JsonLd data={[collectionLd({ name: `Doctors in ${c.name}`, path: `/doctors/${state}/${city}`, items: openSpecialties.map((k) => ({ name: `${SPECIALTIES[k].plural} in ${c.name}`, path: paths.citySpecialty(state, city, SPECIALTIES[k].slug) })) }), breadcrumbLd(crumbs)]} />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">
@@ -94,10 +126,26 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
           <span className="eyebrow">
             {c.state} · {c.name}
           </span>
-          <h1 style={{ marginTop: "10px" }}>Verified doctors in {c.name}</h1>
+          <h1 style={{ marginTop: "10px" }}>Doctors in {c.name}</h1>
+          {/* Zero-valued clauses are dropped rather than printed. Verified
+              supply is 0 in every city and no practice has been confirmed yet,
+              so this line used to open "0 verified … · 0 practice locations"
+              above a panel counting thousands of real records. */}
           <div className="upd">
-            {verified.toLocaleString("en-IN")} verified of {t.published.toLocaleString("en-IN")} listed profiles · {t.practices.toLocaleString("en-IN")} practice locations · {openSpecialties.length} specialities
+            {[
+              `${t.published.toLocaleString("en-IN")} listed profiles`,
+              verified > 0 ? `${verified.toLocaleString("en-IN")} verified` : null,
+              t.practices > 0 ? `${t.practices.toLocaleString("en-IN")} confirmed practice locations` : null,
+              `${openSpecialties.length} specialities`,
+            ].filter(Boolean).join(" · ")}
           </div>
+
+          <SupplyPanel
+            heading={`What the index holds in ${c.name}`}
+            sentences={supplySentences}
+            facts={supplyFacts(profile)}
+            footnote={gapSentence(profile)}
+          />
 
           <h2>By speciality</h2>
           {openSpecialties.length === 0 ? (

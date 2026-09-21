@@ -3,7 +3,7 @@ import { SEED_DOCTORS, type SeedDoctor } from "@/lib/data/doctors";
 import { LOCALITIES, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { rank } from "@/lib/search/fuzzy";
 import { isProfileIndexable, isProfileVerified } from "@/lib/seo/gates";
-import type { DataSource, DoctorSuggestion, Measure, Place, PlaceCount, PlaceSpecialtyCount, Totals } from "@/lib/data/index";
+import type { DataSource, DoctorSuggestion, Measure, MixEntry, Place, PlaceCount, PlaceSpecialtyCount, SupplyProfile, Totals } from "@/lib/data/index";
 import type { Doctor, DoctorView, Practice, SpecialtyKey } from "@/lib/types";
 import { registrationTier } from "@/lib/verification";
 
@@ -142,6 +142,39 @@ export const seedSource: DataSource = {
       claimed: pool.filter((d) => d.claimed).length,
       practices: pool.reduce((n, d) => n + d.practices.filter((p) => p.confirmedOn && p.confirmedOn !== "—").length, 0),
       cities: new Set(pool.flatMap((d) => d.citySlugs)).size,
+    };
+  },
+  /** Same shape as the Postgres source, computed in memory over the fixture. */
+  async supplyProfile(place?: Place, specialty?: SpecialtyKey, measure: Measure = "indexable"): Promise<SupplyProfile> {
+    const pool = indexable(place, specialty, measure);
+    const tally = (values: string[][], min = 1): MixEntry[] => {
+      const counts = new Map<string, number>();
+      for (const row of values) for (const v of new Set(row.filter(Boolean))) counts.set(v, (counts.get(v) ?? 0) + 1);
+      return [...counts.entries()]
+        .filter(([, n]) => n >= min)
+        .map(([name, n]) => ({ name, n }))
+        .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name))
+        .slice(0, 6);
+    };
+    const practices = pool.flatMap((d) => d.practices);
+    const fees = practices.map((p) => p.feeInr).filter((f): f is number => typeof f === "number");
+    const years = pool.map((d) => d.yearsOfExperience).filter((y) => Number.isFinite(y)).sort((a, b) => a - b);
+    return {
+      total: pool.length,
+      withRegistration: pool.filter((d) => Boolean(d.registration?.number) && d.registration.number !== "—").length,
+      registerChecked: pool.filter((d) => registrationTier(d) >= 2).length,
+      claimed: pool.filter((d) => d.claimed).length,
+      withAbout: pool.filter((d) => d.about.trim().length > 0).length,
+      withExperience: years.length,
+      medianYears: years.length ? years[Math.floor((years.length - 1) / 2)] : null,
+      facilities: new Set(practices.map((p) => `${p.facility}|${p.locality}`)).size,
+      localities: new Set(practices.map((p) => p.locality)).size,
+      withFee: pool.filter((d) => d.practices.some((p) => typeof p.feeInr === "number")).length,
+      feeMin: fees.length ? Math.min(...fees) : null,
+      feeMax: fees.length ? Math.max(...fees) : null,
+      qualifications: tally(pool.map((d) => d.qualifications.map((q) => q.degree))),
+      councils: tally(pool.map((d) => (d.registration?.council ? [d.registration.council] : []))).filter((e) => !/[0-9]/.test(e.name) && !/^(council not stated|not stated|unknown|n\/a)$/i.test(e.name)),
+      subspecialties: tally(pool.map((d) => d.subspecialties)).slice(0, 5),
     };
   },
   async searchDoctors(query: string, place?: Place): Promise<DoctorView[]> {

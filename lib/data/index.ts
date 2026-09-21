@@ -73,6 +73,50 @@ export interface PlaceSpecialtyCount {
   n: number;
 }
 
+/** One value in a measured mix: a degree, a council, a subspeciality. */
+export interface MixEntry {
+  name: string;
+  n: number;
+}
+
+/**
+ * What a place (or a place × speciality) actually holds, measured.
+ *
+ * This exists so browse pages can carry content whose every figure is derived
+ * from the records under that page rather than from a sentence template with
+ * the city name swapped in. Every field is a count of something real; a field
+ * that is zero means the data is absent and the copy must say nothing rather
+ * than print a zero. The 9 Sep assessment is the reason this matters: fee,
+ * languages and practice-start-year are recorded for 0.3–5% of the corpus, so
+ * any sentence built on them would be empty on 95%+ of pages.
+ */
+export interface SupplyProfile {
+  /** Doctors in the pool, on the requested measure. */
+  total: number;
+  /** Of those, how many have a council registration number on record. */
+  withRegistration: number;
+  /** Of those, how many have had that number checked against a register. */
+  registerChecked: number;
+  /** Profiles their own doctor has claimed. */
+  claimed: number;
+  /** Profiles carrying a written biography. */
+  withAbout: number;
+  /** Profiles recording when practice began, and the median years since. */
+  withExperience: number;
+  medianYears: number | null;
+  /** Distinct practice addresses and distinct localities the pool practises in. */
+  facilities: number;
+  localities: number;
+  /** Practices recording a consultation fee, and the range across them. */
+  withFee: number;
+  feeMin: number | null;
+  feeMax: number | null;
+  /** Most common recorded degrees, councils and subspecialities, largest first. */
+  qualifications: MixEntry[];
+  councils: MixEntry[];
+  subspecialties: MixEntry[];
+}
+
 export interface Totals {
   published: number;
   indexable: number;
@@ -114,6 +158,8 @@ export type DataSource = {
   /** Indexable count per (locality key, speciality key) within a city — one query for a city hub. */
   countsByLocalitySpecialty(citySlug: string, measure?: Measure): Promise<Array<{ localityKey: string; specialty: string; n: number }>>;
   countsByState(measure?: Measure): Promise<Record<string, number>>;
+  /** Measured composition of one place, optionally narrowed to one speciality. One query. */
+  supplyProfile(place?: Place, specialty?: SpecialtyKey, measure?: Measure): Promise<SupplyProfile>;
   /** Every (city x speciality) combination in one query — the sitemap builds 40,000 URLs from this, not from a query per city. */
   countsByCitySpecialty(measure?: Measure): Promise<PlaceSpecialtyCount[]>;
   /** Every (locality x speciality) combination, site-wide, in one query. */
@@ -175,7 +221,7 @@ const DATA_CACHE_SECONDS = 3600;
  * entries outright, which is the only thing that makes the old and new shapes
  * incapable of meeting.
  */
-const SHAPE_VERSION = "2026-09-17-credentials";
+const SHAPE_VERSION = "2026-09-21-supply-profile";
 
 function cached<A extends unknown[], R>(name: string, fn: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
   return (...args: A) => {
@@ -194,6 +240,7 @@ export const countsByCity = cached("countsByCity", async (k?: SpecialtyKey, meas
 export const countsByLocality = cached("countsByLocality", async (citySlug: string, k?: SpecialtyKey, measure?: Measure) => (await source()).countsByLocality(citySlug, k, measure));
 export const countsByLocalitySpecialty = cached("countsByLocalitySpecialty", async (citySlug: string, measure?: Measure) => (await source()).countsByLocalitySpecialty(citySlug, measure));
 export const countsByState = cached("countsByState", async (measure?: Measure) => (await source()).countsByState(measure));
+export const supplyProfile = cached("supplyProfile", async (place?: Place, k?: SpecialtyKey, measure?: Measure) => (await source()).supplyProfile(place, k, measure));
 export const countsByCitySpecialty = cached("countsByCitySpecialty", async (measure?: Measure) => (await source()).countsByCitySpecialty(measure));
 export const countsByLocalityAll = cached("countsByLocalityAll", async (measure?: Measure) => (await source()).countsByLocalityAll(measure));
 export const totals = cached("totals", async (place?: Place) => (await source()).totals(place));

@@ -28,9 +28,13 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   if (!specialty) return { title: "Not found", robots: { index: false, follow: false } };
   const [count, eligible] = await Promise.all([countIndexable(specialty.key), countIndexable(specialty.key, undefined, "eligible")]);
   return pageMeta({
-    title: `${specialty.name}: verified ${specialty.plural.toLowerCase()} in India`,
-    ogTitle: `${specialty.name} — when to consult ${specialty.aOne}, and verified ${specialty.plural.toLowerCase()} in India`,
-    description: `When to consult ${specialty.aOne}, reviewed ${specialty.reviewedOn}, plus ${count} verified ${specialty.plural.toLowerCase()} with registration, qualification and practice checked.`,
+    // `count` is verified supply and is 0 for all but a handful of profiles,
+    // so the old copy read "verified cardiologists in India … plus 0 verified
+    // cardiologists". The title states the speciality; the number quoted is
+    // the pool that actually exists.
+    title: `${specialty.name}: ${specialty.plural.toLowerCase()} in India`,
+    ogTitle: `${specialty.name} — when to consult ${specialty.aOne}, and ${specialty.plural.toLowerCase()} listed across India`,
+    description: `When to consult ${specialty.aOne}${specialty.reviewedOn ? `, reviewed ${specialty.reviewedOn}` : ""}. ${eligible.toLocaleString("en-IN")} ${specialty.plural.toLowerCase()} listed${count > 0 ? `, ${count.toLocaleString("en-IN")} with registration and practice verified` : ""}; every profile states what has been checked.`,
     path: paths.specialty(specialty.key),
     image: "segment",
     index: (await withOverride(paths.specialty(specialty.key), listingGate("national", eligible, true))).indexable,
@@ -74,7 +78,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
 
   const routeMeta: RouteMetaData = {
     route: "National speciality",
-    title: `${specialty.name} — verified ${specialty.plural.toLowerCase()} in India | The Doctor Index`,
+    title: `${specialty.name} — ${specialty.plural.toLowerCase()} in India | The Doctor Index`,
     h1: specialty.name,
     canonical: absoluteUrl(paths.specialty(specialty.key)),
     index: gate.indexable,
@@ -83,7 +87,9 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
     notes: [
       {
         label: "Why this indexes",
-        text: "It carries original, medically reviewed guidance rather than only a list of doctors. Without that content it would be a thin hub and would stay out of the index.",
+        text: specialty.reviewedOn
+          ? "It carries original guidance that a named clinician has reviewed, rather than only a list of doctors."
+          : "It carries original orientation copy written for this speciality, plus measured supply, rather than only a list of doctors. No medical-review claim is made until a clinician signs the text off.",
       },
       {
         label: "Synonyms",
@@ -103,23 +109,30 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
           <span className="eyebrow">{specialty.department}</span>
           <h1 style={{ marginTop: "10px" }}>{specialty.name}</h1>
           <div className="upd">
-            {count.toLocaleString("en-IN")} verified · {listedTotal.toLocaleString("en-IN")} listed {specialty.plural.toLowerCase()} across {listedCities.length} {listedCities.length === 1 ? "city" : "cities"}
+            {[
+              `${listedTotal.toLocaleString("en-IN")} listed ${specialty.plural.toLowerCase()}`,
+              count > 0 ? `${count.toLocaleString("en-IN")} verified` : null,
+              `${listedCities.length} ${listedCities.length === 1 ? "city" : "cities"}`,
+            ].filter(Boolean).join(" · ")}
           </div>
 
           {specialty.guide ? (
             <>
               <p>{specialty.guide}</p>
-              <h2>Reasons people consult this speciality</h2>
-              <ul>
-                {specialty.when.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
+              {specialty.when.length > 0 ? (
+                <>
+                  <h2>Reasons people consult this speciality</h2>
+                  <ul>
+                    {specialty.when.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
             </>
           ) : (
             <p>
-              Guidance on when to consult {specialty.aOne} is being written and medically reviewed. Until it is signed off, this hub and
-              its city pages stay out of search results; the profiles themselves are complete and reachable.
+              Orientation copy for {specialty.aOne} has not been written yet. The profiles themselves are complete and reachable.
             </p>
           )}
 
@@ -133,7 +146,12 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
             <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
               Medically reviewed · last substantive review {specialty.reviewedOn}.
             </p>
-          ) : null}
+          ) : (
+            <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
+              General orientation written by The Doctor Index, not medical advice about your
+              situation, and not yet reviewed by a clinician. Speak to a doctor about your own case.
+            </p>
+          )}
         </div>
       </div>
 

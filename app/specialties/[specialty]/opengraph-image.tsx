@@ -17,12 +17,14 @@ export function generateStaticParams() {
 export default async function Image({ params }: { params: Promise<{ specialty: string }> }) {
   const sp = specialtyByKey((await params).specialty);
   if (!sp) return ogCard({ title: SITE.tagline, kicker: "Verified directory", eyebrow: "India" });
-  const n = await countIndexable(sp.key);
+  // The published pool, not verified supply: verified supply is 6 profiles
+  // site-wide, so this card used to promise "0 … to choose from".
+  const n = await countIndexable(sp.key, undefined, "eligible");
   return ogCard({
     eyebrow: sp.department,
     title: sp.name,
-    subtitle: `When to consult ${sp.aOne}, in plain language, and ${n} verified ${sp.plural.toLowerCase()} to choose from.`,
+    subtitle: `When to consult ${sp.aOne}, in plain language, and ${n.toLocaleString("en-IN")} ${sp.plural.toLowerCase()} listed across India.`,
     chips: sp.when.slice(0, 3).map((w) => (w.length > 34 ? `${w.slice(0, 32).trimEnd()}…` : w)),
-    kicker: `Medically reviewed ${sp.reviewedOn}`,
+    kicker: sp.reviewedOn ? `Medically reviewed ${sp.reviewedOn}` : "General orientation, not medical advice",
   });
 }

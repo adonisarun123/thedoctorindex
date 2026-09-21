@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { ListingView } from "@/components/ListingView";
 import type { RouteMetaData } from "@/components/RouteMeta";
-import { countIndexable } from "@/lib/data";
+import { countIndexable, supplyProfile } from "@/lib/data";
 import { GATES, hasFacetParams, listingGate } from "@/lib/seo/gates";
 import { resolveListing, type ListingParams } from "@/lib/seo/listing";
 import { pageMeta } from "@/lib/seo/meta";
@@ -65,15 +65,32 @@ export async function generateMetadata({
   const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", eligibleCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 
-  // "Verified", never "Best". "Best cardiologists in Bengaluru" needs a
-  // published methodology, minimum review volume and recency criteria that we
-  // are not prepared to defend, so we do not use the word.
+  /*
+   * Neither "Best" nor "Verified" in the title.
+   *
+   * "Best cardiologists in Bengaluru" needs a published methodology, minimum
+   * review volume and recency criteria we are not prepared to defend. And
+   * "Verified" was worse: `indexableCount` is verified supply, and six of
+   * 25,948 published profiles clear the quality gate, so on 21 Sep 2026 this
+   * description was rendering "0 verified cardiologists in Bengaluru" under a
+   * title asserting they were verified — a claim contradicted by its own
+   * first character, on every listing page on the site. The title now states
+   * the speciality and the place, and the description counts what is actually
+   * on record.
+   */
+  const profile = await supplyProfile(gatePlace, specialty.key, "published");
+  const desc = [
+    `${profile.total.toLocaleString("en-IN")} ${(profile.total === 1 ? specialty.one : specialty.plural).toLowerCase()} listed in ${placeName}`,
+    profile.facilities > 0 ? ` at ${profile.facilities.toLocaleString("en-IN")} practice ${profile.facilities === 1 ? "address" : "addresses"}` : "",
+    profile.withRegistration > 0 ? `, ${profile.withRegistration.toLocaleString("en-IN")} with a council registration on record` : "",
+    ". Every profile states what has been checked, and when.",
+  ].join("");
   return pageMeta({
-    title: `Verified ${specialty.plural} in ${placeName}`,
-    description: `${indexableCount} verified ${(indexableCount === 1 ? specialty.one : specialty.plural).toLowerCase()} in ${placeName}: registration, qualification and practice checked and dated. Filter by locality, language, fee and mode.`,
+    title: `${specialty.plural} in ${placeName}`,
+    description: desc,
     path: canonicalPath,
     index: gate.indexable && !faceted,
-    image: { url: absoluteUrl(`/og/listing${canonicalPath.replace(/^\/doctors/, "")}`), alt: `Verified ${specialty.plural} in ${placeName}` },
+    image: { url: absoluteUrl(`/og/listing${canonicalPath.replace(/^\/doctors/, "")}`), alt: `${specialty.plural} in ${placeName}` },
   });
 }
 
@@ -108,7 +125,7 @@ export default async function ListingPage({
 
   const routeMeta: RouteMetaData = {
     route: locality ? "Locality × speciality" : "City × speciality",
-    title: `Verified ${specialty.plural} in ${placeName} | The Doctor Index`,
+    title: `${specialty.plural} in ${placeName} | The Doctor Index`,
     h1: `${specialty.plural} in ${placeName}`,
     canonical: absoluteUrl(canonicalPath),
     index: gate.indexable && !faceted,
@@ -126,7 +143,7 @@ export default async function ListingPage({
       },
       {
         label: "Title wording",
-        text: 'We use "Verified", never "Best". A best-of page would need a published methodology, a minimum review volume and recency criteria before it could be defended.',
+        text: 'Neither "Best" nor "Verified". A best-of page would need a published methodology, review volume and recency criteria we cannot defend; and "Verified" was asserting a check that six of 25,948 profiles have actually passed — the title said verified while the description said zero. The page now names the speciality and the place, and counts what is on record.',
       },
     ],
   };

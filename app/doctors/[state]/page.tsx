@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
-import { countsByCity, countsByState } from "@/lib/data";
+import { countsByCity, countsByState, supplyProfile } from "@/lib/data";
+import { SupplyPanel } from "@/components/SupplyPanel";
+import { concentrationSentence, councilSentence, countPhrase, gapSentence, placementSentence, qualificationSentence, singletonSentence, supplyFacts, verificationSentence } from "@/lib/content/supply";
 import { getGeo } from "@/lib/data/geo";
 import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
 import { pageMeta } from "@/lib/seo/meta";
@@ -24,10 +26,13 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { state } = await params;
   const st = (await getGeo()).state(state);
   if (!st) return { title: "Not found", robots: { index: false, follow: false } };
-  const n = (await countsByState("eligible"))[st.slug] ?? 0;
+  const [byState, profile] = await Promise.all([countsByState("eligible"), supplyProfile({ stateSlug: state }, undefined, "published")]);
+  const n = byState[st.slug] ?? 0;
+  // Data-derived, so 32 state pages do not ship 32 copies of one sentence.
   return pageMeta({
-    title: `Verified doctors in ${st.name}`,
-    description: `Cities in ${st.name} with verified, currently practising doctors: registration, qualification and practice checked separately and dated on every profile.`,
+    // Not "Verified doctors in X" — see the city page for why.
+    title: `Doctors in ${st.name}`,
+    description: `${profile.total.toLocaleString("en-IN")} doctors listed across ${st.name}${profile.localities > 0 ? `, in ${profile.localities.toLocaleString("en-IN")} localities` : ""}${profile.withRegistration > 0 ? `, ${profile.withRegistration.toLocaleString("en-IN")} with a council registration on record` : ""}. Browse by city, then by speciality.`,
     path: `/doctors/${state}`,
     index: n > 0,
   });
@@ -44,7 +49,7 @@ export default async function StatePage({ params }: { params: Promise<Params> })
   const st = geo.state(state);
   if (!st) notFound();
 
-  const [byCity, byState, pubCity, pubState] = await Promise.all([countsByCity(), countsByState(), countsByCity(undefined, "published"), countsByState("published")]);
+  const [byCity, byState, pubCity, pubState, profile] = await Promise.all([countsByCity(), countsByState(), countsByCity(undefined, "published"), countsByState("published"), supplyProfile({ stateSlug: state }, undefined, "published")]);
   const verified = byState[st.slug] ?? 0;
   const listed = pubState[st.slug] ?? 0;
   const cityCounts = new Map(byCity.filter((c) => c.stateSlug === st.slug).map((c) => [c.citySlug, c.n]));
@@ -56,13 +61,24 @@ export default async function StatePage({ params }: { params: Promise<Params> })
     { name: st.name, path: `/doctors/${state}` },
   ];
 
+  /* Measured composition, on the same pool as the counts above. */
+  const cityMix = cities.map((c) => ({ name: c.name, n: c.p })).filter((e) => e.n > 0);
+  const supplySentences = [
+    placementSentence(profile, countPhrase(profile.total, "doctor", "doctors"), st.name),
+    concentrationSentence(cityMix, profile.total, { singular: "city", plural: "cities" }),
+    singletonSentence(cityMix, { singular: "city", plural: "cities" }),
+    verificationSentence(profile),
+    qualificationSentence(profile),
+    councilSentence(profile),
+  ];
+
   return (
     <>
       <RouteMeta
         data={{
           route: "State",
-          title: `Verified doctors in ${st.name} | The Doctor Index`,
-          h1: `Verified doctors in ${st.name}`,
+          title: `Doctors in ${st.name} | The Doctor Index`,
+          h1: `Doctors in ${st.name}`,
           canonical: absoluteUrl(`/doctors/${state}`),
           index: verified > 0,
           structuredData: "CollectionPage, BreadcrumbList",
@@ -74,16 +90,27 @@ export default async function StatePage({ params }: { params: Promise<Params> })
           ],
         }}
       />
-      <JsonLd data={[collectionLd({ name: `Verified doctors in ${st.name}`, path: `/doctors/${state}`, items: cities.map((c) => ({ name: c.name, path: `/doctors/${state}/${c.slug}` })) }), breadcrumbLd(crumbs)]} />
+      <JsonLd data={[collectionLd({ name: `Doctors in ${st.name}`, path: `/doctors/${state}`, items: cities.map((c) => ({ name: c.name, path: `/doctors/${state}/${c.slug}` })) }), breadcrumbLd(crumbs)]} />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">
         <div className="doc" style={{ maxWidth: "none" }}>
           <span className="eyebrow">{st.name}</span>
-          <h1 style={{ marginTop: "10px" }}>Verified doctors in {st.name}</h1>
+          <h1 style={{ marginTop: "10px" }}>Doctors in {st.name}</h1>
           <div className="upd">
-            {verified.toLocaleString("en-IN")} verified of {listed.toLocaleString("en-IN")} listed profiles · {cities.length} {cities.length === 1 ? "city" : "cities"}
+            {[
+              `${listed.toLocaleString("en-IN")} listed profiles`,
+              verified > 0 ? `${verified.toLocaleString("en-IN")} verified` : null,
+              `${cities.length} ${cities.length === 1 ? "city" : "cities"}`,
+            ].filter(Boolean).join(" · ")}
           </div>
+
+          <SupplyPanel
+            heading={`What the index holds in ${st.name}`}
+            sentences={supplySentences}
+            facts={supplyFacts(profile)}
+            footnote={gapSentence(profile)}
+          />
 
           <h2>Cities and districts</h2>
           <div className="locgrid">

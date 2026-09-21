@@ -10,7 +10,7 @@ import { getDb } from "@/lib/db/client";
 import { daysBetween, toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { isProfileIndexable } from "@/lib/seo/gates";
-import type { DataSource, DoctorSuggestion, Measure, Place, PlaceCount, PlaceSpecialtyCount, Totals } from "@/lib/data/index";
+import type { DataSource, DoctorSuggestion, Measure, MixEntry, Place, PlaceCount, PlaceSpecialtyCount, SupplyProfile, Totals } from "@/lib/data/index";
 import type { DoctorView, Locality, SpecialtyKey } from "@/lib/types";
 
 /**
@@ -423,6 +423,85 @@ export const dbSource: DataSource = {
       select l.state_slug as k, count(distinct d.id)::int as n ${joinFor(measure)} group by l.state_slug
     `)) as unknown as Array<{ k: string; n: number }>;
     return Object.fromEntries(rows.map((r) => [r.k, Number(r.n)]));
+  },
+  /**
+   * One statement, one pool. The CTE is the same set of doctors every count on
+   * the page already agrees on (the measure's join, plus the place and
+   * speciality filters), so the composition can never disagree with the
+   * headline count beside it.
+   *
+   * Councils containing a digit are dropped: six registration rows out of
+   * 9,572 carry a registration number in the council column, and a council
+   * list is a claim about registers, not a place to surface an import defect.
+   */
+  async supplyProfile(place?: Place, specialty?: SpecialtyKey, measure?: Measure): Promise<SupplyProfile> {
+    const pool = sql`
+      with pool as (
+        select distinct d.id, d.claimed, d.practice_start_year, d.subspecialties, d.about
+        ${joinFor(measure)} ${specialty ? sql`and d.specialty_key = ${specialty}` : sql``} ${placeSql(place)}
+      ),
+      quals as (
+        select q.degree as name, count(distinct q.doctor_id)::int as n
+        from doctor_qualifications q join pool p on p.id = q.doctor_id
+        where q.degree <> '' group by 1 order by n desc, 1 limit 6
+      ),
+      councils as (
+        select r.council as name, count(distinct r.doctor_id)::int as n
+        from medical_registrations r join pool p on p.id = r.doctor_id
+        where r.number <> '' and r.council <> '' and r.council !~ '[0-9]'
+          and lower(r.council) not in ('council not stated', 'not stated', 'unknown', 'n/a')
+        group by 1 order by n desc, 1 limit 5
+      ),
+      subs as (
+        select x as name, count(*)::int as n
+        from pool p, unnest(p.subspecialties) x
+        where x <> '' group by 1 having count(*) >= 5 order by n desc, 1 limit 5
+      ),
+      prac as (
+        select dp.facility_id, dp.doctor_id, dp.fee_inr, f2.locality_key
+        from doctor_practices dp join pool p on p.id = dp.doctor_id
+        join facilities f2 on f2.id = dp.facility_id
+        where dp.active
+      )
+      select
+        (select count(*)::int from pool) as total,
+        (select count(*)::int from pool p where exists (select 1 from medical_registrations r where r.doctor_id = p.id and r.number <> '')) as "withRegistration",
+        (select count(*)::int from pool p where exists (select 1 from medical_registrations r where r.doctor_id = p.id and r.checked_on is not null)) as "registerChecked",
+        (select count(*)::int from pool p where p.claimed) as claimed,
+        (select count(*)::int from pool p where p.about <> '') as "withAbout",
+        (select count(*)::int from pool p where p.practice_start_year is not null) as "withExperience",
+        (select (percentile_cont(0.5) within group (order by (${CURRENT_YEAR} - p.practice_start_year)))::int from pool p where p.practice_start_year is not null) as "medianYears",
+        (select count(distinct facility_id)::int from prac) as facilities,
+        (select count(distinct locality_key)::int from prac) as localities,
+        (select count(distinct doctor_id)::int from prac where fee_inr is not null) as "withFee",
+        (select min(fee_inr)::int from prac where fee_inr is not null) as "feeMin",
+        (select max(fee_inr)::int from prac where fee_inr is not null) as "feeMax",
+        (select coalesce(json_agg(json_build_object('name', name, 'n', n)), '[]'::json) from quals) as qualifications,
+        (select coalesce(json_agg(json_build_object('name', name, 'n', n)), '[]'::json) from councils) as councils,
+        (select coalesce(json_agg(json_build_object('name', name, 'n', n)), '[]'::json) from subs) as subspecialties
+    `;
+    const rows = (await getDb().execute(pool)) as unknown as Array<Record<string, unknown>>;
+    const r = rows[0] ?? {};
+    const num = (k: string) => Number(r[k] ?? 0) || 0;
+    const nullable = (k: string) => (r[k] === null || r[k] === undefined ? null : Number(r[k]));
+    const mix = (k: string): MixEntry[] => ((r[k] as MixEntry[] | null) ?? []).map((e) => ({ name: String(e.name), n: Number(e.n) }));
+    return {
+      total: num("total"),
+      withRegistration: num("withRegistration"),
+      registerChecked: num("registerChecked"),
+      claimed: num("claimed"),
+      withAbout: num("withAbout"),
+      withExperience: num("withExperience"),
+      medianYears: nullable("medianYears"),
+      facilities: num("facilities"),
+      localities: num("localities"),
+      withFee: num("withFee"),
+      feeMin: nullable("feeMin"),
+      feeMax: nullable("feeMax"),
+      qualifications: mix("qualifications"),
+      councils: mix("councils"),
+      subspecialties: mix("subspecialties"),
+    };
   },
   async totals(place?: Place): Promise<Totals> {
     const scoped = place && Object.keys(place).length;

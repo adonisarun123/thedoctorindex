@@ -11,7 +11,7 @@ import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
 export const metadata: Metadata = pageMeta({
-  title: "Verified doctors by state and city",
+  title: "Doctors by state and city",
   ogTitle: "Find verified doctors by location in India",
   description: "Browse verified doctors by state and city. A location opens only once it has enough verified, currently practising doctors to be useful.",
   path: "/doctors",
@@ -36,7 +36,7 @@ export default async function DoctorsIndexPage() {
         data={{
           route: "Location browse root",
           title: "Find verified doctors by location in India | The Doctor Index",
-          h1: "Verified doctors across India",
+          h1: "Doctors across India",
           canonical: absoluteUrl("/doctors"),
           index: true,
           structuredData: "CollectionPage, BreadcrumbList",
@@ -48,13 +48,13 @@ export default async function DoctorsIndexPage() {
           ],
         }}
       />
-      <JsonLd data={[collectionLd({ name: "Verified doctors by state", path: "/doctors", items: states.map((st) => ({ name: st.name, path: `/doctors/${st.slug}` })) }), breadcrumbLd(crumbs)]} />
+      <JsonLd data={[collectionLd({ name: "Doctors by state", path: "/doctors", items: states.map((st) => ({ name: st.name, path: `/doctors/${st.slug}` })) }), breadcrumbLd(crumbs)]} />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">
         <div className="doc" style={{ maxWidth: "none" }}>
           <span className="eyebrow">Browse by location</span>
-          <h1 style={{ marginTop: "10px" }}>Verified doctors across India</h1>
+          <h1 style={{ marginTop: "10px" }}>Doctors across India</h1>
           <div className="upd">
             {t.indexable.toLocaleString("en-IN")} verified of {t.published.toLocaleString("en-IN")} profiles · {states.length} states and union territories · {t.cities.toLocaleString("en-IN")} cities
           </div>

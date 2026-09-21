@@ -8,12 +8,14 @@ import { NearMe } from "@/components/NearMe";
 import { FilterRail } from "@/components/FilterRail";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
-import { LISTING_CAP, LISTING_PAGE, allLanguages, applyFilters, countsByLocality, getListing } from "@/lib/data";
+import { LISTING_CAP, LISTING_PAGE, allLanguages, applyFilters, countsByLocality, getListing, supplyProfile } from "@/lib/data";
+import { SupplyPanel } from "@/components/SupplyPanel";
+import { concentrationSentence, councilSentence, countPhrase, gapSentence, listingFaq, placementSentence, qualificationSentence, subspecialtySentence, supplyFacts, verificationSentence } from "@/lib/content/supply";
 import { getGeo } from "@/lib/data/geo";
 import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
 import { sortBy } from "@/lib/ranking";
 import { GATES } from "@/lib/seo/gates";
-import { breadcrumbLd, listingLd } from "@/lib/seo/structured-data";
+import { breadcrumbLd, faqLd, listingLd } from "@/lib/seo/structured-data";
 import { paths } from "@/lib/site";
 import type { City, ListingFilters, Locality, Specialty } from "@/lib/types";
 
@@ -94,6 +96,32 @@ export async function ListingView({
   const localityCounts = locality ? {} : await countsByLocality(city.slug, specialty.key, "eligible");
   const localityLinks = locality ? [] : cityLocalities.filter((l) => (localityCounts[l.key] ?? 0) >= GATES.localityLinkMin);
 
+  /*
+   * Measured composition of this exact pool.
+   *
+   * The speciality guidance below is written once per speciality and is
+   * therefore identical on every city and locality page that shows it — which
+   * is fine for one block and fatal as a whole page. Everything in this block
+   * is counted from the records under this URL, so what makes a Jayanagar
+   * cardiology page different from a Koramangala one is not the adjective, it
+   * is the data. `withOverride`-gated links aside, no sentence here is emitted
+   * unless the figure behind it exists (see lib/content/supply.ts).
+   */
+  const profile = await supplyProfile(place, specialty.key, "published");
+  const localityMix = locality
+    ? []
+    : cityLocalities.map((l) => ({ name: l.name, n: localityCounts[l.key] ?? 0 })).filter((e) => e.n > 0).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  const localityTotal = localityMix.reduce((a, e) => a + e.n, 0);
+  const supplySentences = [
+    placementSentence(profile, countPhrase(profile.total, specialty.one, specialty.plural), placeName),
+    locality ? null : concentrationSentence(localityMix, localityTotal, { singular: "locality", plural: "localities" }, city.name),
+    verificationSentence(profile),
+    qualificationSentence(profile),
+    councilSentence(profile),
+    subspecialtySentence(profile),
+  ];
+  const faqs = listingFaq(profile, specialty, placeName, localityMix, city.name);
+
   return (
     <>
       <RouteMeta data={routeMeta} />
@@ -101,6 +129,9 @@ export async function ListingView({
         data={[
           listingLd(specialty, placeName, canonicalPath, results, { city: city.name, state: city.state }),
           breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path }))),
+          // Emitted from the same array the block below renders, so the markup
+          // can never assert a question the page does not visibly answer.
+          ...(faqs.length > 0 ? [faqLd(canonicalPath, faqs)] : []),
         ]}
       />
       <Breadcrumbs items={crumbs} />
@@ -165,37 +196,63 @@ export async function ListingView({
               </div>
             )}
 
+            <SupplyPanel
+              heading={`${specialty.plural} in ${placeName}, by the record`}
+              sentences={supplySentences}
+              facts={supplyFacts(profile)}
+              footnote={gapSentence(profile)}
+            />
+
+            {faqs.length > 0 ? (
+              <div className="panel pad" style={{ marginTop: "14px" }}>
+                <h2 style={{ fontSize: "1.22rem", marginBottom: "10px", marginTop: 0 }}>
+                  Questions about {specialty.plural.toLowerCase()} in {placeName}
+                </h2>
+                <dl className="faqlist">
+                  {faqs.map((f) => (
+                    <div key={f.q}>
+                      <dt>{f.q}</dt>
+                      <dd>{f.a}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ) : null}
+
             {specialty.guide ? (
             <div className="panel pad" style={{ marginTop: "22px" }}>
               <h2 style={{ fontSize: "1.22rem", marginBottom: "8px" }}>
-                When to consult {specialty.aOne}
+                {specialty.when.length > 0 ? `When to consult ${specialty.aOne}` : `About ${specialty.name.toLowerCase()}`}
               </h2>
               <p style={{ fontSize: "14.5px", color: "var(--ink-2)", maxWidth: "66ch" }}>
                 {specialty.guide}
               </p>
-              <ul
-                style={{
-                  margin: "12px 0 0",
-                  paddingLeft: "20px",
-                  fontSize: "14px",
-                  color: "var(--ink-2)",
-                }}
-              >
-                {specialty.when.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
+              {specialty.when.length > 0 ? (
+                <ul
+                  style={{
+                    margin: "12px 0 0",
+                    paddingLeft: "20px",
+                    fontSize: "14px",
+                    color: "var(--ink-2)",
+                  }}
+                >
+                  {specialty.when.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              ) : null}
               <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "14px" }}>
-                Medically reviewed · last substantive review {specialty.reviewedOn}. General guidance,
-                not advice about your situation.
+                {specialty.reviewedOn
+                  ? `Medically reviewed · last substantive review ${specialty.reviewedOn}. General guidance, not advice about your situation.`
+                  : "General orientation written by The Doctor Index. Not reviewed by a clinician, and not advice about your situation."}
               </p>
             </div>
             ) : (
             <div className="panel pad" style={{ marginTop: "22px" }}>
               <h2 style={{ fontSize: "1.22rem", marginBottom: "8px" }}>About {specialty.name.toLowerCase()}</h2>
               <p style={{ fontSize: "14.5px", color: "var(--ink-2)", maxWidth: "66ch" }}>
-                Guidance on when to consult {specialty.aOne} is being written and medically reviewed. Until it is signed off this page is
-                kept out of search results; the profiles themselves are complete and usable.
+                Orientation copy for {specialty.aOne} has not been written yet. The profiles on this
+                page are complete and usable.
               </p>
             </div>
             )}
