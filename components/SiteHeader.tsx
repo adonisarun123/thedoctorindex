@@ -8,7 +8,7 @@ import { AccountMenu } from "@/components/AccountMenu";
 import { HeaderSearch } from "@/components/HeaderSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
-import { SITE, paths, HOME_CITY } from "@/lib/site";
+import { SITE, paths } from "@/lib/site";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -58,9 +58,12 @@ export function SiteHeader() {
 
       <div id="mobnav" className={`mobnav${open ? " open" : ""}`}>
         <div className="wrap">
-          <div className="h">Browse {HOME_CITY.name}</div>
+          {/* Speciality hubs, not city x speciality. A fixed city link per
+              speciality points at pages we may have no supply for, which now
+              404 — and the hub sends the reader to the cities that do. */}
+          <div className="h">Browse specialities</div>
           {SPECIALTY_KEYS.map((k) => (
-            <Link key={k} href={paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, SPECIALTIES[k].slug)}>
+            <Link key={k} href={paths.specialty(k)}>
               {SPECIALTIES[k].plural}
             </Link>
           ))}

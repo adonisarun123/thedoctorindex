@@ -48,11 +48,20 @@ export async function generateMetadata({
 
   const sp = await searchParams;
   const { specialty, city, locality, canonicalPath, placeName } = resolved;
-  // Two counts, deliberately: `indexableCount` is verified supply and is what
-  // the copy calls verified; `eligibleCount` is the pool the current index mode
-  // publishes and is what the gate decides on.
+  // Three counts, deliberately. `publishedCount` is every listed profile in
+  // this place and decides whether the page exists at all: a listing with no
+  // profiles behind it is not a thin page to be gated, it is a page we do not
+  // have, so it 404s rather than rendering an empty list for Google to crawl.
+  // `indexableCount` is verified supply and is what the copy calls verified;
+  // `eligibleCount` is the pool the current index mode publishes and is what
+  // the gate decides on.
   const gatePlace = locality ? { localityKey: locality.key } : { stateSlug: city.stateSlug, citySlug: city.slug };
-  const [indexableCount, eligibleCount] = await Promise.all([countIndexable(specialty.key, gatePlace), countIndexable(specialty.key, gatePlace, "eligible")]);
+  const [publishedCount, indexableCount, eligibleCount] = await Promise.all([
+    countIndexable(specialty.key, gatePlace, "published"),
+    countIndexable(specialty.key, gatePlace),
+    countIndexable(specialty.key, gatePlace, "eligible"),
+  ]);
+  if (publishedCount === 0) return { title: "Page not found", robots: { index: false, follow: false } };
   const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", eligibleCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 
@@ -80,11 +89,20 @@ export default async function ListingPage({
 
   const sp = await searchParams;
   const { specialty, city, locality, canonicalPath, placeName } = resolved;
-  // Two counts, deliberately: `indexableCount` is verified supply and is what
-  // the copy calls verified; `eligibleCount` is the pool the current index mode
-  // publishes and is what the gate decides on.
+  // Three counts, deliberately. `publishedCount` is every listed profile in
+  // this place and decides whether the page exists at all: a listing with no
+  // profiles behind it is not a thin page to be gated, it is a page we do not
+  // have, so it 404s rather than rendering an empty list for Google to crawl.
+  // `indexableCount` is verified supply and is what the copy calls verified;
+  // `eligibleCount` is the pool the current index mode publishes and is what
+  // the gate decides on.
   const gatePlace = locality ? { localityKey: locality.key } : { stateSlug: city.stateSlug, citySlug: city.slug };
-  const [indexableCount, eligibleCount] = await Promise.all([countIndexable(specialty.key, gatePlace), countIndexable(specialty.key, gatePlace, "eligible")]);
+  const [publishedCount, indexableCount, eligibleCount] = await Promise.all([
+    countIndexable(specialty.key, gatePlace, "published"),
+    countIndexable(specialty.key, gatePlace),
+    countIndexable(specialty.key, gatePlace, "eligible"),
+  ]);
+  if (publishedCount === 0) notFound();
   const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", eligibleCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 

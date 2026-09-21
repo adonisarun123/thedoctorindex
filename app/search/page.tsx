@@ -12,7 +12,7 @@ import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
 import { resolvePlaceQuery } from "@/lib/data/geo";
 import { SPECIALTIES, SPECIALTY_KEYS, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { privateMeta } from "@/lib/seo/meta";
-import { absoluteUrl, paths, HOME_CITY } from "@/lib/site";
+import { absoluteUrl, paths } from "@/lib/site";
 
 /**
  * Internal search results. Never indexed (plan §6): every profile is also
@@ -117,11 +117,7 @@ export default async function SearchPage({
               </p>
               <div className="opts">
                 {SPECIALTY_KEYS.map((k) => (
-                  <Link
-                    key={k}
-                    className="chip"
-                    href={paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, SPECIALTIES[k].slug)}
-                  >
+                  <Link key={k} className="chip" href={paths.specialty(k)}>
                     {SPECIALTIES[k].plural}
                   </Link>
                 ))}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
-import { paths, HOME_CITY } from "@/lib/site";
+import { paths } from "@/lib/site";
 
 /**
  * A genuine 404. Empty or nonsensical speciality-and-location combinations end
@@ -26,12 +26,8 @@ export default function NotFound() {
         <h2>Try one of these</h2>
         <div className="quick">
           {SPECIALTY_KEYS.map((k) => (
-            <Link
-              key={k}
-              className="chip"
-              href={paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, SPECIALTIES[k].slug)}
-            >
-              {SPECIALTIES[k].plural} in {HOME_CITY.name}
+            <Link key={k} className="chip" href={paths.specialty(k)}>
+              {SPECIALTIES[k].plural}
             </Link>
           ))}
         </div>
