@@ -59,8 +59,11 @@ export const seedSource: DataSource = {
     const d = ALL.find((x) => x.id === publicId);
     return d && d.slug !== slug ? `/doctor/${d.slug}` : null;
   },
-  async findByRegistration(registrationNumber: string): Promise<DoctorView | null> {
-    return BY_REGISTRATION.get(registrationNumber.toUpperCase().replace(/[^A-Z0-9]/g, "")) ?? null;
+  async findByRegistration(registrationNumber: string, council?: string): Promise<DoctorView | null> {
+    const d = BY_REGISTRATION.get(registrationNumber.toUpperCase().replace(/[^A-Z0-9]/g, "")) ?? null;
+    const key = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (d && council && key(d.registration.council) !== key(council)) return null;
+    return d;
   },
   async getListing(specialty: SpecialtyKey, place: Place, limit = 200): Promise<DoctorView[]> {
     return ALL.filter((d) => d.specialty === specialty && inPlace(d, place))

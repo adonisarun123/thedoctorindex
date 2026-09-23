@@ -359,11 +359,20 @@ export const dbSource: DataSource = {
     const [v] = await viewsByIds([id]);
     return v ?? null;
   },
-  async findByRegistration(registrationNumber: string): Promise<DoctorView | null> {
+  async findByRegistration(registrationNumber: string, council?: string): Promise<DoctorView | null> {
+    // Bare numbers repeat across councils ("31042" is a Rajasthan doctor and a
+    // Karnataka one), so identity is council + number. A record whose council
+    // was never stated still matches on its number. Anything that resolves to
+    // more than one doctor is treated as no match, never as the first row.
     const norm = registrationNumber.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const [reg] = await getDb().select({ doctorId: s.medicalRegistrations.doctorId }).from(s.medicalRegistrations).where(eq(s.medicalRegistrations.numberNormalized, norm)).limit(1);
-    if (!reg) return null;
-    const [v] = await viewsByIds([reg.doctorId]);
+    if (!norm) return null;
+    const councilNorm = (council ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const where = councilNorm
+      ? and(eq(s.medicalRegistrations.numberNormalized, norm), sql`${s.medicalRegistrations.councilNormalized} in (${councilNorm}, 'COUNCILNOTSTATED', '')`)
+      : eq(s.medicalRegistrations.numberNormalized, norm);
+    const regs = await getDb().selectDistinct({ doctorId: s.medicalRegistrations.doctorId }).from(s.medicalRegistrations).where(where).limit(2);
+    if (regs.length !== 1) return null;
+    const [v] = await viewsByIds([regs[0].doctorId]);
     return v ?? null;
   },
   async getListing(specialty: SpecialtyKey, place: Place, limit = CAP): Promise<DoctorView[]> {

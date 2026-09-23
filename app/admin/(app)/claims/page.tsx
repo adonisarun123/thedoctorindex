@@ -16,7 +16,7 @@ export default async function AdminClaims({ searchParams }: { searchParams: Prom
   await requireStaff();
   const sp = await searchParams;
   const showAll = sp.all === "1";
-  const rows = await getDb().query.doctorClaims.findMany({ where: showAll ? undefined : eq(s.doctorClaims.status, "pending"), with: { doctor: true, user: true }, orderBy: [desc(s.doctorClaims.createdAt)], limit: 100 });
+  const rows = await getDb().query.doctorClaims.findMany({ where: showAll ? undefined : eq(s.doctorClaims.status, "pending"), with: { doctor: { with: { registrations: true } }, user: true }, orderBy: [desc(s.doctorClaims.createdAt)], limit: 100 });
 
   return (
     <>
@@ -39,6 +39,12 @@ export default async function AdminClaims({ searchParams }: { searchParams: Prom
           </div>
           <dl className="kvi">
             <dt>Registration given</dt><dd className="mono">{c.registrationNumber}</dd>
+            <dt>On the profile</dt>
+            <dd className="mono">
+              {c.doctor.registrations.length
+                ? c.doctor.registrations.map((r) => `${r.council} · ${r.number}${r.checkedOn ? " (register-checked)" : ""}`).join("; ")
+                : "No registration on file — check the one given against the register before approving."}
+            </dd>
             <dt>Method</dt><dd>{METHOD[c.method]}</dd>
             {c.evidenceFileId ? <><dt>Evidence</dt><dd><Link href={`/admin/files/${c.evidenceFileId}`} target="_blank">Open private document ↗</Link></dd></> : null}
             {c.note ? <><dt>Note</dt><dd>{c.note}</dd></> : null}

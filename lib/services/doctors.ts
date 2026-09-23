@@ -8,6 +8,7 @@ import { getDb } from "@/lib/db/client";
 import { daysBetween, todayIso } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
+import { normalizeLanguages } from "@/lib/data/languages";
 
 /**
  * Doctor record service: creation by staff, direct edits by staff, lifecycle,
@@ -174,7 +175,7 @@ export async function createDoctor(input: NewDoctorInput, actorUserId: string | 
         specialtyKey: input.specialtyKey,
         subspecialties: input.subspecialties ?? [],
         practiceStartYear: input.practiceStartYear ?? null,
-        languages: input.languages ?? [],
+        languages: normalizeLanguages(input.languages ?? []),
         modes: input.modes ?? ["In person"],
         about: input.about ?? "",
         services: input.services ?? [],
@@ -291,7 +292,7 @@ export async function applyField(doctorId: string, field: string, value: unknown
       specialtyKey: (v) => ({ specialtyKey: String(v) }),
       practiceStartYear: (v) => ({ practiceStartYear: v ? Number(v) : null }),
       subspecialties: (v) => ({ subspecialties: toList(v) }),
-      languages: (v) => ({ languages: toList(v) }),
+      languages: (v) => ({ languages: normalizeLanguages(toList(v)) }),
       modes: (v) => ({ modes: toList(v) }),
       services: (v) => ({ services: toList(v) }),
       hprVerified: (v) => ({ hprVerified: Boolean(v) }),

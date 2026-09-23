@@ -11,8 +11,8 @@ import { localityFromForm } from "@/lib/services/places";
  * Duplicate check, run on the server so the directory never ships to the
  * browser. Identity is council + registration number, never the name.
  */
-export async function lookupRegistration(registrationNumber: string): Promise<DoctorView | null> {
-  return findByRegistration(registrationNumber);
+export async function lookupRegistration(registrationNumber: string, council: string): Promise<DoctorView | null> {
+  return findByRegistration(registrationNumber, council);
 }
 
 export interface SubmitState {

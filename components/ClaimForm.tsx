@@ -4,8 +4,17 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { claimAction, type ClaimState } from "@/app/claim-profile/actions";
+import { CouncilSelect } from "@/components/CouncilSelect";
 
-export function ClaimForm({ initialRegistration }: { initialRegistration: string }) {
+export interface ClaimTarget {
+  slug: string;
+  name: string;
+  specialty: string;
+  hasRegistration: boolean;
+  council: string;
+}
+
+export function ClaimForm({ initialRegistration, profile }: { initialRegistration: string; profile: ClaimTarget | null }) {
   const [state, act, pending] = useActionState<ClaimState, FormData>(claimAction, {});
   const [method, setMethod] = useState("practice_otp");
 
@@ -23,10 +32,23 @@ export function ClaimForm({ initialRegistration }: { initialRegistration: string
   return (
     <form className="panel pad" action={act}>
       {state.error ? <div className="notice alert" style={{ marginBottom: "16px" }}>{state.error}</div> : null}
+      {profile ? (
+        <div className="notice" style={{ marginBottom: "16px" }}>
+          Claiming <b>Dr {profile.name}</b>{profile.specialty ? ` · ${profile.specialty}` : ""}.{" "}
+          {profile.hasRegistration
+            ? "Enter the council and number exactly as they appear on this profile."
+            : "This profile has no registration on file yet. Enter yours; a verification officer checks it against the register before approving."}
+          <input type="hidden" name="profile" value={profile.slug} />
+        </div>
+      ) : null}
+      <div className="field">
+        <label htmlFor="council">Council or registering body</label>
+        <CouncilSelect id="council" name="council" defaultValue={profile?.council || undefined} />
+      </div>
       <div className="field">
         <label htmlFor="reg">Registration number</label>
         <input id="reg" name="registration" type="text" required defaultValue={initialRegistration} placeholder="KMC-58412" />
-        <div className="hint">Must match the registration on the profile you are claiming.</div>
+        <div className="hint">We match council and number together. The same number can belong to different doctors in different states.</div>
       </div>
       <div className="field">
         <label>How should we confirm you control this profile?</label>

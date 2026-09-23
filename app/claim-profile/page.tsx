@@ -5,6 +5,9 @@ import { ClaimForm } from "@/components/ClaimForm";
 import { OtpSignIn } from "@/components/OtpSignIn";
 import { RouteMeta } from "@/components/RouteMeta";
 import { getSessionUser, setupPath } from "@/lib/auth/session";
+import { getDoctorBySlug } from "@/lib/data";
+import { SPECIALTIES } from "@/lib/data/specialties";
+import { registrationState } from "@/lib/verification";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -17,8 +20,23 @@ export const dynamic = "force-dynamic";
 export default async function ClaimProfilePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const initial = typeof sp.registration === "string" ? sp.registration : "";
+  const profileSlug = typeof sp.profile === "string" ? sp.profile : "";
+  const doctor = profileSlug ? await getDoctorBySlug(profileSlug) : null;
+  const profile = doctor && !doctor.claimed
+    ? {
+        slug: doctor.slug,
+        name: doctor.name,
+        specialty: SPECIALTIES[doctor.specialty]?.name ?? "",
+        hasRegistration: registrationState(doctor) !== "none",
+        council:
+          registrationState(doctor) !== "none" && !/^(council not stated|—)$/i.test(doctor.registration.council)
+            ? doctor.registration.council
+            : "",
+      }
+    : null;
+  const nextQuery = profile ? `?profile=${encodeURIComponent(profile.slug)}` : initial ? `?registration=${encodeURIComponent(initial)}` : "";
   const user = await getSessionUser();
-  if (user && !user.profileComplete) redirect(setupPath("/claim-profile"));
+  if (user && !user.profileComplete) redirect(setupPath(`/claim-profile${nextQuery}`));
   return (
     <>
       <RouteMeta
@@ -39,11 +57,11 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
             Claiming is free and gives you control of the editable fields, the right to reply to reviews, and access to how patients are finding you.
           </p>
           {user ? (
-            <ClaimForm initialRegistration={initial} />
+            <ClaimForm initialRegistration={initial} profile={profile} />
           ) : (
             <div className="panel pad">
               <div className="eyebrow" style={{ marginBottom: "10px" }}>Sign in first</div>
-              <OtpSignIn next={`/claim-profile${initial ? `?registration=${encodeURIComponent(initial)}` : ""}`} label="Continue" />
+              <OtpSignIn next={`/claim-profile${nextQuery}`} label="Continue" />
             </div>
           )}
         </div>

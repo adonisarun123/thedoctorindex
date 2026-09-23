@@ -18,7 +18,7 @@ import type { DoctorView } from "@/lib/types";
  * claim flow instead of creating a duplicate. Step 3 writes a submission that
  * staff approve in the admin panel.
  */
-export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string) => Promise<DoctorView | null> }) {
+export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string, council: string) => Promise<DoctorView | null> }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [registration, setRegistration] = useState("");
   const [council, setCouncil] = useState(COUNCIL_NAMES[0]);
@@ -28,7 +28,7 @@ export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string)
 
   async function check() {
     setChecking(true);
-    setMatch(await lookup(registration));
+    setMatch(await lookup(registration, council));
     setChecking(false);
     setStep(2);
   }
@@ -95,7 +95,7 @@ export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string)
                 <TrustBadges doctor={match} />
               </div>
               <div className="act">
-                <Link className="btn solid" href={`${paths.claimProfile()}?registration=${encodeURIComponent(match.registration.number)}`}>Claim this profile</Link>
+                <Link className="btn solid" href={`${paths.claimProfile()}?profile=${encodeURIComponent(match.slug)}`}>Claim this profile</Link>
               </div>
             </article>
           </div>

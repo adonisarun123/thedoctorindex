@@ -97,17 +97,28 @@ export async function decideSubmission(id: string, decision: "approved" | "rejec
 /* Claims (plan §9.3)                                                        */
 /* ------------------------------------------------------------------------- */
 
-export async function createClaim(userId: string, doctorId: string, registrationNumber: string, method: "practice_otp" | "work_email" | "practice_admin" | "document", evidenceFileId?: string | null) {
+export async function createClaim(userId: string, doctorId: string, registrationNumber: string, method: "practice_otp" | "work_email" | "practice_admin" | "document", evidenceFileId?: string | null, council?: string) {
   const db = getDb();
   const [d] = await db.select({ id: s.doctors.id, claimed: s.doctors.claimed, claimedBy: s.doctors.claimedByUserId }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
   if (!d) throw new Error("profile not found");
   if (d.claimed && d.claimedBy === userId) throw new Error("You already control this profile.");
-  const [reg] = await db.select({ n: s.medicalRegistrations.numberNormalized }).from(s.medicalRegistrations).where(eq(s.medicalRegistrations.doctorId, doctorId)).limit(1);
-  if (!reg || reg.n !== normalizeKey(registrationNumber)) throw new Error("The registration number does not match this profile.");
+  // Any registration on the profile may match (a doctor can hold a state and a
+  // transfer entry). With a council given, it must agree unless the record never
+  // stated one. A profile with no registration on file is still claimable: the
+  // number given is recorded and a verification officer checks it against the
+  // register before approving — nothing about a claim is automatic.
+  const regs = await db.select({ n: s.medicalRegistrations.numberNormalized, c: s.medicalRegistrations.councilNormalized }).from(s.medicalRegistrations).where(eq(s.medicalRegistrations.doctorId, doctorId));
+  const numberKey = normalizeKey(registrationNumber);
+  const councilKey = council ? normalizeKey(council) : "";
+  if (!numberKey) throw new Error("Enter your registration number.");
+  if (regs.length && !regs.some((r) => r.n === numberKey && (!councilKey || r.c === councilKey || r.c === "COUNCILNOTSTATED" || r.c === ""))) {
+    throw new Error("That council and registration number do not match this profile.");
+  }
   const [open] = await db.select({ id: s.doctorClaims.id }).from(s.doctorClaims).where(and(eq(s.doctorClaims.doctorId, doctorId), eq(s.doctorClaims.userId, userId), eq(s.doctorClaims.status, "pending"))).limit(1);
   if (open) throw new Error("Your claim is already under review.");
-  const [row] = await db.insert(s.doctorClaims).values({ doctorId, userId, registrationNumber, method, evidenceFileId: evidenceFileId ?? null }).returning();
-  await audit({ actorUserId: userId, action: "claim.created", entityType: "claim", entityId: row.id, after: { doctorId, method } });
+  const given = council ? `${council} · ${registrationNumber}` : registrationNumber;
+  const [row] = await db.insert(s.doctorClaims).values({ doctorId, userId, registrationNumber: given, method, evidenceFileId: evidenceFileId ?? null }).returning();
+  await audit({ actorUserId: userId, action: "claim.created", entityType: "claim", entityId: row.id, after: { doctorId, method, registrationOnFile: regs.length > 0 } });
   return row;
 }
 
