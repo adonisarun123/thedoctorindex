@@ -379,6 +379,7 @@ export async function getDoctorAdmin(id: string) {
     with: {
       registrations: true,
       qualifications: { orderBy: (q, { asc }) => [asc(q.sort)] },
+      credentials: { orderBy: (c, { asc }) => [asc(c.sort), asc(c.createdAt)] },
       experience: { orderBy: (e, { asc }) => [asc(e.sort)] },
       practices: { with: { facility: { with: { locality: true } } }, orderBy: (p, { asc }) => [asc(p.sort)] },
       reviews: { with: { response: true, evidenceFiles: true }, orderBy: (r, { desc }) => [desc(r.submittedAt)] },
@@ -413,6 +414,61 @@ export async function markRegistrationChecked(doctorId: string, actorUserId: str
   await db.insert(s.verificationChecks).values({ doctorId, kind: "registration", result, source: "State Medical Council register", checkedByUserId: actorUserId, note });
   if (result === "verified") await db.update(s.doctors).set({ lastVerifiedOn: today }).where(eq(s.doctors.id, doctorId));
   await audit({ actorUserId, actorRole: "staff", action: `doctor.registration.${result}`, entityType: "doctor", entityId: doctorId, reason: note });
+  await recomputeQuality(doctorId);
+}
+
+/**
+ * Staff: set or correct the council and number on a profile.
+ *
+ * The primary registration is replaced (or created when there is none), and
+ * it returns to unchecked — a corrected number is a new claim until someone
+ * matches it against the register. A council + number that already belongs
+ * to another profile is refused and named, never silently moved: that is a
+ * merge, not an edit.
+ */
+export async function setPrimaryRegistration(
+  doctorId: string,
+  input: { council: string; number: string; registeredYear?: number | null },
+  staffUserId: string,
+  note?: string,
+): Promise<void> {
+  const db = getDb();
+  const council = input.council.trim();
+  const number = input.number.trim();
+  if (council.length < 3) throw new Error("Choose the council or registering body.");
+  if (!normalizeKey(number)) throw new Error("Enter the registration number.");
+  const numberNormalized = normalizeKey(number);
+  const councilNormalized = normalizeKey(council);
+  const year = input.registeredYear ? Number(input.registeredYear) : null;
+  if (year !== null && (year < 1940 || year > new Date().getFullYear())) throw new Error("Registration year is out of range.");
+
+  const [holder] = await db
+    .select({ doctorId: s.medicalRegistrations.doctorId, name: s.doctors.name })
+    .from(s.medicalRegistrations)
+    .innerJoin(s.doctors, eq(s.doctors.id, s.medicalRegistrations.doctorId))
+    .where(and(eq(s.medicalRegistrations.councilNormalized, councilNormalized), eq(s.medicalRegistrations.numberNormalized, numberNormalized)))
+    .limit(1);
+  if (holder && holder.doctorId !== doctorId) {
+    throw new Error(`${council} ${number} is already on another profile (${holder.name}, ${holder.doctorId}). If they are the same person, merge the profiles instead.`);
+  }
+
+  const regs = await db.select().from(s.medicalRegistrations).where(eq(s.medicalRegistrations.doctorId, doctorId));
+  const primary = regs.find((r) => r.isPrimary) ?? regs[0] ?? null;
+  const values = { number, numberNormalized, council, councilNormalized, registeredYear: year, checkedOn: null, status: "active", source: "staff" };
+  await db.transaction(async (tx) => {
+    if (primary) await tx.update(s.medicalRegistrations).set(values).where(eq(s.medicalRegistrations.id, primary.id));
+    else await tx.insert(s.medicalRegistrations).values({ doctorId, ...values, isPrimary: true });
+  });
+  await audit({
+    actorUserId: staffUserId,
+    actorRole: "staff",
+    action: primary ? "doctor.registration.corrected" : "doctor.registration.added",
+    entityType: "doctor",
+    entityId: doctorId,
+    before: primary ? { council: primary.council, number: primary.number, registeredYear: primary.registeredYear, checkedOn: primary.checkedOn } : null,
+    after: { council, number, registeredYear: year },
+    reason: note,
+  });
   await recomputeQuality(doctorId);
 }
 

@@ -2,8 +2,9 @@ import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { photoAdminAction, addPracticeAdminAction, addQualificationAdminAction, markAllVerifiedAction, mergeDoctorAction, registrationCheckAction, qualificationStateAction, setStatusAction, updateDoctorFieldsAction, updatePracticeAdminAction } from "@/app/admin/actions";
+import { photoAdminAction, addPracticeAdminAction, addQualificationAdminAction, markAllVerifiedAction, mergeDoctorAction, registrationCheckAction, qualificationStateAction, setRegistrationAction, credentialStateAction, setStatusAction, updateDoctorFieldsAction, updatePracticeAdminAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
+import { CouncilSelect } from "@/components/CouncilSelect";
 import { RankingBreakdown } from "@/components/RankingBreakdown";
 import { PlacePicker } from "@/components/PlacePicker";
 import { getDoctorBySlug } from "@/lib/data";
@@ -223,6 +224,44 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
               <div className="field" style={{ marginBottom: 0 }}><label>Note</label><input type="text" name="note" placeholder="Register entry checked on …" /></div>
             </div>
           </ActionForm>
+
+          {/* Correct the registration itself */}
+          <details className="panel pad" style={{ marginBottom: "18px" }}>
+            <summary style={{ cursor: "pointer", fontWeight: 600 }}>{reg ? "Correct council or number" : "Add a registration"}</summary>
+            <ActionForm action={setRegistrationAction} submitLabel="Save registration" variant="outline" style={{ marginTop: "10px" }} confirm="Save this registration? It will show as unchecked until a register match is recorded.">
+              <input type="hidden" name="id" value={d.id} />
+              <div className="field"><label htmlFor="reg-council">Council or registering body</label><CouncilSelect id="reg-council" name="council" defaultValue={reg && !/^council not stated$/i.test(reg.council) ? reg.council : undefined} /></div>
+              <div className="two">
+                <div className="field"><label>Number</label><input type="text" name="number" defaultValue={reg?.number ?? ""} required /></div>
+                <div className="field"><label>Year registered</label><input type="number" name="year" defaultValue={reg?.registeredYear ?? ""} /></div>
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}><label>Why</label><input type="text" name="note" placeholder="Doctor's certificate; number on file belonged to someone else" /></div>
+            </ActionForm>
+          </details>
+
+          {/* Awards, memberships, publications — nothing reaches structured data until verified here */}
+          {d.credentials.length ? (
+            <section className="panel pad" style={{ marginBottom: "18px" }}>
+              <h3 style={{ marginTop: 0 }}>Awards, memberships and publications</h3>
+              <p style={{ fontSize: "13px", color: "var(--muted)", margin: "0 0 6px" }}>Self-reported by the doctor. Only verified entries are sent to search engines. Never scored.</p>
+              {d.credentials.map((c) => (
+                <ActionForm key={c.id} action={credentialStateAction} submitLabel="Set" variant="quiet" style={{ borderTop: "1px solid var(--hair)", paddingTop: "8px", marginTop: "8px" }}>
+                  <input type="hidden" name="id" value={c.id} />
+                  <input type="hidden" name="doctorId" value={d.id} />
+                  <div style={{ fontSize: "13.5px", marginBottom: "6px" }}>
+                    <span className="pill neut" style={{ marginRight: "6px" }}>{c.kind}</span>
+                    <b>{c.title}</b>{c.issuer ? ` · ${c.issuer}` : ""}{c.year ? ` · ${c.year}` : ""}
+                    {c.url ? <> · <a href={c.url} target="_blank" rel="noopener noreferrer nofollow">source ↗</a></> : null}
+                    <span className={`pill ${pill(c.state)}`} style={{ marginLeft: "6px" }}>{c.state}</span>
+                  </div>
+                  <div className="two" style={{ gridTemplateColumns: "140px 1fr" }}>
+                    <select name="state" defaultValue={c.state}><option value="verified">verified</option><option value="submitted">submitted</option><option value="rejected">rejected</option></select>
+                    <input type="text" name="note" placeholder="How it was checked (required to verify)" />
+                  </div>
+                </ActionForm>
+              ))}
+            </section>
+          ) : null}
 
           {/* Qualifications */}
           <section className="panel pad" style={{ marginBottom: "18px" }}>

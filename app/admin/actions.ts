@@ -9,7 +9,7 @@ import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { decideCorrection, resolveProfileReport, setEnquiryStatus } from "@/lib/services/cases";
-import { addPractice, addQualification, applyField, createDoctor, markAllVerified, markRegistrationChecked, mergeDoctor, recomputeQuality, setDoctorStatus, setQualificationState } from "@/lib/services/doctors";
+import { addPractice, addQualification, applyField, createDoctor, markAllVerified, markRegistrationChecked, mergeDoctor, recomputeQuality, setCredentialState, setDoctorStatus, setPrimaryRegistration, setQualificationState } from "@/lib/services/doctors";
 import { removeDoctorPhoto, setDoctorPhoto } from "@/lib/services/photos";
 import { moderateResponse, moderateReview, resolveReviewReport, validateEvidence } from "@/lib/services/reviews";
 import { recomputeSeoRoutes, setSeoOverride } from "@/lib/services/seo";
@@ -310,6 +310,32 @@ export async function registrationCheckAction(_p: AdminState, f: FormData): Prom
     const id = str(f, "id");
     await markRegistrationChecked(id, u.id, str(f, "result") as "verified" | "failed", str(f, "note") || undefined);
     return done("Registration check recorded.", [`/admin/doctors/${id}`]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function setRegistrationAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const id = str(f, "id");
+    await setPrimaryRegistration(id, { council: str(f, "council"), number: str(f, "number"), registeredYear: Number(str(f, "year")) || null }, u.id, str(f, "note") || undefined);
+    return done("Registration saved. It is unchecked until you record a register match.", [`/admin/doctors/${id}`]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function credentialStateAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const doctorId = str(f, "doctorId");
+    const state = str(f, "state") as "verified" | "submitted" | "rejected";
+    if (!["verified", "submitted", "rejected"].includes(state)) throw new Error("Unknown state.");
+    const note = str(f, "note");
+    if (state === "verified" && note.length < 8) throw new Error("Say how you checked it (issuer page, society register, DOI) before marking it verified.");
+    await setCredentialState(doctorId, str(f, "id"), state, u.id, note || undefined);
+    return done(`Entry ${state}.`, [`/admin/doctors/${doctorId}`]);
   } catch (e) {
     return fail(e);
   }

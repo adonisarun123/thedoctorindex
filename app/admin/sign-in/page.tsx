@@ -20,7 +20,7 @@ export default async function AdminSignIn({ searchParams }: { searchParams: Prom
           </div>
         ) : null}
         <p style={{ color: "var(--ink-2)", fontSize: "14.5px", marginBottom: "18px" }}>
-          One-time code to your work email. Staff accounts are limited to the domains in STAFF_ALLOWED_EMAIL_DOMAINS and every action is written to the audit log.
+          One-time code to your email. Only accounts a super admin has added as staff can enter, and every action is written to the audit log.
         </p>
         <div className="panel pad">
           <OtpSignIn next="/admin" label="Sign in" />
