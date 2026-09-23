@@ -86,7 +86,7 @@ async function loadCardRows(ids: string[]) {
   const rows = await db.query.doctors.findMany({
     where: inArray(s.doctors.id, ids),
     columns: {
-      id: true, publicId: true, slug: true, name: true, gender: true, specialtyKey: true, subspecialties: true,
+      id: true, publicId: true, tdiId: true, slug: true, name: true, gender: true, specialtyKey: true, subspecialties: true,
       practiceStartYear: true, languages: true, modes: true, status: true, claimed: true, qualityScore: true,
       lastVerifiedOn: true, hprVerified: true, photoFileId: true, photoConsent: true,
     },
@@ -176,6 +176,7 @@ function toView(row: DoctorRow, locality: (key: string) => Locality | null, roll
   const doctor = {
     id: row.publicId,
     dbId: row.id,
+    tdiId: row.tdiId ?? null,
     lifecycle: row.status,
     photoUrl: row.photoFileId && row.photoConsent ? `/photos/${row.photoFileId}` : null,
     googleListing:

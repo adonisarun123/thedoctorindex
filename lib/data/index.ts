@@ -221,7 +221,7 @@ const DATA_CACHE_SECONDS = 3600;
  * entries outright, which is the only thing that makes the old and new shapes
  * incapable of meeting.
  */
-const SHAPE_VERSION = "2026-09-21-supply-profile";
+const SHAPE_VERSION = "2026-09-23-tdi-id";
 
 function cached<A extends unknown[], R>(name: string, fn: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
   return (...args: A) => {

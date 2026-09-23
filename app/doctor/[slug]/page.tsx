@@ -7,6 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { CallButton, DirectionsButton, ViewBeacon } from "@/components/ContactActions";
 import { JsonLd } from "@/components/JsonLd";
+import { QrShare } from "@/components/QrShare";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
 import { canonicalDoctorPath, countIndexable, countsByLocality, countsBySpecialty, getAtFacility, getDoctorBySlug, getNearby, totals } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
@@ -17,7 +18,7 @@ import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, doctorLd, faqLd } from "@/lib/seo/structured-data";
 import { addressLine, buildFaq, facilityLabel, summarySentence, supplySentence, verificationLine } from "@/lib/seo/profile-content";
 import { GoogleListingCard } from "@/components/GoogleListing";
-import { absoluteUrl, paths } from "@/lib/site";
+import { absoluteUrl, paths, SITE } from "@/lib/site";
 import type { DoctorCredential, DoctorView } from "@/lib/types";
 
 type Params = { slug: string };
@@ -147,7 +148,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
   const checks = profileChecks(doctor);
   const passed = checks.filter((c) => c.ok).length;
   const qualsVerified = doctor.qualifications.filter((q) => q.state === "verified");
-  const claimHref = doctor.claimed ? "/dashboard" : `${paths.claimProfile()}?registration=${encodeURIComponent(doctor.registration.number)}`;
+  const claimHref = doctor.claimed ? "/dashboard" : `${paths.claimProfile()}?profile=${encodeURIComponent(doctor.slug)}`;
   const surname = doctor.name.split(" ").slice(-1)[0];
 
   // "On record": only facts the record actually holds. A missing fact is
@@ -447,6 +448,10 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 </Link>
               </div>
             )}
+
+            {doctor.tdiId && doctor.lifecycle === "published" ? (
+              <QrShare tdiId={doctor.tdiId} name={`Dr ${doctor.name}`} origin={SITE.origin} />
+            ) : null}
 
             <div className="panel pad honest">
               <div className="eyebrow">Keep this page honest</div>

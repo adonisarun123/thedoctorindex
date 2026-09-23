@@ -220,6 +220,8 @@ export interface Doctor {
 export interface DoctorView extends Doctor {
   /** Postgres row id, present when the record came from the database. */
   dbId?: string;
+  /** Permanent TDI ID (`TDI-CAR-00412`), issued on first publication; null for drafts and seed records. */
+  tdiId?: string | null;
   /** Lifecycle status from the database; seed records are always "published". */
   lifecycle?: "draft" | "submitted" | "in_review" | "published" | "suspended" | "retired" | "archived";
   yearsOfExperience: number;

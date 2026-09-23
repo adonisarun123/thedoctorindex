@@ -181,6 +181,14 @@ export const specialties = pgTable("specialties", {
   reviewedOn: date("reviewed_on"),
   active: boolean("active").notNull().default(true),
   sort: integer("sort").notNull().default(100),
+  /** Frozen three-letter code used in TDI IDs; see lib/data/tdi-codes.ts. */
+  tdiCode: char("tdi_code", { length: 3 }).unique(),
+});
+
+/** Last issued number per TDI code. Bumped only by the doctors_assign_tdi_id trigger. */
+export const tdiIdCounters = pgTable("tdi_id_counters", {
+  code: char("code", { length: 3 }).primaryKey(),
+  last: integer("last").notNull().default(0),
 });
 
 export const localities = pgTable("localities", {
@@ -215,6 +223,12 @@ export const doctors = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     /** Immutable, part of the public URL. */
     publicId: char("public_id", { length: 6 }).notNull().unique(),
+    /**
+     * Permanent, human-readable ID (`TDI-CAR-00412`), issued by a database
+     * trigger the first time the record is published and never changed after.
+     * Printed on QR cards; `/d/<tdi_id>` resolves it to the current slug.
+     */
+    tdiId: text("tdi_id").unique(),
     slug: text("slug").notNull().unique(),
     name: text("name").notNull(),
     gender: gender("gender"),

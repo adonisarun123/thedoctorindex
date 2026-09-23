@@ -7,7 +7,8 @@ import { listEnquiries } from "@/lib/services/cases";
 import { recomputeQuality } from "@/lib/services/doctors";
 import { doctorAnalytics } from "@/lib/services/events";
 import { listChangesForDoctor, reconfirmSchedule } from "@/lib/services/workflow";
-import { paths } from "@/lib/site";
+import { QrShare } from "@/components/QrShare";
+import { paths, SITE } from "@/lib/site";
 
 function pct(now: number, prev: number): string {
   if (!prev) return now ? "no data for the previous 28 days" : "no views recorded yet";
@@ -49,6 +50,12 @@ export default async function DashboardOverview() {
         </div>
         <Link className="btn" href={paths.doctor(doctor.slug)}>View public profile</Link>
       </div>
+
+      {live && doctor.tdiId ? (
+        <div style={{ maxWidth: 420, marginBottom: "16px" }}>
+          <QrShare tdiId={doctor.tdiId} name={`Dr ${doctor.name}`} origin={SITE.origin} />
+        </div>
+      ) : null}
 
       {!doctor.indexable && live ? (
         <div className="notice" style={{ marginBottom: "16px" }}>
