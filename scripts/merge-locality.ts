@@ -42,7 +42,7 @@ const TO = arg("to");
 const DRY = args.includes("--dry");
 
 interface Row {
-  key: string; name: string; slug: string; city: string; city_slug: string; state: string; active: boolean; facilities: number; doctors: number;
+  key: string; name: string; slug: string; city: string; city_slug: string; state: string; state_slug: string; active: boolean; facilities: number; doctors: number;
 }
 
 async function main() {
@@ -55,7 +55,7 @@ async function main() {
 
   const load = async (key: string): Promise<Row | null> => {
     const [r] = (await db.execute(sql`
-      select l.key, l.name, l.slug, l.city, l.city_slug, l.state, l.active,
+      select l.key, l.name, l.slug, l.city, l.city_slug, l.state, l.state_slug, l.active,
         (select count(*)::int from facilities f where f.locality_key = l.key) as facilities,
         (select count(distinct d.id)::int from facilities f
            join doctor_practices p on p.facility_id = f.id and p.active
@@ -88,6 +88,15 @@ async function main() {
   await db.transaction(async (tx) => {
     await tx.execute(sql`update facilities set locality_key = ${to.key} where locality_key = ${from.key}`);
     await tx.execute(sql`update localities set active = false where key = ${from.key}`);
+    // Old locality URLs keep working: the listing route 308s a retired
+    // locality's paths to the target's. Earlier redirects into the retired
+    // path are re-pointed so nothing chains.
+    const fromPath = `/doctors/${from.state_slug}/${from.city_slug}/${from.slug}`;
+    const toPath = `/doctors/${to.state_slug}/${to.city_slug}/${to.slug}`;
+    if (fromPath !== toPath) {
+      await tx.execute(sql`update slug_redirects set to_path = ${toPath} where to_path = ${fromPath}`);
+      await tx.execute(sql`insert into slug_redirects (from_path, to_path, reason) values (${fromPath}, ${toPath}, ${`locality merged into ${to.key}`}) on conflict (from_path) do update set to_path = excluded.to_path, reason = excluded.reason`);
+    }
   });
 
   const after = await load(TO);

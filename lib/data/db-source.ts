@@ -343,6 +343,10 @@ export const dbSource: DataSource = {
     const [v] = await views(and(eq(s.doctors.slug, slug), inArray(s.doctors.status, ["published", "suspended", "retired"]))!);
     return v ?? null;
   },
+  async pathRedirect(path: string): Promise<string | null> {
+    const [r] = await getDb().select({ to: s.slugRedirects.toPath }).from(s.slugRedirects).where(eq(s.slugRedirects.fromPath, path)).limit(1);
+    return r?.to ?? null;
+  },
   async canonicalDoctorPath(slug: string): Promise<string | null> {
     const db = getDb();
     const [r] = await db.select({ to: s.slugRedirects.toPath }).from(s.slugRedirects).where(eq(s.slugRedirects.fromPath, `/doctor/${slug}`)).limit(1);

@@ -52,6 +52,9 @@ export const seedSource: DataSource = {
   async getDoctorBySlug(slug: string): Promise<DoctorView | null> {
     return BY_SLUG.get(slug) ?? null;
   },
+  async pathRedirect(): Promise<string | null> {
+    return null;
+  },
   async canonicalDoctorPath(slug: string): Promise<string | null> {
     const fromTable = lookupRedirect(`/doctor/${slug}`);
     if (fromTable) return fromTable;

@@ -10,6 +10,7 @@ import type { DataSource } from "@/lib/data";
 export const emptySource: DataSource = {
   getDoctorBySlug: async () => null,
   canonicalDoctorPath: async () => null,
+  pathRedirect: async () => null,
   findByRegistration: async () => null,
   getListing: async () => [],
   countIndexable: async () => 0,

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { ListingView } from "@/components/ListingView";
 import type { RouteMetaData } from "@/components/RouteMeta";
-import { countIndexable, supplyProfile } from "@/lib/data";
+import { countIndexable, pathRedirect, supplyProfile } from "@/lib/data";
 import { GATES, hasFacetParams, listingGate } from "@/lib/seo/gates";
 import { resolveListing, type ListingParams } from "@/lib/seo/listing";
 import { pageMeta } from "@/lib/seo/meta";
@@ -101,8 +101,17 @@ export default async function ListingPage({
   params: Promise<Params>;
   searchParams: Promise<Search>;
 }) {
-  const resolved = await resolve(await params);
-  if (!resolved) notFound();
+  const p = await params;
+  const resolved = await resolve(p);
+  if (!resolved) {
+    // A locality merged into another (db:merge-locality) keeps its old URLs
+    // working: /…/indira-nagar/dermatologists → /…/indiranagar/dermatologists.
+    if (p.segments.length === 2) {
+      const to = await pathRedirect(`/doctors/${p.state}/${p.city}/${p.segments[0]}`);
+      if (to) permanentRedirect(`${to}/${p.segments[1]}`);
+    }
+    notFound();
+  }
 
   const sp = await searchParams;
   const { specialty, city, locality, canonicalPath, placeName } = resolved;

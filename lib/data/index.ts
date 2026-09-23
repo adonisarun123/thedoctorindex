@@ -145,6 +145,8 @@ export type DataSource = {
   getDoctorBySlug(slug: string): Promise<DoctorView | null>;
   /** Canonical /doctor path for a stale slug (rename or merge), or null when unknown. */
   canonicalDoctorPath(slug: string): Promise<string | null>;
+  /** Target of a recorded path redirect (e.g. a merged locality), or null. */
+  pathRedirect(path: string): Promise<string | null>;
   /** Council + number. With no council, matches only when the number belongs to exactly one doctor. */
   findByRegistration(registrationNumber: string, council?: string): Promise<DoctorView | null>;
   /** Published doctors of one speciality in a place, best-first, capped at LISTING_CAP. */
@@ -233,6 +235,7 @@ function cached<A extends unknown[], R>(name: string, fn: (...args: A) => Promis
 
 export const getDoctorBySlug = cached("getDoctorBySlug", async (slug: string) => (await source()).getDoctorBySlug(slug));
 export const canonicalDoctorPath = cached("canonicalDoctorPath", async (slug: string) => (await source()).canonicalDoctorPath(slug));
+export const pathRedirect = cached("pathRedirect", async (path: string) => (await source()).pathRedirect(path));
 export const findByRegistration = async (n: string, council?: string) => (await source()).findByRegistration(n, council);
 export const getListing = cached("getListing", async (k: SpecialtyKey, place: Place, limit?: number) => (await source()).getListing(k, place, limit));
 export const countIndexable = cached("countIndexable", async (k: SpecialtyKey, place?: Place, measure?: Measure) => (await source()).countIndexable(k, place, measure));
