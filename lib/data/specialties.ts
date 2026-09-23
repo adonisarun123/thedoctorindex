@@ -8,7 +8,7 @@ import type { Specialty, SpecialtyKey } from "@/lib/types";
  *
  * `reviewedOn` is a *separate* claim: it is set only where a named clinician
  * has actually signed the text off, and every surface that says "medically
- * reviewed" is guarded on it. Four entries carry that date. The other 39 carry
+ * reviewed" is guarded on it. Four entries carry that date. The other 45 carry
  * guidance with no review claim attached — the copy is ours, the attestation
  * is not made until someone makes it. Never set `reviewedOn` to make a page
  * look better; an unreviewed date is the same defect class as a guessed
@@ -968,5 +968,121 @@ export const SPECIALTIES: Record<SpecialtyKey, Specialty> = {
     ],
     reviewedOn: "",
     sourceLabels: ["DENTAL SURGEON"],
+  },
+  "emergency-medicine": {
+    key: "emergency-medicine",
+    name: "Emergency medicine",
+    plural: "Emergency physicians",
+    one: "Emergency physician",
+    aOne: "an emergency physician",
+    slug: "emergency-physicians",
+    department: "Emergency & critical care",
+    aliases: ["emergency doctor", "casualty", "accident and emergency", "er doctor"],
+    system: "modern",
+    guide:
+      "Emergency physicians staff hospital emergency departments. They assess and stabilise anyone who arrives acutely unwell or injured — chest pain, breathlessness, stroke symptoms, serious injury, poisoning — and decide who needs admission, surgery or intensive care. They are not booked by appointment: in an emergency, call 108 or go straight to the nearest emergency department. This listing tells you who works where, not whom to call.",
+    when: [],
+    reviewedOn: "",
+    sourceLabels: [],
+  },
+  "critical-care": {
+    key: "critical-care",
+    name: "Critical care medicine",
+    plural: "Intensivists",
+    one: "Intensivist",
+    aOne: "an intensivist",
+    slug: "intensivists",
+    department: "Emergency & critical care",
+    aliases: ["icu doctor", "critical care", "intensive care"],
+    system: "modern",
+    guide:
+      "Intensivists lead care in the intensive care unit — for people on ventilators, in shock, with organ failure or recovering from major surgery. Patients reach them through a hospital admission, not an outpatient booking. Families usually meet them to understand a relative's condition, the treatment plan and the decisions ahead.",
+    when: [],
+    reviewedOn: "",
+    sourceLabels: [],
+  },
+  "physical-medicine-rehabilitation": {
+    key: "physical-medicine-rehabilitation",
+    name: "Physical medicine and rehabilitation",
+    plural: "Rehabilitation physicians",
+    one: "Rehabilitation physician",
+    aOne: "a rehabilitation physician",
+    slug: "rehabilitation-physicians",
+    department: "Bones & Joints",
+    aliases: ["pmr", "pm&r", "physiatrist", "rehabilitation doctor", "rehab medicine"],
+    system: "modern",
+    guide:
+      "Rehabilitation physicians (physiatrists) are medical doctors who plan recovery of function after stroke, spinal cord or brain injury, amputation, major surgery or long-term pain. They diagnose, prescribe, give injections and lead a team of physiotherapists, occupational therapists and speech therapists. They differ from physiotherapists, who deliver the therapy but do not prescribe.",
+    when: [
+      "Recovery planning after a stroke or spinal cord injury",
+      "Prosthetics and rehabilitation after an amputation",
+      "Long-standing back, neck or joint pain limiting daily life",
+      "Spasticity, mobility aids or return to work after injury",
+    ],
+    reviewedOn: "",
+    sourceLabels: [],
+  },
+  "infectious-diseases": {
+    key: "infectious-diseases",
+    name: "Infectious diseases",
+    plural: "Infectious disease specialists",
+    one: "Infectious disease specialist",
+    aOne: "an infectious disease specialist",
+    slug: "infectious-disease-specialists",
+    department: "General & family medicine",
+    aliases: ["id specialist", "infection specialist", "fever specialist", "tropical medicine"],
+    system: "modern",
+    guide:
+      "Infectious disease specialists diagnose and treat infections that are severe, unusual, recurrent or resistant to the usual antibiotics — prolonged fever without a cause, tuberculosis, HIV, hepatitis, infections after surgery or transplant, and travel-related illness. They also advise other doctors on antibiotic choice.",
+    when: [
+      "A fever that has lasted weeks without a diagnosis",
+      "Tuberculosis, HIV or hepatitis care",
+      "An infection that has not responded to antibiotics",
+      "Advice before or after travel",
+    ],
+    reviewedOn: "",
+    sourceLabels: [],
+  },
+  "nuclear-medicine": {
+    key: "nuclear-medicine",
+    name: "Nuclear medicine",
+    plural: "Nuclear medicine physicians",
+    one: "Nuclear medicine physician",
+    aOne: "a nuclear medicine physician",
+    slug: "nuclear-medicine-physicians",
+    department: "Diagnostics",
+    aliases: ["pet scan", "pet ct", "bone scan", "radioiodine", "thyroid scan"],
+    system: "modern",
+    guide:
+      "Nuclear medicine physicians use small amounts of radioactive tracers to image how organs work — PET-CT, bone scans, thyroid and kidney scans — and to treat some conditions, such as radioiodine for an overactive thyroid or thyroid cancer. Most patients reach them on referral for a scan; the report goes back to the doctor who asked for it.",
+    when: [
+      "A PET-CT or bone scan your doctor has asked for",
+      "Radioiodine treatment for the thyroid",
+      "Questions about preparing for a nuclear medicine scan",
+      "A thyroid, kidney or heart scan that uses a tracer",
+    ],
+    reviewedOn: "",
+    sourceLabels: [],
+  },
+  "transplant-surgery": {
+    key: "transplant-surgery",
+    name: "Organ transplantation",
+    plural: "Transplant specialists",
+    one: "Transplant specialist",
+    aOne: "a transplant specialist",
+    slug: "transplant-specialists",
+    department: "Surgery",
+    aliases: ["transplant surgeon", "organ transplant", "kidney transplant surgeon", "liver transplant"],
+    system: "modern",
+    guide:
+      "Organ transplantation teams assess people with end-stage organ failure, carry out kidney, liver, heart, lung and other transplants, and look after recipients and living donors for life. In India, every transplant is governed by the Transplantation of Human Organs and Tissues Act, which sets who may donate and requires an authorisation committee's approval for living donation.",
+    when: [
+      "Being assessed for a kidney or liver transplant",
+      "Considering becoming a living donor for a relative",
+      "Long-term follow-up after a transplant",
+      "A second opinion on whether a transplant is the right option",
+    ],
+    reviewedOn: "",
+    sourceLabels: [],
   },
 };

@@ -56,6 +56,13 @@ export const TDI_CODES: Record<SpecialtyKey, string> = {
   "sexual-medicine": "SXM",
   "surgical-oncology": "SON",
   urology: "URO",
+  // Added 23 Sep 2026.
+  "emergency-medicine": "EMR",
+  "critical-care": "CCM",
+  "physical-medicine-rehabilitation": "PMR",
+  "infectious-diseases": "INF",
+  "nuclear-medicine": "NUC",
+  "transplant-surgery": "TRS",
 };
 
 /** `TDI-CAR-00412`. Case-insensitive on input; always stored upper-case. */

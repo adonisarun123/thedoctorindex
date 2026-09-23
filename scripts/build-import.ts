@@ -82,12 +82,41 @@ const SPECIALTY_ALIASES: Record<string, string> = {
   neurosciences: "neurology",
   "laboratory medicine": "pathology",
   "lab medicine": "pathology",
-  "nuclear medicine": "radiology",
+  "nuclear medicine": "nuclear-medicine",
   "family medicine": "general-practice",
   "community health": "general-practice",
   "nutrition and diet science": "dietetics",
   "kidney transplant": "nephrology",
-  "organ transplant": "general-surgery",
+  "organ transplant": "transplant-surgery",
+  transplant: "transplant-surgery",
+  "transplant surgery": "transplant-surgery",
+  "multi organ transplant": "transplant-surgery",
+  "emergency medicine": "emergency-medicine",
+  emergency: "emergency-medicine",
+  "emergency & trauma care": "emergency-medicine",
+  "emergency and trauma care": "emergency-medicine",
+  "accident & emergency": "emergency-medicine",
+  "emergency care": "emergency-medicine",
+  "critical care": "critical-care",
+  "critical care medicine": "critical-care",
+  "intensive care": "critical-care",
+  "anaesthesia and critical care": "critical-care",
+  "physical medicine and rehabilitation": "physical-medicine-rehabilitation",
+  "physical medicine & rehabilitation": "physical-medicine-rehabilitation",
+  "physical medicine": "physical-medicine-rehabilitation",
+  "rehabilitation medicine": "physical-medicine-rehabilitation",
+  pmr: "physical-medicine-rehabilitation",
+  "infectious diseases": "infectious-diseases",
+  "infectious disease": "infectious-diseases",
+  "infectious diseases & hiv": "infectious-diseases",
+  "prosthodontics and implantology": "dentistry",
+  "periodontist and implantologist": "dentistry",
+  radiodiagnosis: "radiology",
+  "renal sciences": "nephrology",
+  "rani raju institute of renal sciences": "nephrology",
+  "otorhinology & cochlear implant": "ent",
+  "fertility services": "gynaecology",
+  "orbit and oculoplasty for": "ophthalmology",
 };
 
 /** Departments that name no single speciality. The doctor's degrees decide instead. */
@@ -230,7 +259,40 @@ async function main() {
   const rows = JSON.parse(readFileSync(IN, "utf8")) as Matched[];
   console.log(`${rows.length} matched records`);
 
+  /**
+   * Hospitals file physiotherapists under "Physical Medicine & Rehabilitation"
+   * and paediatric intensivists under "Critical Care". When a department maps
+   * to one of these broad specialities, the role the hospital's own page names
+   * for the person wins: a physiotherapist is never labelled a physician.
+   */
+  const BROAD = new Set(["physical-medicine-rehabilitation", "critical-care", "emergency-medicine", "infectious-diseases", "nuclear-medicine", "transplant-surgery"]);
+  const ROLE_IN_URL: Array<[RegExp, string]> = [
+    [/physiotherapist/i, "physiotherapy"],
+    [/occupational-therapist/i, "occupational-therapy"],
+    [/speech|audiolog/i, "audiology"],
+    [/p(a)?ediatric|neonatolog|pediatrician|paediatrician/i, "paediatrics"],
+    [/emergency|accident/i, "emergency-medicine"],
+    [/critical-care|icu|intensiv/i, "critical-care"],
+    [/physiatrist|physical-medicine/i, "physical-medicine-rehabilitation"],
+    [/infectious/i, "infectious-diseases"],
+    [/nuclear-medicine/i, "nuclear-medicine"],
+  ];
   const resolveSpecialty = (r: Matched): string | null => {
+    const key = resolveSpecialtyRaw(r);
+    if (key && BROAD.has(key)) {
+      const slug = (r.source_url ?? "").split("/").filter(Boolean).pop() ?? "";
+      for (const [re, k] of ROLE_IN_URL) if (re.test(slug)) return k;
+      // All six are physician specialities: without a medical degree on the
+      // hospital's own page, the record is not labelled a physician.
+      const q = (r.qualifications ?? []).join(" ");
+      if (/\b(BPT|MPT)\b/i.test(q) && !/\bMBBS\b/i.test(q)) return "physiotherapy";
+      if (!/\bMBBS\b|\bM\.?\s?D\b|\bDNB\b|\bD\.?M\b|\bFRCS|\bMRCP|\bIDCCM|\bEDIC|\bFNB\b/i.test(q)) return null;
+      if (/p(a)?ed|\bDCH\b|neonat/i.test(q)) return "paediatrics";
+      if (key === "physical-medicine-rehabilitation" && /an(a)?esth/i.test(q) && !/physical med|rehab/i.test(q)) return "anaesthesiology";
+    }
+    return key;
+  };
+  function resolveSpecialtyRaw(r: Matched): string | null {
     const raw = (r.specialty ?? "").trim().toLowerCase();
     if (raw && !AMBIGUOUS.has(raw)) {
       const alias = SPECIALTY_ALIASES[raw];
@@ -249,7 +311,7 @@ async function main() {
       }
     }
     return null;
-  };
+  }
 
   const resolveLocality = (hint: string | undefined): string | null => {
     const h = (hint ?? "").replace(/\s*clinic\s*$/i, "").trim();
@@ -274,6 +336,7 @@ async function main() {
   const photos: Array<{ source_url: string; photo_url: string; source: string }> = [];
   const extraPractices: Array<{ registration: string; hospital: string; branch: string; address: string; locality: string; phone: string; source_url: string }> = [];
   const dropped: Record<string, number> = {};
+  const unmappedDepts: Record<string, number> = {};
 
   for (const group of groups.values()) {
     const usable = group.filter((r) => {
@@ -296,6 +359,8 @@ async function main() {
     const specialtyKey = resolveSpecialty(primary) ?? sorted.map(resolveSpecialty).find(Boolean) ?? null;
     if (!specialtyKey) {
       dropped.specialty = (dropped.specialty ?? 0) + group.length;
+      const dept = (primary.specialty ?? "(none)").trim().toLowerCase() || "(none)";
+      unmappedDepts[dept] = (unmappedDepts[dept] ?? 0) + group.length;
       continue;
     }
     const localityKey = resolveLocality(primary.locality_hint) ?? sorted.map((r) => resolveLocality(r.locality_hint)).find(Boolean) ?? null;
@@ -380,6 +445,8 @@ async function main() {
 
   console.log(`\npublishable ${publishTotal} · drafts ${draftTotal} · photo candidates ${photos.length} · extra practices ${extraPractices.length}`);
   if (Object.keys(dropped).length) console.log(`dropped: ${Object.entries(dropped).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  const unmapped = Object.entries(unmappedDepts).sort((a, b) => b[1] - a[1]);
+  if (unmapped.length) console.log(`departments with no speciality: ${unmapped.map(([k, v]) => `${k} (${v})`).join("; ")}`);
 }
 
 main().catch((e) => {

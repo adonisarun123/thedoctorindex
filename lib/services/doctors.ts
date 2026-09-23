@@ -9,6 +9,7 @@ import { daysBetween, todayIso } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { normalizeLanguages } from "@/lib/data/languages";
+import { cleanSubspecialties } from "@/lib/data/subspecialties";
 
 /**
  * Doctor record service: creation by staff, direct edits by staff, lifecycle,
@@ -173,7 +174,7 @@ export async function createDoctor(input: NewDoctorInput, actorUserId: string | 
         name: input.name.trim(),
         gender: input.gender ?? null,
         specialtyKey: input.specialtyKey,
-        subspecialties: input.subspecialties ?? [],
+        subspecialties: cleanSubspecialties(input.subspecialties ?? [], input.specialtyKey),
         practiceStartYear: input.practiceStartYear ?? null,
         languages: normalizeLanguages(input.languages ?? []),
         modes: input.modes ?? ["In person"],
@@ -291,7 +292,7 @@ export async function applyField(doctorId: string, field: string, value: unknown
       gender: (v) => ({ gender: v === "M" || v === "F" || v === "X" ? v : null }),
       specialtyKey: (v) => ({ specialtyKey: String(v) }),
       practiceStartYear: (v) => ({ practiceStartYear: v ? Number(v) : null }),
-      subspecialties: (v) => ({ subspecialties: toList(v) }),
+      subspecialties: (v) => ({ subspecialties: cleanSubspecialties(toList(v), d.specialtyKey) }),
       languages: (v) => ({ languages: normalizeLanguages(toList(v)) }),
       modes: (v) => ({ modes: toList(v) }),
       services: (v) => ({ services: toList(v) }),

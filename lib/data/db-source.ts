@@ -12,6 +12,7 @@ import * as s from "@/lib/db/schema";
 import { isProfileIndexable } from "@/lib/seo/gates";
 import type { DataSource, DoctorSuggestion, Measure, MixEntry, Place, PlaceCount, PlaceSpecialtyCount, SupplyProfile, Totals } from "@/lib/data/index";
 import type { DoctorView, Locality, SpecialtyKey } from "@/lib/types";
+import { cleanSubspecialties } from "@/lib/data/subspecialties";
 
 /**
  * Postgres implementation of the data source. Public readers see published
@@ -196,7 +197,7 @@ function toView(row: DoctorRow, locality: (key: string) => Locality | null, roll
     // guess: the value is published in JSON-LD and drives the gender filter.
     gender: (row.gender === "M" || row.gender === "F" ? row.gender : null) as "F" | "M" | null,
     specialty: row.specialtyKey,
-    subspecialties: row.subspecialties,
+    subspecialties: cleanSubspecialties(row.subspecialties, row.specialtyKey),
     registration: {
       number: primary?.number ?? "—",
       council: primary?.council ?? "—",
@@ -510,7 +511,8 @@ export const dbSource: DataSource = {
       feeMax: nullable("feeMax"),
       qualifications: mix("qualifications"),
       councils: mix("councils"),
-      subspecialties: mix("subspecialties"),
+      // The mix is counted in SQL; tags that are not subspecialities are dropped here.
+      subspecialties: mix("subspecialties").filter((x) => cleanSubspecialties([x.name], specialty).length > 0),
     };
   },
   async totals(place?: Place): Promise<Totals> {

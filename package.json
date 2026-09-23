@@ -29,6 +29,7 @@
     "db:verify": "tsx --require ./scripts/server-only-shim.cjs scripts/verify-doctor.ts",
     "db:fix-names": "tsx --require ./scripts/server-only-shim.cjs scripts/fix-names.ts",
     "db:fix-languages": "tsx --require ./scripts/server-only-shim.cjs scripts/fix-languages.ts",
+    "db:reclassify": "tsx --require ./scripts/server-only-shim.cjs scripts/reclassify.ts",
     "db:match": "NODE_EXTRA_CA_CERTS=lib/enrich/certs/ssl-com-tls-issuing-rsa-ca-r1.crt tsx --require ./scripts/server-only-shim.cjs scripts/match-register.ts",
     "db:localities": "tsx --require ./scripts/server-only-shim.cjs scripts/ensure-localities.ts",
     "db:build-import": "tsx --require ./scripts/server-only-shim.cjs scripts/build-import.ts",
