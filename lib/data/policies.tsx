@@ -373,7 +373,7 @@ export const POLICIES: Policy[] = [
     title: "Privacy policy",
     summary:
       "What personal data this platform collects, why, for how long, and the rights you have over it under the DPDP Act.",
-    updatedOn: "28 Aug 2026",
+    updatedOn: "23 Sep 2026",
     body: (
       <>
         <p>
@@ -399,6 +399,23 @@ export const POLICIES: Policy[] = [
           We do not collect diagnoses, prescriptions, reports or treatment records. Reviewers are warned
           not to include them and moderators redact them. Identity documents and proof of visit are
           private evidence and never appear on a public page.
+        </p>
+        <h2 id="cookies">Cookies and analytics</h2>
+        <p>
+          The site sets one cookie of its own that it needs to work: <code>tdi_consent</code>, which
+          remembers whether you allowed analytics, for 180 days. Signing in sets a session cookie, only
+          if you sign in.
+        </p>
+        <p>
+          With your permission, we use Google Analytics to count visits and see which pages help people
+          reach a doctor. It sets the <code>_ga</code> cookies and sends Google the page address, the
+          page that referred you and the page title. It is not sent which doctor you enquired about,
+          what you searched for or anything you type into a form. Advertising features are switched off.
+        </p>
+        <p>
+          Until you choose <em>Allow analytics</em>, the analytics script is not loaded at all. You can
+          change your answer at any time from <em>Cookie settings</em> at the foot of every page;
+          declining removes the analytics cookies from your browser.
         </p>
         <h2>Your rights</h2>
         <ul>

@@ -55,6 +55,15 @@ export const env = {
    * staging deployment somewhere else. Set it to "" to serve no tag at all.
    */
   ga4MeasurementId: str("NEXT_PUBLIC_GA4_MEASUREMENT_ID", "G-VC636R0Y49"),
+  /**
+   * Cookie consent gate for analytics (components/ConsentGate.tsx). ON unless
+   * explicitly set to "0": with it on, gtag.js is not loaded at all until the
+   * visitor accepts. The switch exists for staging, not for production.
+   */
+  consentRequired: flag("NEXT_PUBLIC_CONSENT_REQUIRED", true),
+  consentCookieName: str("NEXT_PUBLIC_CONSENT_COOKIE_NAME", "tdi_consent"),
+  /** Bump to ask every visitor again (e.g. when a new analytics purpose is added). */
+  consentVersion: str("CONSENT_VERSION", "2026-09-23"),
 
   /* --- launch cluster ---------------------------------------------------- */
   defaultCountry: str("NEXT_PUBLIC_DEFAULT_COUNTRY", "IN"),

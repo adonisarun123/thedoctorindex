@@ -1418,3 +1418,36 @@ ol.procedure span { display: block; color: var(--ink-2); font-size: 16.5px; line
 .faqlist > div { min-width: 0; }
 .faqlist dt { font-size: 14.5px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
 .faqlist dd { margin: 0; font-size: 14px; color: var(--ink-2); max-width: 66ch; }
+
+/* ---------------------------------------------------------------------------
+   Cookie consent (components/ConsentGate.tsx). Sits above the profile page's
+   fixed mobile contact bar (z-index 40) and below the route inspector (60).
+   Accept and Decline carry equal weight by design — consent is not valid if
+   declining is made harder than accepting.
+   ------------------------------------------------------------------------- */
+.consent {
+  position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 50;
+  max-width: 620px; margin-left: auto;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--hair-strong); border-radius: var(--r);
+  box-shadow: 0 10px 34px -14px rgba(11, 26, 46, 0.45);
+  border-top: 3px solid var(--brand-teal);
+}
+.consent-in { padding: 16px 18px 16px; }
+.consent h2 { font-family: var(--font-sans); font-size: 15px; font-weight: 600; margin: 0 0 6px; outline: none; }
+.consent p { font-size: 13.5px; line-height: 1.5; color: var(--muted); margin: 0 0 12px; }
+.consent p a { color: var(--ink); }
+.consent-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.consent-acts .btn { min-height: 44px; justify-content: center; text-align: center; }
+@media (max-width: 480px) {
+  .consent { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .consent-in { padding: 14px 14px 12px; }
+  .consent p { font-size: 13px; }
+}
+.linkbtn {
+  background: none; border: 0; padding: 0; font: inherit; color: inherit;
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--hair-strong);
+}
+.linkbtn:hover { text-decoration-color: currentColor; }
+.fgrid .linkbtn { color: var(--ink-2); text-decoration: none; text-align: left; }
+.fgrid .linkbtn:hover { text-decoration: underline; }

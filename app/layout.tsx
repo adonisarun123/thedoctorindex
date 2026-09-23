@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import "./globals.css";
-import { Analytics } from "@/components/Analytics";
+import { Analytics, analyticsConsentGated } from "@/components/Analytics";
+import { CookieSettingsButton } from "@/components/ConsentGate";
 import { Logo } from "@/components/Logo";
 import { RouteInspector } from "@/components/RouteInspector";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -159,6 +160,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <ul>
                   <li><Link href={paths.policy("privacy")}>Privacy</Link></li>
                   <li><Link href={paths.policy("terms")}>Terms of use</Link></li>
+                  {analyticsConsentGated() ? <li><CookieSettingsButton /></li> : null}
                 </ul>
               </div>
               <div>

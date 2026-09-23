@@ -1,0 +1,146 @@
+"use client";
+
+import Script from "next/script";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import {
+  analyticsCookieDeletions,
+  CONSENT_OPEN_EVENT,
+  consentCookie,
+  readConsent,
+  type ConsentChoice,
+} from "@/lib/consent";
+
+type GtagWindow = Window & { gtag?: (...args: unknown[]) => void } & Record<string, unknown>;
+
+/**
+ * Loads GA4 only after the visitor has said yes.
+ *
+ * The decision is read from the cookie after hydration, never on the server:
+ * /doctors/** and /specialties/** are served with a shared-cache header
+ * (middleware.ts), so the HTML must be identical for everyone. Until the
+ * choice is read, nothing renders and nothing loads.
+ *
+ * Declining — first time or later from "Cookie settings" — disables the tag
+ * for the rest of the page's life and deletes any _ga cookies it had set.
+ * Advertising storage is denied unconditionally: this site runs no ads.
+ */
+export function ConsentGate({
+  measurementId,
+  cookieName,
+  version,
+  privacyHref,
+}: {
+  measurementId: string;
+  cookieName: string;
+  version: string;
+  privacyHref: string;
+}) {
+  // undefined = cookie not yet read (SSR and first paint); null = no decision.
+  const [choice, setChoice] = useState<ConsentChoice | null | undefined>(undefined);
+  const [open, setOpen] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusOnOpen = useRef(false);
+
+  useEffect(() => {
+    const current = readConsent(document.cookie, cookieName, version);
+    setChoice(current);
+    setOpen(current === null);
+    const reopen = () => {
+      focusOnOpen.current = true;
+      setOpen(true);
+    };
+    window.addEventListener(CONSENT_OPEN_EVENT, reopen);
+    return () => window.removeEventListener(CONSENT_OPEN_EVENT, reopen);
+  }, [cookieName, version]);
+
+  useEffect(() => {
+    if (open && focusOnOpen.current) {
+      focusOnOpen.current = false;
+      headingRef.current?.focus();
+    }
+  }, [open]);
+
+  const decide = useCallback(
+    (next: ConsentChoice) => {
+      const w = window as unknown as GtagWindow;
+      document.cookie = consentCookie(cookieName, version, next, window.location.protocol === "https:");
+      w[`ga-disable-${measurementId}`] = next === "denied";
+      if (typeof w.gtag === "function") {
+        w.gtag("consent", "update", { analytics_storage: next });
+      }
+      if (next === "denied") {
+        for (const c of analyticsCookieDeletions(document.cookie, window.location.hostname)) {
+          document.cookie = c;
+        }
+      }
+      setChoice(next);
+      setOpen(false);
+    },
+    [cookieName, version, measurementId],
+  );
+
+  const quotedId = JSON.stringify(measurementId);
+
+  return (
+    <>
+      {choice === "granted" ? (
+        <>
+          <Script id="ga4-init" strategy="afterInteractive">
+            {[
+              "window.dataLayer = window.dataLayer || [];",
+              "function gtag(){dataLayer.push(arguments);}",
+              "window.gtag = gtag;",
+              "gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });",
+              "gtag('js', new Date());",
+              `gtag('config', ${quotedId});`,
+            ].join("\n")}
+          </Script>
+          <Script
+            id="ga4-loader"
+            src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`}
+            strategy="afterInteractive"
+          />
+        </>
+      ) : null}
+
+      {open ? (
+        <section className="consent" role="region" aria-labelledby="consent-h">
+          <div className="consent-in">
+            <h2 id="consent-h" ref={headingRef} tabIndex={-1}>
+              Analytics cookies
+            </h2>
+            <p>
+              We would like to use Google Analytics to count visits and see which pages help people
+              find a doctor. It sets cookies on your device. Which doctors you look at and what you
+              search for are not sent. You can change your mind any time from{" "}
+              <em>Cookie settings</em> at the foot of every page.{" "}
+              <a href={privacyHref}>Privacy policy</a>
+            </p>
+            <div className="consent-acts">
+              <button type="button" className="btn solid" onClick={() => decide("granted")}>
+                Allow analytics
+              </button>
+              <button type="button" className="btn solid" onClick={() => decide("denied")}>
+                Decline
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+/** Footer link that reopens the banner, so withdrawing is as easy as consenting. */
+export function CookieSettingsButton() {
+  return (
+    <button
+      type="button"
+      className="linkbtn"
+      onClick={() => window.dispatchEvent(new Event(CONSENT_OPEN_EVENT))}
+    >
+      Cookie settings
+    </button>
+  );
+}

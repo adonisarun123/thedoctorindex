@@ -1,5 +1,6 @@
 import Script from "next/script";
 
+import { ConsentGate } from "@/components/ConsentGate";
 import { env } from "@/lib/env";
 
 /**
@@ -20,10 +21,33 @@ import { env } from "@/lib/env";
  * could describe a patient's interest in a condition is sent to Google. The
  * default gtag config transmits page path, referrer and title only.
  */
+/** True when a tag would be served here at all. The footer's "Cookie settings" link keys off this. */
+export function analyticsActive(): boolean {
+  return Boolean(env.ga4MeasurementId) && env.appEnv === "production";
+}
+
+/** True when the tag waits for the visitor's consent (the default). */
+export function analyticsConsentGated(): boolean {
+  return analyticsActive() && env.consentRequired;
+}
+
 export function Analytics() {
   const id = env.ga4MeasurementId;
-  if (!id || env.appEnv !== "production") return null;
+  if (!analyticsActive()) return null;
 
+  // Default path: nothing loads until the visitor accepts. See ConsentGate.
+  if (env.consentRequired) {
+    return (
+      <ConsentGate
+        measurementId={id}
+        cookieName={env.consentCookieName}
+        version={env.consentVersion}
+        privacyHref="/policies/privacy#cookies"
+      />
+    );
+  }
+
+  // NEXT_PUBLIC_CONSENT_REQUIRED=0 — staging only. Loads unconditionally.
   const quotedId = JSON.stringify(id);
 
   return (
