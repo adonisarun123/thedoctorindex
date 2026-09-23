@@ -6,9 +6,10 @@ import { Suspense, useEffect, useState } from "react";
 
 import { AccountMenu } from "@/components/AccountMenu";
 import { HeaderSearch } from "@/components/HeaderSearch";
+import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
-import { SITE, paths } from "@/lib/site";
+import { paths } from "@/lib/site";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -23,7 +24,7 @@ export function SiteHeader() {
     <header className="site">
       <div className="wrap hrow">
         <Link className="brand" href={paths.home()}>
-          <span className="mark">{SITE.name}</span>
+          <Logo />
           <span className="tag">India</span>
         </Link>
         <Suspense fallback={<div className="hsearch" aria-hidden="true" />}>

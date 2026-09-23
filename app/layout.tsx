@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import "./globals.css";
 import { Analytics } from "@/components/Analytics";
+import { Logo } from "@/components/Logo";
 import { RouteInspector } from "@/components/RouteInspector";
 import { SiteHeader } from "@/components/SiteHeader";
 import { THEME_BOOT_SCRIPT } from "@/components/ThemeToggle";
@@ -52,8 +53,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f5f4" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1211" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f6f9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a111d" },
   ],
 };
 
@@ -121,7 +122,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="wrap">
             <div className="fgrid">
               <div>
-                <p className="fh">{SITE.name}</p>
+                <p className="flogo">
+                  <Logo height={30} />
+                </p>
                 <p style={{ fontSize: "13.5px", color: "var(--muted)", maxWidth: "34ch" }}>
                   A free, verified directory of practising doctors in India. Basic profiles are
                   permanently free. Organic ranking is never for sale.

@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 
+import { MARK_TD_PATH, MARK_VIEWBOX } from "@/components/Logo";
 import { SITE } from "@/lib/site";
 
 /**
@@ -28,21 +29,25 @@ export interface OgCard {
   kicker?: string;
 }
 
-const INK = "#0e1a19";
-const ACCENT = "#0d5b55";
-const SOFT = "#e3efec";
-const MUTED = "#5a6b65";
-const HAIR = "#d5dedb";
+// Literal copies of the light-theme tokens in app/globals.css (satori cannot
+// read CSS variables). Keep in step with them.
+const INK = "#0b1a2e";
+const ACCENT = "#063268"; // logo navy
+const TEAL = "#06a69e"; // logo teal — fills only, 3:1 on white
+const SOFT = "#e4ecf6";
+const MUTED = "#56657a";
+const HAIR = "#d6dee8";
 const VERIFIED = "#1f6b46";
 
 function Logo() {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-      <div style={{ width: 44, height: 44, borderRadius: 10, background: ACCENT, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-        <div style={{ color: "#fff", fontSize: 30, fontWeight: 700, lineHeight: 1, marginTop: -2 }}>D</div>
-        <div style={{ position: "absolute", top: 7, right: 7, width: 8, height: 8, borderRadius: 8, background: "#63b489" }} />
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 600, color: INK, letterSpacing: -0.3 }}>{SITE.name}</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <svg viewBox={MARK_VIEWBOX} width={84} height={46}>
+        <path fill={ACCENT} d={MARK_TD_PATH} />
+        <circle cx="976" cy="428" r="64" fill={TEAL} />
+        <rect x="931" y="511" width="99" height="301" rx="24" fill={TEAL} />
+      </svg>
+      <div style={{ fontSize: 26, fontWeight: 500, color: ACCENT, letterSpacing: 2 }}>{SITE.name}</div>
     </div>
   );
 }
@@ -52,8 +57,8 @@ export function ogCard(card: OgCard): ImageResponse {
   const titleSize = title.length > 64 ? 52 : title.length > 40 ? 62 : 72;
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#f2f5f4", padding: "56px 64px", fontFamily: "sans-serif", position: "relative" }}>
-        <div style={{ position: "absolute", left: 0, top: 0, width: 14, height: "100%", background: ACCENT }} />
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#f3f6f9", padding: "56px 64px", fontFamily: "sans-serif", position: "relative" }}>
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 14, background: TEAL }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Logo />
           {card.kicker ? (

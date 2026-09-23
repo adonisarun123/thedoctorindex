@@ -1,7 +1,8 @@
 /* ---------------------------------------------------------------------------
    The Doctor Index — design tokens and component styles.
 
-   Palette: cool slate-ink neutrals with a green bias, a deep teal accent, and
+   Palette (Sep 2026 logo): cool slate neutrals with a navy bias, logo navy
+   #063268 as the accent and logo teal #06a69e as the second brand colour, and
    semantic colours reserved for verification state (evergreen = verified,
    ochre = pending, neutral = unclaimed, oxblood = attention). Semantic colour
    is never spent on decoration.
@@ -11,22 +12,28 @@
 --------------------------------------------------------------------------- */
 
 :root {
-  --ground: #f2f5f4;
+  --ground: #f3f6f9;
   --surface: #ffffff;
-  --surface-2: #eaefed;
-  --ink: #0e1a19;
-  --ink-2: #33443f;
-  --muted: #5a6b65; /* ≥4.85:1 on every light surface (WCAG AA for small text) */
-  --hair: #d5dedb;
-  --hair-strong: #b9c6c2;
-  --accent: #0d5b55;
-  --accent-soft: #e3efec;
+  --surface-2: #e9eef4;
+  --ink: #0b1a2e;
+  --ink-2: #2f3f55;
+  --muted: #56657a; /* ≥5.09:1 on every light surface (WCAG AA for small text) */
+  --hair: #d6dee8;
+  --hair-strong: #b8c4d3;
+  --accent: #063268; /* logo navy — 12.6:1 on white */
+  --accent-soft: #e4ecf6;
   --accent-on: #ffffff;
+  /* Logo colours. Teal is 3.0:1 on white: fills, rules and marks only, never
+     body text — use --teal-ink when teal has to carry words. */
+  --brand-navy: #063268;
+  --brand-teal: #06a69e;
+  --teal-ink: #03716b;
+  --teal-soft: #e0f4f2;
   --verified: #1f6b46;
   --pending: #8a6412;
-  --neutral-flag: #6b7a76;
+  --neutral-flag: #66758a;
   --alert: #8c2f22;
-  --shadow: 0 1px 2px rgba(14, 26, 25, 0.06), 0 8px 24px -18px rgba(14, 26, 25, 0.5);
+  --shadow: 0 1px 2px rgba(11, 26, 46, 0.06), 0 8px 24px -18px rgba(11, 26, 46, 0.5);
   --r: 4px;
   --measure: 1140px;
 
@@ -42,20 +49,24 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground: #0b1211;
-    --surface: #111b19;
-    --surface-2: #172422;
-    --ink: #e4ecea;
-    --ink-2: #b3c3bf;
-    --muted: #8b9c97;
-    --hair: #243330;
-    --hair-strong: #33453f;
-    --accent: #5cbdaf;
-    --accent-soft: #13302c;
-    --accent-on: #08201e;
+    --ground: #0a111d;
+    --surface: #101a2c;
+    --surface-2: #16233a;
+    --ink: #e5ebf3;
+    --ink-2: #b4c1d3;
+    --muted: #8a98ac;
+    --hair: #22314a;
+    --hair-strong: #32435f;
+    --accent: #2ec4b9; /* navy disappears on this ground; the logo teal leads */
+    --accent-soft: #0f2d3a;
+    --accent-on: #04201e;
+    --brand-navy: #e5ebf3;
+    --brand-teal: #2ec4b9;
+    --teal-ink: #2ec4b9;
+    --teal-soft: #0f2d3a;
     --verified: #63b489;
     --pending: #cba13f;
-    --neutral-flag: #8b9c97;
+    --neutral-flag: #8a98ac;
     --alert: #e08b7c;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -18px rgba(0, 0, 0, 0.9);
     color-scheme: dark;
@@ -63,20 +74,24 @@
 }
 
 :root[data-theme="dark"] {
-  --ground: #0b1211;
-  --surface: #111b19;
-  --surface-2: #172422;
-  --ink: #e4ecea;
-  --ink-2: #b3c3bf;
-  --muted: #8b9c97;
-  --hair: #243330;
-  --hair-strong: #33453f;
-  --accent: #5cbdaf;
-  --accent-soft: #13302c;
-  --accent-on: #08201e;
+  --ground: #0a111d;
+  --surface: #101a2c;
+  --surface-2: #16233a;
+  --ink: #e5ebf3;
+  --ink-2: #b4c1d3;
+  --muted: #8a98ac;
+  --hair: #22314a;
+  --hair-strong: #32435f;
+  --accent: #2ec4b9; /* navy disappears on this ground; the logo teal leads */
+  --accent-soft: #0f2d3a;
+  --accent-on: #04201e;
+  --brand-navy: #e5ebf3;
+  --brand-teal: #2ec4b9;
+  --teal-ink: #2ec4b9;
+  --teal-soft: #0f2d3a;
   --verified: #63b489;
   --pending: #cba13f;
-  --neutral-flag: #8b9c97;
+  --neutral-flag: #8a98ac;
   --alert: #e08b7c;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -18px rgba(0, 0, 0, 0.9);
   color-scheme: dark;
@@ -144,8 +159,15 @@ img { max-width: 100%; height: auto; }
 /* --- header -------------------------------------------------------------- */
 header.site { position: sticky; top: 0; z-index: 40; background: var(--surface); border-bottom: 1px solid var(--hair); }
 .hrow { display: flex; align-items: center; gap: 22px; height: 62px; }
-.brand { display: flex; align-items: baseline; gap: 8px; flex: none; }
-.brand .mark { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--ink); letter-spacing: -0.015em; }
+.brand { display: flex; align-items: center; gap: 10px; flex: none; }
+.logo { display: inline-flex; align-items: center; gap: 10px; }
+.logomark { display: block; flex: none; }
+.logo .wordmark {
+  font-family: var(--font-sans); font-size: 15px; font-weight: 500;
+  letter-spacing: 0.05em; color: var(--brand-navy); white-space: nowrap;
+}
+.flogo { margin: 0 0 12px; }
+.flogo .wordmark { font-size: 16px; }
 .brand:hover { text-decoration: none; }
 .brand .tag {
   font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.16em;
@@ -920,7 +942,7 @@ img, svg, video { max-width: 100%; height: auto; }
 .ico { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
 /* --- homepage hero: search is the page ------------------------------------ */
-.hero-dark { --hd-bg: var(--ink); --hd-fg: var(--ground); background: var(--hd-bg); color: var(--hd-fg); }
+.hero-dark { --hd-bg: var(--brand-navy); --hd-fg: #ffffff; background: var(--hd-bg); color: var(--hd-fg); border-bottom: 4px solid var(--brand-teal); }
 .hero-dark-inner { padding: 64px 22px 56px; display: flex; flex-direction: column; gap: 26px; align-items: flex-start; }
 .hero-dark .eyebrow { color: color-mix(in srgb, var(--hd-fg) 60%, transparent); }
 .hero-dark h1 { font-size: 3.3rem; font-weight: 500; max-width: 19ch; color: var(--hd-fg); line-height: 1.08; }
@@ -930,7 +952,7 @@ img, svg, video { max-width: 100%; height: auto; }
 .hero-dark .bigsearch .k { font-size: 10px; white-space: nowrap; }
 .hero-dark .bigsearch input { font-size: 16px; }
 .hero-dark .bigsearch button { background: var(--hd-bg); color: var(--hd-fg); border-radius: 4px; padding: 0 30px; font-size: 16px; min-height: 58px; }
-.hero-dark .bigsearch button:hover { background: var(--accent); color: var(--accent-on); }
+.hero-dark .bigsearch button:hover { background: var(--teal-ink); color: #ffffff; }
 /* The rise animation gives each row its own stacking context, so the chips row
    (a later sibling) painted over the search suggestions; lift the search row. */
 .hero-dark .hero-search { position: relative; z-index: 6; width: 100%; max-width: 880px; }
