@@ -1387,8 +1387,27 @@ ol.procedure span { display: block; color: var(--ink-2); font-size: 16.5px; line
 }
 .supply-facts .note { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 .supply-p { font-size: 14.5px; color: var(--ink-2); max-width: 66ch; margin: 0 0 10px; }
-.supply-p:last-of-type { margin-bottom: 0; }
+.supply-p:last-child { margin-bottom: 0; }
 .supply-foot { font-size: 12.5px; color: var(--muted); margin: 14px 0 0; max-width: 66ch; }
+/* Wide cards: balanced fact rows, and the prose flows into two columns
+   (each ~45–55ch, so the measure stays readable) instead of one 66ch column
+   beside an empty right half. Keyed to the card's own width, not the
+   viewport, because listing pages place the panel beside a rail. */
+.supply { container-type: inline-size; }
+@container (min-width: 640px) {
+  .supply-facts { grid-template-columns: repeat(var(--supply-cols, 4), minmax(0, 1fr)); }
+  .supply-body.cols {
+    column-count: 2;
+    column-gap: 36px;
+    column-rule: 1px solid var(--hair);
+  }
+  .supply-body.cols .supply-p {
+    max-width: none;
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+  }
+  .supply-foot { max-width: none; }
+}
 @media (max-width: 560px) {
   .supply-facts { grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); }
   .supply-facts .v { font-size: 16px; }
