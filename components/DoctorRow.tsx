@@ -7,6 +7,7 @@ import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { formatKm } from "@/lib/geo";
 import { paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
+import { displayName } from "@/lib/display-name";
 
 function inr(n: number): string {
   return `₹${n.toLocaleString("en-IN")}`;
@@ -22,7 +23,7 @@ export function DoctorRow({ doctor, distance = null }: { doctor: DoctorView; dis
       <Avatar name={doctor.name} id={doctor.id} size={56} photoUrl={doctor.photoUrl} />
       <div>
         <Link className="nm" href={paths.doctor(doctor.slug)}>
-          Dr {doctor.name}
+          {displayName(doctor)}
         </Link>
         <div className="sub">
           {specialty.one}

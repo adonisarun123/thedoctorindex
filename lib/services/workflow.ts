@@ -8,6 +8,7 @@ import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { notifyUser } from "@/lib/services/notify";
 import { SENSITIVE_FIELDS, applyField, createDoctor, normalizeKey, recomputeQuality, snapshotRevision, type NewDoctorInput } from "@/lib/services/doctors";
+import { displayName } from "@/lib/display-name";
 
 /**
  * Doctor-facing workflows: new-profile submissions, claims, change requests,
@@ -89,7 +90,7 @@ export async function decideSubmission(id: string, decision: "approved" | "rejec
   await db.update(s.doctorSubmissions).set({ status: decision, doctorId, reviewerNote: note ?? null, decidedAt: decision === "in_review" ? null : new Date(), decidedByUserId: staffUserId }).where(eq(s.doctorSubmissions.id, id));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `submission.${decision}`, entityType: "submission", entityId: id, after: { doctorId }, reason: note });
   const slug = doctorId ? (await db.select({ slug: s.doctors.slug }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1))[0]?.slug : null;
-  await notifyUser(sub.userId, { kind: "submission", decision, doctorName: (sub.payload as SubmissionPayload).name, note, slug });
+  await notifyUser(sub.userId, { kind: "submission", decision, doctorName: displayName({ name: (sub.payload as SubmissionPayload).name, specialtyKey: (sub.payload as SubmissionPayload).specialtyKey }), note, slug });
   return { doctorId };
 }
 
@@ -139,8 +140,8 @@ export async function decideClaim(id: string, decision: "approved" | "rejected",
   }
   await db.update(s.doctorClaims).set({ status: decision, decidedAt: new Date(), decidedByUserId: staffUserId, note: note ?? null }).where(eq(s.doctorClaims.id, id));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `claim.${decision}`, entityType: "claim", entityId: id, after: { doctorId: c.doctorId, userId: c.userId }, reason: note });
-  const [dn] = await db.select({ name: s.doctors.name }).from(s.doctors).where(eq(s.doctors.id, c.doctorId)).limit(1);
-  await notifyUser(c.userId, { kind: "claim", decision, doctorName: dn?.name ?? "", note });
+  const [dn] = await db.select({ name: s.doctors.name, specialtyKey: s.doctors.specialtyKey }).from(s.doctors).where(eq(s.doctors.id, c.doctorId)).limit(1);
+  await notifyUser(c.userId, { kind: "claim", decision, doctorName: dn ? displayName(dn) : "", note });
 }
 
 /* ------------------------------------------------------------------------- */
@@ -191,8 +192,8 @@ export async function decideChange(id: string, decision: "published" | "rejected
   }
   await db.update(s.profileChangeRequests).set({ status: decision, decidedAt: new Date(), decidedByUserId: staffUserId, note: note ?? null }).where(eq(s.profileChangeRequests.id, id));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `change.${decision}`, entityType: "change", entityId: id, after: { doctorId: c.doctorId, field: c.field }, reason: note });
-  const [dn] = await db.select({ name: s.doctors.name }).from(s.doctors).where(eq(s.doctors.id, c.doctorId)).limit(1);
-  await notifyUser(c.requestedByUserId, { kind: "change", decision, field: c.field, doctorName: dn?.name ?? "", note });
+  const [dn] = await db.select({ name: s.doctors.name, specialtyKey: s.doctors.specialtyKey }).from(s.doctors).where(eq(s.doctors.id, c.doctorId)).limit(1);
+  await notifyUser(c.requestedByUserId, { kind: "change", decision, field: c.field, doctorName: dn ? displayName(dn) : "", note });
 }
 
 /* ------------------------------------------------------------------------- */
@@ -206,9 +207,9 @@ export async function inviteManager(doctorId: string, ownerUserId: string, email
   if (!u) [u] = await db.insert(s.users).values({ email: lower, displayName: name }).returning({ id: s.users.id });
   const [row] = await db.insert(s.doctorManagers).values({ doctorId, userId: u.id, email: lower, name, scopePracticeIds, status: "active" }).returning();
   await audit({ actorUserId: ownerUserId, actorRole: "doctor", action: "manager.invited", entityType: "doctor", entityId: doctorId, after: { email: lower, scope: scopePracticeIds } });
-  const [dn] = await db.select({ name: s.doctors.name }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
+  const [dn] = await db.select({ name: s.doctors.name, specialtyKey: s.doctors.specialtyKey }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
   const [owner] = await db.select({ name: s.users.displayName, email: s.users.email }).from(s.users).where(eq(s.users.id, ownerUserId)).limit(1);
-  await notifyUser(u.id, { kind: "manager_invite", doctorName: dn?.name ?? "", invitedBy: owner?.name ?? owner?.email ?? "The profile owner" });
+  await notifyUser(u.id, { kind: "manager_invite", doctorName: dn ? displayName(dn) : "", invitedBy: owner?.name ?? owner?.email ?? "The profile owner" });
   return row;
 }
 

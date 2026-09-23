@@ -22,7 +22,7 @@ export function ClaimForm({ initialRegistration, profile }: { initialRegistratio
     return (
       <div className="panel pad">
         <div className="notice good" style={{ marginBottom: "16px" }}>
-          <b>Claim received for Dr {state.doctorName}.</b> A verification officer confirms control through the method you chose — target 2 business days. If someone else has already claimed this profile we will not show you their details, and we will not transfer control without evidence from both sides.
+          <b>Claim received for {state.doctorName}.</b> A verification officer confirms control through the method you chose — target 2 business days. If someone else has already claimed this profile we will not show you their details, and we will not transfer control without evidence from both sides.
         </div>
         <Link className="btn quiet" href="/dashboard">Go to your dashboard</Link>
       </div>
@@ -34,7 +34,7 @@ export function ClaimForm({ initialRegistration, profile }: { initialRegistratio
       {state.error ? <div className="notice alert" style={{ marginBottom: "16px" }}>{state.error}</div> : null}
       {profile ? (
         <div className="notice" style={{ marginBottom: "16px" }}>
-          Claiming <b>Dr {profile.name}</b>{profile.specialty ? ` · ${profile.specialty}` : ""}.{" "}
+          Claiming <b>{profile.name}</b>{profile.specialty ? ` · ${profile.specialty}` : ""}.{" "}
           {profile.hasRegistration
             ? "Enter the council and number exactly as they appear on this profile."
             : "This profile has no registration on file yet. Enter yours; a verification officer checks it against the register before approving."}

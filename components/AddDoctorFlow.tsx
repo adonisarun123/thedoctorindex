@@ -11,6 +11,7 @@ import { COUNCIL_NAMES } from "@/lib/data/councils";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
+import { displayName } from "@/lib/display-name";
 
 /**
  * Registration-first submission (plan §9.2). Step 1 checks council +
@@ -85,7 +86,7 @@ export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string,
             <article className="row">
               <div className="av" aria-hidden="true">{match.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
               <div>
-                <Link className="nm" href={paths.doctor(match.slug)}>Dr {match.name}</Link>
+                <Link className="nm" href={paths.doctor(match.slug)}>{displayName(match)}</Link>
                 <div className="sub">{SPECIALTIES[match.specialty].one}</div>
                 <div className="meta">
                   {match.registration.council} · {match.registration.number}

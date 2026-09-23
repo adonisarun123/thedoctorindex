@@ -125,6 +125,7 @@ export function editorialEntries(): SitemapEntry[] {
       loc: absoluteUrl(`/health-guides/${g.slug}`),
       lastmod: toIsoDate(g.reviewedOn),
     })),
+    { loc: absoluteUrl(paths.policies()), lastmod: latestLastmod(POLICIES.map((p) => ({ loc: absoluteUrl(paths.policy(p.slug)), lastmod: toIsoDate(p.updatedOn) }))) },
     ...POLICIES.map((p) => ({
       loc: absoluteUrl(paths.policy(p.slug)),
       lastmod: toIsoDate(p.updatedOn),

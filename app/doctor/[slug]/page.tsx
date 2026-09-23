@@ -20,6 +20,7 @@ import { addressLine, buildFaq, facilityLabel, summarySentence, supplySentence, 
 import { GoogleListingCard } from "@/components/GoogleListing";
 import { absoluteUrl, paths, SITE } from "@/lib/site";
 import type { DoctorCredential, DoctorView } from "@/lib/types";
+import { displayName, honorific } from "@/lib/display-name";
 
 type Params = { slug: string };
 
@@ -47,9 +48,9 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const degrees = doctor.qualifications.filter((q) => q.state === "verified").map((q) => q.degree).slice(0, 2).join(", ");
   const [firstName, ...rest] = doctor.name.split(/\s+/);
   return pageMeta({
-    title: `Dr ${doctor.name} – ${specialty.one} in ${cityName}`,
-    ogTitle: `Dr ${doctor.name}, ${specialty.one} in ${locality && locality !== cityName ? `${locality}, ` : ""}${cityName}`,
-    description: `Dr ${doctor.name}, ${specialty.one.toLowerCase()} in ${locality && locality !== cityName ? `${locality}, ` : ""}${cityName}. ${degrees ? `${degrees}. ` : ""}${doctor.yearsOfExperience ? `${doctor.yearsOfExperience}+ years. ` : ""}${doctor.registration.checkedOn && doctor.registration.checkedOn !== "—" ? `Registration checked ${doctor.registration.checkedOn}; qualifications and practice dated.` : "Registration not yet checked against the council register."}`,
+    title: `${displayName(doctor)} – ${specialty.one} in ${cityName}`,
+    ogTitle: `${displayName(doctor)}, ${specialty.one} in ${locality && locality !== cityName ? `${locality}, ` : ""}${cityName}`,
+    description: `${displayName(doctor)}, ${specialty.one.toLowerCase()} in ${locality && locality !== cityName ? `${locality}, ` : ""}${cityName}. ${degrees ? `${degrees}. ` : ""}${doctor.yearsOfExperience ? `${doctor.yearsOfExperience}+ years. ` : ""}${doctor.registration.checkedOn && doctor.registration.checkedOn !== "—" ? `Registration checked ${doctor.registration.checkedOn}; qualifications and practice dated.` : "Registration not yet checked against the council register."}`,
     path: paths.doctor(doctor.slug),
     index: doctor.indexable,
     type: "profile",
@@ -98,13 +99,13 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
     ...(primary?.citySlug ? [{ name: primary.city, path: `/doctors/${primary.stateSlug}/${primary.citySlug}` }] : []),
     { name: specialty.plural, path: listingPath },
     ...localityCrumb,
-    { name: `Dr ${doctor.name}`, path: paths.doctor(doctor.slug) },
+    { name: `${displayName(doctor)}`, path: paths.doctor(doctor.slug) },
   ];
 
   const routeMeta: RouteMetaData = {
     route: "Doctor profile",
-    title: `Dr ${doctor.name} – ${specialty.one} in ${cityName} | The Doctor Index`,
-    h1: `Dr ${doctor.name}, ${specialty.one} in ${cityName}`,
+    title: `${displayName(doctor)} – ${specialty.one} in ${cityName} | The Doctor Index`,
+    h1: `${displayName(doctor)}, ${specialty.one} in ${cityName}`,
     canonical: absoluteUrl(paths.doctor(doctor.slug)),
     index: doctor.indexable,
     gate: { name: "Profile gate", checks: gate.checks },
@@ -191,7 +192,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
             <Avatar name={doctor.name} id={doctor.id} photoUrl={doctor.photoUrl} />
             <div className="idband-main">
               <div className="idband-name">
-                <h1>Dr {doctor.name}</h1>
+                <h1>{displayName(doctor)}</h1>
                 {registrationState(doctor) === "verified" ? (
                   <span className="badge ok">Registered</span>
                 ) : null}
@@ -314,7 +315,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 </div>
                 {doctor.googleListing ? (
                   <div style={{ marginTop: "12px" }}>
-                    <GoogleListingCard listing={doctor.googleListing} doctorName={doctor.name} />
+                    <GoogleListingCard listing={doctor.googleListing} doctorName={displayName(doctor)} />
                   </div>
                 ) : null}
               </section>
@@ -440,7 +441,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               </div>
             ) : (
               <div className="claimcard">
-                <div className="eyebrow">Is this you, Dr {surname}?</div>
+                <div className="eyebrow">Is this you, {honorific(doctor.specialty)}{surname}?</div>
                 <div className="t">Claim this page, free</div>
                 <p>Correct anything, add your fee and timings, and reply to reviews. Takes about five minutes with your registration number.</p>
                 <Link className="btn solid" href={claimHref}>
@@ -450,7 +451,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
             )}
 
             {doctor.tdiId && doctor.lifecycle === "published" ? (
-              <QrShare tdiId={doctor.tdiId} name={`Dr ${doctor.name}`} origin={SITE.origin} />
+              <QrShare tdiId={doctor.tdiId} name={`${displayName(doctor)}`} origin={SITE.origin} />
             ) : null}
 
             <div className="panel pad honest">
@@ -613,7 +614,7 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
             <p className="txt">{r.text}</p>
             {r.reply ? (
               <div className="reply">
-                <div className="who">Reply from Dr {doctor.name}</div>
+                <div className="who">Reply from {displayName(doctor)}</div>
                 <p className="txt">{r.reply}</p>
               </div>
             ) : null}
@@ -727,7 +728,7 @@ async function AtFacility({ doctor }: { doctor: DoctorView }) {
               <Avatar name={d.name} id={d.id} size={40} photoUrl={d.photoUrl} />
               <div>
                 <Link className="nm" href={paths.doctor(d.slug)}>
-                  Dr {d.name}
+                  {displayName(d)}
                 </Link>
                 <div className="s">
                   {sp.one}
@@ -852,7 +853,7 @@ function Nearby({ doctor, nearby }: { doctor: DoctorView; nearby: DoctorView[] }
             <Avatar name={d.name} id={d.id} size={40} photoUrl={d.photoUrl} />
             <div>
               <Link className="nm" href={paths.doctor(d.slug)}>
-                Dr {d.name}
+                {displayName(d)}
               </Link>
               <div className="s">
                 {d.practices[0] ? `${d.practices[0].facility}, ${d.practices[0].localityName}` : "Practice not on record"}

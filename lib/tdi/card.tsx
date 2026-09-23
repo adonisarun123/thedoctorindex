@@ -6,6 +6,7 @@ import { SITE } from "@/lib/site";
 import { QR_NAVY, QR_TEAL, QR_TEAL_DARK, qrSvg } from "@/lib/tdi/qr";
 import type { DoctorView } from "@/lib/types";
 import { registrationLabel } from "@/lib/verification";
+import { displayName } from "@/lib/display-name";
 
 /**
  * The shareable TDI card: branded QR, name, TDI ID, speciality and city.
@@ -32,11 +33,10 @@ export interface CardData {
 export function cardData(d: DoctorView, tdiId: string): CardData {
   const sp = SPECIALTIES[d.specialty];
   const city = d.practices[0]?.city;
-  const bare = d.name.replace(/^dr\.?\s+/i, "").trim();
   const host = SITE.origin.replace(/^https?:\/\//, "");
   return {
     tdiId,
-    name: `Dr ${bare}`,
+    name: displayName(d),
     line: [sp?.one ?? sp?.name, city].filter(Boolean).join(" · "),
     trust: registrationLabel(d),
     shortUrl: `${SITE.origin}/d/${tdiId}`,

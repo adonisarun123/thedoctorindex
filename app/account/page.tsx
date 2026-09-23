@@ -12,6 +12,7 @@ import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { absoluteUrl, paths } from "@/lib/site";
+import { displayName } from "@/lib/display-name";
 
 export const metadata: Metadata = { title: "My account", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -75,7 +76,7 @@ export default async function AccountPage() {
           {reviews.map((r) => (
             <div className="qcard" key={r.id}>
               <div className="qh">
-                <div><div className="qt"><Link href={paths.doctor(r.doctor.slug)}>Dr {r.doctor.name}</Link></div><div className="qm">{r.visitMonth} · submitted {toDisplay(r.submittedAt)} · evidence {r.evidence}</div></div>
+                <div><div className="qt"><Link href={paths.doctor(r.doctor.slug)}>{displayName(r.doctor)}</Link></div><div className="qm">{r.visitMonth} · submitted {toDisplay(r.submittedAt)} · evidence {r.evidence}</div></div>
                 <span className={`pill ${pill(r.status)}`}>{r.status === "redacted" ? "published (redacted)" : r.status}</span>
               </div>
               <div className="qb">“{r.status === "redacted" && r.publishedText ? r.publishedText : r.text}”</div>
@@ -89,7 +90,7 @@ export default async function AccountPage() {
           {enquiries.length === 0 ? <div className="panel pad" style={{ color: "var(--muted)", fontSize: "13.5px" }}>None yet.</div> : (
             <table className="table">
               <thead><tr><th>Sent</th><th>Doctor</th><th>Preferred</th><th>Status</th></tr></thead>
-              <tbody>{enquiries.map((e) => <tr key={e.id}><td className="mono">{toDisplay(e.createdAt)}</td><td><Link href={paths.doctor(e.doctor.slug)}>Dr {e.doctor.name}</Link></td><td>{e.preferredDay ?? "—"}</td><td><span className={`pill ${pill(e.status)}`}>{e.status === "sent" ? "sent to practice" : e.status}</span></td></tr>)}</tbody>
+              <tbody>{enquiries.map((e) => <tr key={e.id}><td className="mono">{toDisplay(e.createdAt)}</td><td><Link href={paths.doctor(e.doctor.slug)}>{displayName(e.doctor)}</Link></td><td>{e.preferredDay ?? "—"}</td><td><span className={`pill ${pill(e.status)}`}>{e.status === "sent" ? "sent to practice" : e.status}</span></td></tr>)}</tbody>
             </table>
           )}
         </section>
@@ -101,7 +102,7 @@ export default async function AccountPage() {
               <thead><tr><th>When</th><th>What</th><th>Registration</th><th>Status</th></tr></thead>
               <tbody>
                 {submissions.map((x) => <tr key={x.id}><td className="mono">{toDisplay(x.createdAt)}</td><td>New profile · {(x.payload as { name?: string }).name}</td><td className="mono">{x.council} {x.registrationNumber}</td><td><span className={`pill ${pill(x.status)}`}>{x.status.replace("_", " ")}</span>{x.reviewerNote ? <div style={{ fontSize: "12px", color: "var(--muted)" }}>{x.reviewerNote}</div> : null}</td></tr>)}
-                {claims.map((x) => <tr key={x.id}><td className="mono">{toDisplay(x.createdAt)}</td><td>Claim · <Link href={paths.doctor(x.doctor.slug)}>Dr {x.doctor.name}</Link></td><td className="mono">{x.registrationNumber}</td><td><span className={`pill ${pill(x.status)}`}>{x.status}</span></td></tr>)}
+                {claims.map((x) => <tr key={x.id}><td className="mono">{toDisplay(x.createdAt)}</td><td>Claim · <Link href={paths.doctor(x.doctor.slug)}>{displayName(x.doctor)}</Link></td><td className="mono">{x.registrationNumber}</td><td><span className={`pill ${pill(x.status)}`}>{x.status}</span></td></tr>)}
               </tbody>
             </table>
           </section>
@@ -112,7 +113,7 @@ export default async function AccountPage() {
             <div className="chart-head"><span className="t">Corrections you suggested</span><span className="m">{corrections.length}</span></div>
             <table className="table">
               <thead><tr><th>When</th><th>Doctor</th><th>Field</th><th>Status</th></tr></thead>
-              <tbody>{corrections.map((c) => <tr key={c.id}><td className="mono">{toDisplay(c.createdAt)}</td><td><Link href={paths.doctor(c.doctor.slug)}>Dr {c.doctor.name}</Link></td><td>{c.field}</td><td><span className={`pill ${pill(c.status)}`}>{c.status}</span></td></tr>)}</tbody>
+              <tbody>{corrections.map((c) => <tr key={c.id}><td className="mono">{toDisplay(c.createdAt)}</td><td><Link href={paths.doctor(c.doctor.slug)}>{displayName(c.doctor)}</Link></td><td>{c.field}</td><td><span className={`pill ${pill(c.status)}`}>{c.status}</span></td></tr>)}</tbody>
             </table>
           </section>
         ) : null}

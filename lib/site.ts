@@ -74,6 +74,7 @@ export const paths = {
   signIn: (next?: string) => (next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in"),
   account: () => "/account",
   claimProfile: () => "/claim-profile",
+  policies: () => "/policies",
   policy: (slug: string) => `/policies/${slug}`,
   blog: () => "/blog",
   blogPost: (slug: string) => `/blog/${slug}`,

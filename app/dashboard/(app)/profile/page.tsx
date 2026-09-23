@@ -5,6 +5,7 @@ import { Avatar } from "@/components/Avatar";
 import { getDashboardContext } from "@/lib/dashboard";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import type { DoctorCredential } from "@/lib/types";
+import { displayName } from "@/lib/display-name";
 
 export const metadata = { title: "Profile & credentials" };
 
@@ -48,7 +49,7 @@ export default async function DashboardProfile() {
       ) : null}
 
       {asManager ? (
-        <div className="notice">Clinic managers cannot edit this page. Ask Dr {doctor.name} to make identity or credential changes.</div>
+        <div className="notice">Clinic managers cannot edit this page. Ask {displayName(doctor)} to make identity or credential changes.</div>
       ) : (
         <ActionForm action={saveProfileAction} submitLabel="Save and publish changes" className="stack">
           <section className="panel pad">
@@ -58,7 +59,7 @@ export default async function DashboardProfile() {
               <div>
                 <div className="field">
                   <label htmlFor="name">Display name <span className="pill wait" style={{ marginLeft: "6px" }}>re-verified</span></label>
-                  <input id="name" name="name" type="text" defaultValue={`Dr ${doctor.name}`} />
+                  <input id="name" name="name" type="text" defaultValue={`${displayName(doctor)}`} />
                   <div className="hint">Must match the register. A change triggers a fresh registration match and the old URL redirects to the new one.</div>
                 </div>
                 <div className="two">

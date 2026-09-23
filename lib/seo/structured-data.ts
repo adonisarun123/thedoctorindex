@@ -3,6 +3,7 @@ import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 import type { DoctorView, Practice, Specialty, SpecialtyKey } from "@/lib/types";
 import { registrationState } from "@/lib/verification";
+import { displayName, honorific } from "@/lib/display-name";
 
 /**
  * Structured data (project plan §11.6).
@@ -248,12 +249,13 @@ export function doctorLd(d: DoctorView): Json {
   // a practice; paired with Person so consumers that only know Person still
   // read the name, credentials and languages.
   const physician: Json = {
-    "@type": ["Person", "IndividualPhysician"],
+    // A physiotherapist or psychologist is not a physician; say only "Person".
+    "@type": honorific(d.specialty) ? ["Person", "IndividualPhysician"] : "Person",
     "@id": `${url}#physician`,
-    name: `Dr ${d.name}`,
+    name: displayName(d),
     givenName: first,
     ...(last ? { familyName: last } : {}),
-    honorificPrefix: "Dr",
+    ...(honorific(d.specialty) ? { honorificPrefix: "Dr" } : {}),
     ...(d.gender ? { gender: d.gender === "F" ? "Female" : "Male" } : {}),
     jobTitle: specialty.one,
     url,
@@ -328,7 +330,7 @@ export function doctorLd(d: DoctorView): Json {
     "@type": d.claimed ? "ProfilePage" : "WebPage",
     "@id": url,
     url,
-    name: `Dr ${d.name}, ${specialty.one} in ${d.practices[0]?.city || "India"}`,
+    name: `${displayName(d)}, ${specialty.one} in ${d.practices[0]?.city || "India"}`,
     inLanguage: "en-IN",
     isPartOf: { "@id": SITE_ID() },
     publisher: { "@id": ORG_ID() },
@@ -365,7 +367,7 @@ export function listingLd(specialty: Specialty, placeName: string, canonicalPath
         "@type": "ListItem",
         position: i + 1,
         url: absoluteUrl(paths.doctor(d.slug)),
-        name: `Dr ${d.name}`,
+        name: `${displayName(d)}`,
       })),
     },
   };

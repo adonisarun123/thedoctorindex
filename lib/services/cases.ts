@@ -8,6 +8,7 @@ import { audit } from "@/lib/services/audit";
 import { notifyDoctorOwner } from "@/lib/services/notify";
 import { applyField, snapshotRevision } from "@/lib/services/doctors";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { displayName } from "@/lib/display-name";
 
 /**
  * Public-facing cases: profile reports, corrections, appointment enquiries.
@@ -68,8 +69,8 @@ export async function createEnquiry(doctorId: string, userId: string, input: { p
   if (!rl.ok) throw new Error("Too many enquiries in the last hour.");
   const [row] = await db.insert(s.enquiries).values({ doctorId, userId, practiceId: input.practiceId, contact: input.contact, preferredDay: input.preferredDay, forWhom: input.forWhom, note: input.note, consentToShare: true }).returning();
   await audit({ actorUserId: userId, actorRole: "patient", action: "enquiry.created", entityType: "doctor", entityId: doctorId, after: { enquiryId: row.id, practiceId: input.practiceId } });
-  const [dn] = await db.select({ name: s.doctors.name }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
-  await notifyDoctorOwner(doctorId, { kind: "enquiry_received", doctorName: dn?.name ?? "", preferredDay: input.preferredDay });
+  const [dn] = await db.select({ name: s.doctors.name, specialtyKey: s.doctors.specialtyKey }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
+  await notifyDoctorOwner(doctorId, { kind: "enquiry_received", doctorName: dn ? displayName(dn) : "", preferredDay: input.preferredDay });
   return row;
 }
 

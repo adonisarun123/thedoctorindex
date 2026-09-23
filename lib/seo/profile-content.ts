@@ -2,6 +2,7 @@ import { isMedicalCouncil, registerName } from "@/lib/data/councils";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { hasDate, registrationState } from "@/lib/verification";
 import type { DoctorView } from "@/lib/types";
+import { displayName } from "@/lib/display-name";
 
 /**
  * Profile page content assembled from verified facts only.
@@ -71,7 +72,7 @@ export function summarySentence(d: DoctorView): string {
   const degrees = d.qualifications.map((q) => q.degree).filter(isStated).slice(0, 3);
   const reg = registrationState(d);
   const parts: string[] = [];
-  parts.push(`Dr ${d.name} is ${sp.aOne}${where ? ` practising${at} in ${where}` : ""}.`);
+  parts.push(`${displayName(d)} is ${sp.aOne}${where ? ` practising${at} in ${where}` : ""}.`);
   if (degrees.length) parts.push(`Qualifications on record: ${degrees.join(", ")}.`);
   if (reg === "verified") parts.push(`Registered with the ${d.registration.council} (No. ${d.registration.number}), checked against the register on ${d.registration.checkedOn}.`);
   else if (reg === "submitted") parts.push(`Council registration ${d.registration.number} (${d.registration.council}) is on record and awaiting a check against the register.`);
@@ -116,14 +117,14 @@ function contactAnswer(d: DoctorView): string {
 
 function registrationAnswer(d: DoctorView): string {
   const reg = registrationState(d);
-  if (reg === "verified") return `Yes. Dr ${d.name} holds registration No. ${d.registration.number} with the ${d.registration.council}${d.registration.registeredYear ? `, registered in ${d.registration.registeredYear}` : ""}. It was matched against the register on ${d.registration.checkedOn}. Registration confirms the doctor is on the register; it is not a measure of clinical skill.`;
-  if (reg === "submitted") return `A registration number (${d.registration.number}, ${d.registration.council}) is on record for Dr ${d.name} but has not yet been checked against the register. The profile says so until the check is done.`;
-  return `No ${registrationWord(d)} registration number is on record for Dr ${d.name}. The profile is marked accordingly. If you are the doctor, claiming the profile lets you add it for verification.`;
+  if (reg === "verified") return `Yes. ${displayName(d)} holds registration No. ${d.registration.number} with the ${d.registration.council}${d.registration.registeredYear ? `, registered in ${d.registration.registeredYear}` : ""}. It was matched against the register on ${d.registration.checkedOn}. Registration confirms the doctor is on the register; it is not a measure of clinical skill.`;
+  if (reg === "submitted") return `A registration number (${d.registration.number}, ${d.registration.council}) is on record for ${displayName(d)} but has not yet been checked against the register. The profile says so until the check is done.`;
+  return `No ${registrationWord(d)} registration number is on record for ${displayName(d)}. The profile is marked accordingly. If you are the doctor, claiming the profile lets you add it for verification.`;
 }
 
 function qualificationsAnswer(d: DoctorView): string {
   const sp = SPECIALTIES[d.specialty];
-  if (!d.qualifications.length) return `No qualification is on record for Dr ${d.name}. The speciality shown, ${sp.name.toLowerCase()}, comes from the source record and has not been verified against an awarding body.`;
+  if (!d.qualifications.length) return `No qualification is on record for ${displayName(d)}. The speciality shown, ${sp.name.toLowerCase()}, comes from the source record and has not been verified against an awarding body.`;
   const list = d.qualifications.map((q) => `${q.degree}${isStated(q.institution) && !/not stated/i.test(q.institution) ? ` (${q.institution}${q.year ? `, ${q.year}` : ""})` : ""}${q.state === "verified" ? " — verified" : " — as supplied, not yet checked"}`);
   return `${list.join("; ")}.`;
 }
@@ -132,34 +133,34 @@ function specialtyAnswer(d: DoctorView): string {
   const sp = SPECIALTIES[d.specialty];
   const subs = d.subspecialties.filter(isStated);
   const services = d.services.filter(isStated).slice(0, 6);
-  return `Dr ${d.name} is listed under ${sp.name.toLowerCase()}${subs.length ? ` (${subs.join(", ")})` : ""}.${services.length ? ` Services on record: ${services.join(", ")}.` : ""}${sp.guide ? ` See the guide to when to consult ${sp.aOne} for what this speciality covers.` : ""}`;
+  return `${displayName(d)} is listed under ${sp.name.toLowerCase()}${subs.length ? ` (${subs.join(", ")})` : ""}.${services.length ? ` Services on record: ${services.join(", ")}.` : ""}${sp.guide ? ` See the guide to when to consult ${sp.aOne} for what this speciality covers.` : ""}`;
 }
 
 function languagesAnswer(d: DoctorView): string {
   const langs = d.languages.filter(isStated);
-  if (langs.length) return `${langs.join(", ")} are on record for Dr ${d.name}. Languages are supplied by the practice or the doctor, not independently checked.`;
-  return `No consultation languages are on record for Dr ${d.name}. Ask the practice when you call. Once the doctor claims this profile, the languages they list appear here.`;
+  if (langs.length) return `${langs.join(", ")} are on record for ${displayName(d)}. Languages are supplied by the practice or the doctor, not independently checked.`;
+  return `No consultation languages are on record for ${displayName(d)}. Ask the practice when you call. Once the doctor claims this profile, the languages they list appear here.`;
 }
 
 function modesAnswer(d: DoctorView): string {
   const online = d.modes.some((m) => /online|video|tele/i.test(m));
-  if (!d.modes.length) return `Consultation modes are not on record for Dr ${d.name}. Ask the practice whether an online consultation is possible.`;
-  if (online) return `Yes. Dr ${d.name} is listed for ${d.modes.join(" and ").toLowerCase()} consultation. Availability changes; confirm with the practice before you book.`;
-  return `Only ${d.modes.join(" and ").toLowerCase()} consultation is on record for Dr ${d.name}. No online consultation is listed. Ask the practice whether one is possible.`;
+  if (!d.modes.length) return `Consultation modes are not on record for ${displayName(d)}. Ask the practice whether an online consultation is possible.`;
+  if (online) return `Yes. ${displayName(d)} is listed for ${d.modes.join(" and ").toLowerCase()} consultation. Availability changes; confirm with the practice before you book.`;
+  return `Only ${d.modes.join(" and ").toLowerCase()} consultation is on record for ${displayName(d)}. No online consultation is listed. Ask the practice whether one is possible.`;
 }
 
 function experienceAnswer(d: DoctorView): string {
-  if (d.practiceStartYear && d.yearsOfExperience > 0) return `Dr ${d.name} has been in practice since ${d.practiceStartYear}, about ${d.yearsOfExperience} years. The start year comes from the record and has not been independently checked.`;
+  if (d.practiceStartYear && d.yearsOfExperience > 0) return `${displayName(d)} has been in practice since ${d.practiceStartYear}, about ${d.yearsOfExperience} years. The start year comes from the record and has not been independently checked.`;
   if (d.registration.registeredYear) {
     const yrs = new Date().getFullYear() - d.registration.registeredYear;
     return `A practice start year is not on record. Council registration dates from ${d.registration.registeredYear}, ${yrs > 0 ? `about ${yrs} years ago` : "this year"}, which is the earliest date this profile can evidence — it is not the same as years in practice.`;
   }
-  return `Neither a practice start year nor a registration year is on record for Dr ${d.name}, so this profile does not state years of experience. It will not estimate one.`;
+  return `Neither a practice start year nor a registration year is on record for ${displayName(d)}, so this profile does not state years of experience. It will not estimate one.`;
 }
 
 function claimAnswer(d: DoctorView): string {
-  if (d.claimed) return `Yes. Dr ${d.name} has claimed this profile and controls the editable fields on it. Verification of registration and qualifications is still carried out by The Doctor Index, not by the doctor.`;
-  return `No. This record was compiled from permitted public sources and Dr ${d.name} takes no part in it. Nothing on this page was written or approved by the doctor. Claiming the profile is free and lets the doctor correct it.`;
+  if (d.claimed) return `Yes. ${displayName(d)} has claimed this profile and controls the editable fields on it. Verification of registration and qualifications is still carried out by The Doctor Index, not by the doctor.`;
+  return `No. This record was compiled from permitted public sources and ${displayName(d)} takes no part in it. Nothing on this page was written or approved by the doctor. Claiming the profile is free and lets the doctor correct it.`;
 }
 
 /** How a reader checks this doctor without trusting this page — the site's own argument, stated per record. */
@@ -177,20 +178,20 @@ function selfCheckAnswer(d: DoctorView): string {
 export function buildFaq(d: DoctorView): Faq[] {
   const where = placePhrase(d);
   const faqs: Faq[] = [];
-  if (where) faqs.push({ q: `Where does Dr ${d.name} practise?`, a: `${d.practices.map((p) => addressLine(p)).join("; ")}.${d.practices.length > 1 ? ` ${d.practices.length} practice locations are on record.` : ""}` });
-  faqs.push({ q: `Is Dr ${d.name} registered with a ${registrationWord(d)}?`, a: registrationAnswer(d) });
-  faqs.push({ q: `What are Dr ${d.name}'s qualifications?`, a: qualificationsAnswer(d) });
-  faqs.push({ q: `What does Dr ${d.name} treat?`, a: specialtyAnswer(d) });
+  if (where) faqs.push({ q: `Where does ${displayName(d)} practise?`, a: `${d.practices.map((p) => addressLine(p)).join("; ")}.${d.practices.length > 1 ? ` ${d.practices.length} practice locations are on record.` : ""}` });
+  faqs.push({ q: `Is ${displayName(d)} registered with a ${registrationWord(d)}?`, a: registrationAnswer(d) });
+  faqs.push({ q: `What are ${displayName(d)}'s qualifications?`, a: qualificationsAnswer(d) });
+  faqs.push({ q: `What does ${displayName(d)} treat?`, a: specialtyAnswer(d) });
   if (d.practices[0]) {
-    faqs.push({ q: `What is Dr ${d.name}'s consultation fee?`, a: feeAnswer(d) });
+    faqs.push({ q: `What is ${displayName(d)}'s consultation fee?`, a: feeAnswer(d) });
     faqs.push({ q: `What are the consultation timings?`, a: timingsAnswer(d) });
-    faqs.push({ q: `How do I contact or book Dr ${d.name}?`, a: contactAnswer(d) });
+    faqs.push({ q: `How do I contact or book ${displayName(d)}?`, a: contactAnswer(d) });
   }
-  faqs.push({ q: `How many years has Dr ${d.name} been practising?`, a: experienceAnswer(d) });
-  faqs.push({ q: `Does Dr ${d.name} consult online?`, a: modesAnswer(d) });
-  faqs.push({ q: `What languages does Dr ${d.name} consult in?`, a: languagesAnswer(d) });
-  faqs.push({ q: `Has Dr ${d.name} claimed this profile?`, a: claimAnswer(d) });
-  faqs.push({ q: `How can I check Dr ${d.name}'s registration myself?`, a: selfCheckAnswer(d) });
+  faqs.push({ q: `How many years has ${displayName(d)} been practising?`, a: experienceAnswer(d) });
+  faqs.push({ q: `Does ${displayName(d)} consult online?`, a: modesAnswer(d) });
+  faqs.push({ q: `What languages does ${displayName(d)} consult in?`, a: languagesAnswer(d) });
+  faqs.push({ q: `Has ${displayName(d)} claimed this profile?`, a: claimAnswer(d) });
+  faqs.push({ q: `How can I check ${displayName(d)}'s registration myself?`, a: selfCheckAnswer(d) });
   return faqs;
 }
 
@@ -209,13 +210,13 @@ export function supplySentence(d: DoctorView, counts: { locality: number; city: 
   const hasLocality = isStated(p.localityName) && p.localityName !== p.city && counts.locality > 0;
   if (hasLocality) {
     parts.push(counts.locality === 1
-      ? `Dr ${d.name} is the only ${sp.one.toLowerCase()} on record in ${p.localityName}.`
-      : `${counts.locality} ${plural} are on record in ${p.localityName}, including Dr ${d.name}.`);
+      ? `${displayName(d)} is the only ${sp.one.toLowerCase()} on record in ${p.localityName}.`
+      : `${counts.locality} ${plural} are on record in ${p.localityName}, including ${displayName(d)}.`);
   }
   if (counts.city > 0) {
     parts.push(hasLocality
       ? `Across ${p.city} the index holds ${counts.city.toLocaleString("en-IN")}.`
-      : `${counts.city.toLocaleString("en-IN")} ${plural} are on record in ${p.city}, including Dr ${d.name}.`);
+      : `${counts.city.toLocaleString("en-IN")} ${plural} are on record in ${p.city}, including ${displayName(d)}.`);
   }
   if (counts.cityAllSpecialties > 0) parts.push(`${counts.cityAllSpecialties.toLocaleString("en-IN")} doctors across all specialities are listed in ${p.city}.`);
   if (!parts.length) return null;

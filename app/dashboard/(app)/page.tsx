@@ -9,6 +9,7 @@ import { doctorAnalytics } from "@/lib/services/events";
 import { listChangesForDoctor, reconfirmSchedule } from "@/lib/services/workflow";
 import { QrShare } from "@/components/QrShare";
 import { paths, SITE } from "@/lib/site";
+import { displayName } from "@/lib/display-name";
 
 function pct(now: number, prev: number): string {
   if (!prev) return now ? "no data for the previous 28 days" : "no views recorded yet";
@@ -53,7 +54,7 @@ export default async function DashboardOverview() {
 
       {live && doctor.tdiId ? (
         <div style={{ maxWidth: 420, marginBottom: "16px" }}>
-          <QrShare tdiId={doctor.tdiId} name={`Dr ${doctor.name}`} origin={SITE.origin} />
+          <QrShare tdiId={doctor.tdiId} name={`${displayName(doctor)}`} origin={SITE.origin} />
         </div>
       ) : null}
 

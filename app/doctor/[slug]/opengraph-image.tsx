@@ -3,6 +3,7 @@ import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { OG_CONTENT_TYPE, OG_SIZE, ogCard } from "@/lib/seo/og";
 import { SITE } from "@/lib/site";
 import { registrationState } from "@/lib/verification";
+import { displayName } from "@/lib/display-name";
 
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
@@ -34,7 +35,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   ];
   return ogCard({
     eyebrow: `${sp.one} · ${d.practices[0]?.city || "India"}`,
-    title: `Dr ${d.name}`,
+    title: `${displayName(d)}`,
     subtitle: d.subspecialties.length ? d.subspecialties.slice(0, 3).join(" · ") : sp.name,
     chips,
     initials,

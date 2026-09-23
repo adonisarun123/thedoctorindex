@@ -9,6 +9,7 @@ import { getSessionUser, setupPath } from "@/lib/auth/session";
 import { getDoctorBySlug } from "@/lib/data";
 import { LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
 import { absoluteUrl, paths } from "@/lib/site";
+import { displayName } from "@/lib/display-name";
 
 type Params = { slug: string };
 type Search = Record<string, string | string[] | undefined>;
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const doctor = await getDoctorBySlug((await params).slug);
   if (!doctor) notFound();
   return {
-    title: `${TITLE} — Dr ${doctor.name}`,
+    title: `${TITLE} — ${displayName(doctor)}`,
     // Action flows are never indexed. The profile is the canonical page.
     robots: { index: false, follow: true },
     alternates: { canonical: absoluteUrl(paths.doctor(doctor.slug)) },
@@ -49,7 +50,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
       <RouteMeta
         data={{
           route: "Profile action flow",
-          title: `${TITLE} — Dr ${doctor.name} | The Doctor Index`,
+          title: `${TITLE} — ${displayName(doctor)} | The Doctor Index`,
           canonical: absoluteUrl(paths.doctor(doctor.slug)),
           index: false,
           structuredData: "None",
@@ -64,7 +65,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
       <Breadcrumbs
         items={[
           { name: "Home", path: paths.home() },
-          { name: `Dr ${doctor.name}`, path: paths.doctor(doctor.slug) },
+          { name: `${displayName(doctor)}`, path: paths.doctor(doctor.slug) },
           { name: TITLE, path: `${paths.doctor(doctor.slug)}/enquire` },
         ]}
       />
@@ -73,7 +74,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
           <span className="eyebrow">{EYEBROW}</span>
           <h1 style={{ margin: "10px 0 6px" }}>{TITLE}</h1>
           <p style={{ color: "var(--ink-2)", fontSize: "15px", marginBottom: "22px", maxWidth: "58ch" }}>
-            Dr {doctor.name}, {specialty.one.toLowerCase()}. {INTRO}
+            {displayName(doctor)}, {specialty.one.toLowerCase()}. {INTRO}
           </p>
           {!doctor.dbId ? (
             <div className="notice" style={{ marginBottom: "16px" }}>

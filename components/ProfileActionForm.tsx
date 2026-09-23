@@ -5,6 +5,7 @@ import { useActionState } from "react";
 
 import { correctionAction, enquiryAction, reportAction, submitReviewAction, type ActionState } from "@/app/doctor/[slug]/actions";
 import { paths } from "@/lib/site";
+import { displayName } from "@/lib/display-name";
 
 export type ActionKind = "review" | "report" | "correct" | "enquire";
 
@@ -47,7 +48,7 @@ export function ProfileActionForm({
         </div>
         <div className="flowacts">
           <Link className="btn quiet" href={paths.doctor(doctor.slug)}>
-            Back to Dr {doctor.name}
+            Back to {displayName(doctor)}
           </Link>
         </div>
       </div>

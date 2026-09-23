@@ -9,6 +9,7 @@ import { getDoctorBySlug } from "@/lib/data";
 import { SPECIALTIES } from "@/lib/data/specialties";
 import { registrationState } from "@/lib/verification";
 import { absoluteUrl } from "@/lib/site";
+import { displayName } from "@/lib/display-name";
 
 export const metadata: Metadata = {
   title: "Claim your doctor profile",
@@ -25,7 +26,7 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
   const profile = doctor && !doctor.claimed
     ? {
         slug: doctor.slug,
-        name: doctor.name,
+        name: displayName(doctor),
         specialty: SPECIALTIES[doctor.specialty]?.name ?? "",
         hasRegistration: registrationState(doctor) !== "none",
         council:

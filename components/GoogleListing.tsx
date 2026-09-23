@@ -35,7 +35,7 @@ export async function GoogleListingCard({ listing, doctorName }: { listing: List
   return (
     <div className="pcard" style={{ borderStyle: "dashed" }}>
       <div className="eyebrow">On Google Maps</div>
-      <div className="f" style={{ marginTop: "6px" }}>{listing.name || `Dr ${doctorName}`}</div>
+      <div className="f" style={{ marginTop: "6px" }}>{listing.name || doctorName}</div>
       {listing.address ? <div className="a">{listing.address}</div> : null}
       <div className="h">
         {listing.addressMatch ? "Matches the practice address on file" : "Listing found by name; address differs from the record"} · checked {listing.checkedOn}

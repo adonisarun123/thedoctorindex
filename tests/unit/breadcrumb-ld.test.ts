@@ -40,16 +40,17 @@ test("every ListItem carries an absolute item URL, the current page included", (
   assert.equal(list[2].item, absoluteUrl("/specialties/general-surgery"));
 });
 
-test("a policy page trail is Home then the policy itself, both with URLs", () => {
+test("a policy page trail is Home, Policies, then the policy, all with URLs", () => {
   const list = elements(
     breadcrumbLd([
       { name: "Home", path: paths.home() },
+      { name: "Policies", path: paths.policies() },
       { name: "Corrections policy", path: paths.policy("corrections") },
     ]),
   );
   assert.deepEqual(
     list.map((el) => el.item),
-    [absoluteUrl("/"), absoluteUrl("/policies/corrections")],
+    [absoluteUrl("/"), absoluteUrl("/policies"), absoluteUrl("/policies/corrections")],
   );
 });
 

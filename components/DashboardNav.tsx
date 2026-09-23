@@ -24,7 +24,7 @@ export function DashboardNav({ name, id, registration, counts }: { name: string;
       <div className="who">
         <Avatar name={name} id={id} size={36} />
         <div>
-          <div className="n">Dr {name}</div>
+          <div className="n">{name}</div>
           <div className="s">{registration}</div>
         </div>
       </div>

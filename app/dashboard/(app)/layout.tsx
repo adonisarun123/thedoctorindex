@@ -4,6 +4,7 @@ import { getDashboardContext } from "@/lib/dashboard";
 import { listEnquiries } from "@/lib/services/cases";
 import { listChangesForDoctor } from "@/lib/services/workflow";
 import { absoluteUrl } from "@/lib/site";
+import { displayName } from "@/lib/display-name";
 
 export const dynamic = "force-dynamic";
 
@@ -33,11 +34,11 @@ export default async function DashboardShell({ children }: { children: React.Rea
       <div className="wrap">
         {ctx.asManager ? (
           <div className="notice" style={{ marginTop: "16px" }}>
-            <b>You are signed in as a clinic manager for Dr {ctx.doctor.name}.</b> You can update hours, fees and contact details for the practices you were given; identity, credentials and reviews are the doctor&rsquo;s alone.
+            <b>You are signed in as a clinic manager for {displayName(ctx.doctor)}.</b> You can update hours, fees and contact details for the practices you were given; identity, credentials and reviews are the doctor&rsquo;s alone.
           </div>
         ) : null}
         <div className="dash">
-          <DashboardNav name={ctx.doctor.name} id={ctx.doctor.id} registration={ctx.doctor.registration.number} counts={{ reviews: unreplied, changes: pendingChanges, enquiries: newEnquiries }} />
+          <DashboardNav name={displayName(ctx.doctor)} id={ctx.doctor.id} registration={ctx.doctor.registration.number} counts={{ reviews: unreplied, changes: pendingChanges, enquiries: newEnquiries }} />
           <div>{children}</div>
         </div>
       </div>

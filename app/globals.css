@@ -1451,3 +1451,20 @@ ol.procedure span { display: block; color: var(--ink-2); font-size: 16.5px; line
 .linkbtn:hover { text-decoration-color: currentColor; }
 .fgrid .linkbtn { color: var(--ink-2); text-decoration: none; text-align: left; }
 .fgrid .linkbtn:hover { text-decoration: underline; }
+
+/* Header, 901–1180px: the three text links used to hold their width while the
+   search shrank to ~30px ("Do" / "Cit"). Here they move into the Menu drawer,
+   which already lists them, and the search keeps the room. One row, so the
+   78px sticky-rail offsets elsewhere still hold. */
+@media (min-width: 901px) and (max-width: 1180px) {
+  .hnav .plain { display: none; }
+  .menubtn { display: inline-block; }
+  .hsearch { min-width: 320px; }
+}
+/* Above 1180px the container caps at 1140px, so the same squeeze held (search
+   234px, fields 78px, even on a 1440px screen). Blog and Health guides join the
+   Menu drawer; "How verification works" stays in the bar as the trust link. */
+@media (min-width: 1181px) {
+  .hnav > a.plain:nth-of-type(-n + 2) { display: none; }
+  .menubtn { display: inline-block; }
+}

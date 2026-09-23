@@ -10,6 +10,7 @@ import { notifyDoctorOwner, notifyUser } from "@/lib/services/notify";
 import { recomputeQuality } from "@/lib/services/doctors";
 import { storeFile } from "@/lib/services/files";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { displayName } from "@/lib/display-name";
 
 /**
  * Reviews (plan §10). Submission runs automated checks and lands in a
@@ -144,9 +145,9 @@ export async function moderateReview(id: string, decision: "published" | "redact
   await db.update(s.reviews).set({ status: decision, publishedText: decision === "redacted" ? opts.publishedText : null, moderatedAt: new Date(), moderatedByUserId: staffUserId, moderationReason: opts.reason ?? null }).where(eq(s.reviews.id, id));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `review.${decision}`, entityType: "review", entityId: id, before: { status: r.status }, after: { status: decision }, reason: opts.reason });
   await recomputeQuality(r.doctorId);
-  const [dn] = await db.select({ name: s.doctors.name, slug: s.doctors.slug }).from(s.doctors).where(eq(s.doctors.id, r.doctorId)).limit(1);
-  await notifyUser(r.authorUserId, { kind: "review", decision, doctorName: dn?.name ?? "", slug: dn?.slug ?? "", reason: opts.reason });
-  if (decision === "published" || decision === "redacted") await notifyDoctorOwner(r.doctorId, { kind: "review_received", doctorName: dn?.name ?? "", authorLabel: r.authorLabel });
+  const [dn] = await db.select({ name: s.doctors.name, slug: s.doctors.slug, specialtyKey: s.doctors.specialtyKey }).from(s.doctors).where(eq(s.doctors.id, r.doctorId)).limit(1);
+  await notifyUser(r.authorUserId, { kind: "review", decision, doctorName: dn ? displayName(dn) : "", slug: dn?.slug ?? "", reason: opts.reason });
+  if (decision === "published" || decision === "redacted") await notifyDoctorOwner(r.doctorId, { kind: "review_received", doctorName: dn ? displayName(dn) : "", authorLabel: r.authorLabel });
 }
 
 export async function validateEvidence(evidenceId: string, outcome: "checked" | "rejected", staffUserId: string, note?: string) {
@@ -186,8 +187,8 @@ export async function moderateResponse(responseId: string, decision: "published"
   if (!r) throw new Error("response not found");
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `response.${decision}`, entityType: "review", entityId: r.reviewId, reason });
   await recomputeQuality(r.doctorId);
-  const [dn] = await db.select({ name: s.doctors.name }).from(s.doctors).where(eq(s.doctors.id, r.doctorId)).limit(1);
-  await notifyDoctorOwner(r.doctorId, { kind: "reply", decision, doctorName: dn?.name ?? "", reason });
+  const [dn] = await db.select({ name: s.doctors.name, specialtyKey: s.doctors.specialtyKey }).from(s.doctors).where(eq(s.doctors.id, r.doctorId)).limit(1);
+  await notifyDoctorOwner(r.doctorId, { kind: "reply", decision, doctorName: dn ? displayName(dn) : "", reason });
 }
 
 export async function reportReview(reviewId: string, reporterUserId: string | null, reason: string, detail: string | null, contact: string | null) {

@@ -579,8 +579,25 @@ export const dbSource: DataSource = {
    */
   async getAtFacility(facilityId: string, excludeSlug: string, limit = 6): Promise<DoctorView[]> {
     if (!facilityId) return [];
+    // Imports created one facility row per doctor, so "Manipal Hospital Old
+    // Airport Road" exists as 84 rows. Colleagues are therefore matched on the
+    // same row OR the same normalised name in the same locality. The locality
+    // keeps two hospitals that merely share a name apart; generic names
+    // ("Consulting practice", "Clinic") never match by name at all.
     const where = sql`${published()} and ${s.doctors.slug} <> ${excludeSlug} and ${s.doctors.id} in (
-      select p.doctor_id from doctor_practices p where p.active and p.facility_id = ${facilityId}
+      select p.doctor_id from doctor_practices p
+      where p.active and (
+        p.facility_id = ${facilityId}
+        or p.facility_id in (
+          select f2.id from facilities f1 join facilities f2
+            on f2.locality_key = f1.locality_key
+           and lower(regexp_replace(f2.name, '[^a-zA-Z0-9]', '', 'g')) = lower(regexp_replace(f1.name, '[^a-zA-Z0-9]', '', 'g'))
+          where f1.id = ${facilityId}
+            and length(regexp_replace(f1.name, '[^a-zA-Z0-9]', '', 'g')) >= 8
+            and lower(regexp_replace(f1.name, '[^a-zA-Z0-9]', '', 'g')) not in
+              ('consultingpractice', 'privateclinic', 'ownclinic', 'notstated', 'residence', 'clinic', 'hospital', 'nursinghome', 'polyclinic')
+        )
+      )
     )`;
     return views(where, limit, "card");
   },

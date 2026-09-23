@@ -147,6 +147,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <li><Link href={paths.policy("editorial")}>Editorial &amp; medical review</Link></li>
                   <li><Link href={paths.policy("corrections")}>Corrections &amp; takedowns</Link></li>
                   <li><Link href={paths.policy("advertising")}>Advertising &amp; sponsorship</Link></li>
+                  <li><Link href={paths.policies()}>All policies</Link></li>
                 </ul>
               </div>
               <div>
