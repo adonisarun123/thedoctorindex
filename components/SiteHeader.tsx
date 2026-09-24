@@ -2,23 +2,64 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 import { AccountMenu } from "@/components/AccountMenu";
 import { HeaderSearch } from "@/components/HeaderSearch";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { paths } from "@/lib/site";
+
+/*
+ * The specialities most patients start from. The menu used to list all ~49,
+ * which made it a long scroll before reaching anything else; the full list is
+ * one tap away on /specialties. Hubs, not city × speciality: a fixed city
+ * link per speciality points at pages that may have no supply (and 404).
+ */
+const COMMON_SPECIALTIES = [
+  "general-practice",
+  "gynaecology",
+  "paediatrics",
+  "orthopaedics",
+  "cardiology",
+  "dermatology",
+  "ent",
+  "ophthalmology",
+  "dentistry",
+  "psychiatry",
+] as const;
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const menuBtn = useRef<HTMLButtonElement>(null);
+  const closeBtn = useRef<HTMLButtonElement>(null);
 
-  // Close the mobile menu on navigation.
+  // Close the menu on navigation.
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  // While open: the page behind does not scroll, Escape closes, and focus
+  // moves into the panel and back to the Menu button on close.
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const prev = root.style.overflow;
+    root.style.overflow = "hidden";
+    closeBtn.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const btn = menuBtn.current;
+    return () => {
+      root.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+      btn?.focus();
+    };
+  }, [open]);
 
   return (
     <header className="site">
@@ -46,44 +87,69 @@ export function SiteHeader() {
           </Link>
           <ThemeToggle />
           <button
+            ref={menuBtn}
             type="button"
             className="menubtn"
             aria-expanded={open}
             aria-controls="mobnav"
-            onClick={() => setOpen((v) => !v)}
+            onClick={() => setOpen(true)}
           >
-            {open ? "Close" : "Menu"}
+            <span className="burger" aria-hidden="true" />
+            Menu
           </button>
         </nav>
       </div>
 
-      <div id="mobnav" className={`mobnav${open ? " open" : ""}`}>
-        <div className="wrap">
-          {/* Speciality hubs, not city x speciality. A fixed city link per
-              speciality points at pages we may have no supply for, which now
-              404 — and the hub sends the reader to the cities that do. */}
-          <div className="h">Browse specialities</div>
-          {SPECIALTY_KEYS.map((k) => (
-            <Link key={k} href={paths.specialty(k)}>
-              {SPECIALTIES[k].plural}
-            </Link>
-          ))}
-          <div className="h">Learn</div>
-          <Link href="/blog">Blog</Link>
-          <Link href="/health-guides">Health guides</Link>
-          <Link href={paths.policy("verification")}>How verification works</Link>
-          <Link href={paths.policy("ranking")}>How ranking works</Link>
-          <Link href="/about">About</Link>
-          <div className="h">Account</div>
+      {/* A drawer of its own, fixed to the viewport and scrolling inside
+          itself. It used to expand inside the sticky header, so above phone
+          width it grew taller than the screen and could not be scrolled. */}
+      <div className={`mobnav-back${open ? " open" : ""}`} onClick={() => setOpen(false)} aria-hidden="true" />
+      <div
+        id="mobnav"
+        className={`mobnav${open ? " open" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+      >
+        <div className="mobnav-top">
+          <span className="mobnav-title">Menu</span>
+          <button ref={closeBtn} type="button" className="mobnav-close" onClick={() => setOpen(false)}>
+            Close <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <nav className="mobnav-body" aria-label="Menu">
+          <div className="h">Find a doctor</div>
+          <Link href={paths.home()}>Search for a doctor</Link>
+          <Link href="/doctors">Browse by city</Link>
+          <Link href={paths.specialties()}>All specialities</Link>
+
+          <div className="h">Common specialities</div>
+          <div className="mobnav-grid">
+            {COMMON_SPECIALTIES.filter((k) => SPECIALTIES[k]).map((k) => (
+              <Link key={k} href={paths.specialty(k)}>
+                {SPECIALTIES[k].plural}
+              </Link>
+            ))}
+          </div>
+
+          <div className="h">Your account</div>
           <AccountMenu className="" />
+
           <div className="h">For doctors</div>
           <Link href={paths.forDoctors()}>Doctor sign-in and overview</Link>
+          <Link href={paths.claimProfile()}>Claim your profile</Link>
           <Link href={paths.addDoctor()}>Add your profile</Link>
-          <Link href={paths.claimProfile()}>Claim a profile</Link>
-          <Link href="/dashboard">Doctor dashboard</Link>
+
+          <div className="h">Learn</div>
+          <Link href="/health-guides">Health guides</Link>
+          <Link href="/blog">Blog</Link>
+          <Link href={paths.policy("verification")}>How verification works</Link>
+          <Link href={paths.policy("ranking")}>How ranking works</Link>
+          <Link href="/about">About us</Link>
+
           <div className="h">Appearance</div>
           <ThemeToggle compact={false} />
-        </div>
+        </nav>
       </div>
     </header>
   );
