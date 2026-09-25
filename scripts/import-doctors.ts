@@ -40,6 +40,7 @@ config();
  *   practice_start_year, languages ("English|Kannada|Hindi"), modes ("In person|Online")
  *   about, services ("ECG|Echo")
  *   facility_name, locality (key or slug, e.g. indiranagar), address, postal_code, days, hours, fee_inr, phone
+ *   facility_id       uuid of an existing `facilities` row; when given, facility_name/locality/address are not needed
  *   source_url*       where this row's data was read from
  *   source_ref        register entry id / page reference (optional)
  *
@@ -129,8 +130,9 @@ async function main() {
     if (!r.source_url || !/^https?:\/\//.test(r.source_url)) problems.push("source_url missing (provenance is mandatory)");
     const gender = r.gender && ["F", "M", "X"].includes(r.gender.toUpperCase()) ? (r.gender.toUpperCase() as "F" | "M" | "X") : null;
     let locality = r.locality ? geo.locality(r.locality) ?? geo.localities.find((l) => l.slug === r.locality) ?? null : null;
-    if (r.facility_name && !locality) problems.push(`locality "${r.locality}" is not a known locality key (see /api/places)`);
-    if (r.facility_name && !r.address) problems.push("address required with facility_name");
+    if (r.facility_id && !/^[0-9a-f-]{36}$/.test(r.facility_id)) problems.push("facility_id is not a uuid");
+    if (!r.facility_id && r.facility_name && !locality) problems.push(`locality "${r.locality}" is not a known locality key (see /api/places)`);
+    if (!r.facility_id && r.facility_name && !r.address) problems.push("address required with facility_name");
     // Registration is the identity key when there is one; without it, fall back to
     // the source URL so one file cannot import the same page twice.
     const dupKey = r.registration_number
@@ -167,7 +169,9 @@ async function main() {
         const [degree, institution, year] = q.split("@").map((x) => x.trim());
         return { degree, institution: institution ?? "", year: int(year), verified: false };
       }),
-      practices: r.facility_name && locality
+      practices: r.facility_id
+        ? [{ facilityId: r.facility_id, days: r.days || "", hours: r.hours || "", feeInr: r.fee_inr && /^\d+$/.test(r.fee_inr) ? Number(r.fee_inr) : null, phone: r.phone || undefined, confirmed: false }]
+        : r.facility_name && locality
         ? [{ facilityName: r.facility_name, localityKey: locality.key, address: r.address, postalCode: r.postal_code || undefined, days: r.days || "", hours: r.hours || "", feeInr: r.fee_inr && /^\d+$/.test(r.fee_inr) ? Number(r.fee_inr) : null, phone: r.phone || undefined, confirmed: false }]
         : [],
       status: publish ? ("published" as const) : ("draft" as const),

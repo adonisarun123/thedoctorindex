@@ -556,8 +556,9 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
         <h2>Patient reviews</h2>
         <div className="panel pad revempty">
           <p>
-            No reviews yet. Reviews open once the profile is claimed and verified; they describe patient experience, never clinical outcome.{" "}
-            <Link href={paths.policy("reviews")}>Review policy</Link>
+            No reviews yet. {doctor.claimed ? "Be the first to write one." : "Reviews are open on every published profile."} A review describes patient
+            experience — communication, explanation, waiting time and the facility — never clinical outcome, and is published only after its proof of
+            consultation has been checked. <Link href={paths.policy("reviews")}>Review policy</Link>
           </p>
           <Link className="btn" href={`${paths.doctor(doctor.slug)}/review`}>
             Write a review

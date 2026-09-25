@@ -40,6 +40,10 @@ const PUBLISHED_ONLY = args.includes("--published-only");
 const LIMIT = Number(arg("--limit", String(Infinity)));
 const CONCURRENCY = Math.max(1, Math.min(6, Number(arg("--concurrency", "4"))));
 const PAUSE_MS = Number(arg("--pause", "250"));
+// Optional: only candidates recorded from one source (e.g. "import:aggregator:apollo247 (apollo247.com)"),
+// and the basis to record in the audit log when the permission differs from the default.
+const SOURCE = arg("--source", "");
+const BASIS = arg("--basis", "site owner instruction — not doctor consent, not a hospital licence");
 
 const MAX_FETCH_BYTES = 15 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -133,7 +137,7 @@ async function main() {
     })
     .from(s.photoCandidates)
     .innerJoin(s.doctors, eq(s.doctors.id, s.photoCandidates.doctorId))
-    .where(and(eq(s.photoCandidates.status, "pending"), isNull(s.doctors.retiredAt)));
+    .where(and(eq(s.photoCandidates.status, "pending"), isNull(s.doctors.retiredAt), ...(SOURCE ? [eq(s.photoCandidates.source, SOURCE)] : [])));
 
   // One portrait per doctor: a doctor listed by two hospitals has two candidates.
   const byDoctor = new Map<string, (typeof rows)[number]>();
@@ -180,8 +184,8 @@ async function main() {
           action: "doctor.photo.source",
           entityType: "doctor",
           entityId: r.doctorId,
-          after: { fileId, sourceUrl: r.url, sourcePage: r.sourceUrl, source: r.source, basis: "site owner instruction — not doctor consent, not a hospital licence" },
-          reason: `portrait taken from ${r.source} and published on the site owner's instruction; the doctor has not consented`,
+          after: { fileId, sourceUrl: r.url, sourcePage: r.sourceUrl, source: r.source, basis: BASIS },
+          reason: `portrait taken from ${r.source}; basis: ${BASIS}; the doctor has not consented`,
         });
         await db.update(s.photoCandidates).set({ status: "published", resolvedAt: new Date() }).where(eq(s.photoCandidates.id, r.candidateId));
         done++;
