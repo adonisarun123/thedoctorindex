@@ -6,6 +6,7 @@ import { Logo } from "@/components/Logo";
 import { countsByCity, countsBySpecialty } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
+import { isMetroCity } from "@/lib/geo-names";
 import { SITE, paths } from "@/lib/site";
 import type { SpecialtyKey } from "@/lib/types";
 
@@ -25,12 +26,16 @@ const SPECIALTIES_SHOWN = 8;
 export async function SiteFooter() {
   const [cityListed, bySpecialty, geo] = await Promise.all([countsByCity(undefined, "published"), countsBySpecialty(undefined, "published"), getGeo()]);
 
-  const cities = cityListed
+  // Same rule as the homepage grid: the metros a patient searches by name
+  // lead, then the deepest of the rest. Ranked purely by count the list
+  // opened Indore, Jabalpur, Bhopal — the council-registry imports — with
+  // Bengaluru fourth, which reads as a regional directory.
+  const withSupply = cityListed
     .filter((c) => c.n > 0)
     .map((c) => ({ ...c, city: geo.city(c.stateSlug, c.citySlug) }))
     .filter((c) => c.city)
-    .sort((a, b) => b.n - a.n)
-    .slice(0, CITIES_SHOWN);
+    .sort((a, b) => b.n - a.n);
+  const cities = [...withSupply.filter((c) => isMetroCity(c.citySlug)), ...withSupply.filter((c) => !isMetroCity(c.citySlug))].slice(0, CITIES_SHOWN);
 
   const specialties: SpecialtyKey[] = [...SPECIALTY_KEYS]
     .filter((k) => (bySpecialty[k] ?? 0) > 0)
