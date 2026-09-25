@@ -1,7 +1,9 @@
 import { registrationNoun } from "@/lib/data/councils";
+import { registerForCouncil } from "@/lib/registers";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/Avatar";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
@@ -154,9 +156,22 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
 
   // "On record": only facts the record actually holds. A missing fact is
   // said once, in the practice card, not as a row of "Not stated".
-  const facts: Array<{ k: string; v: string; mono?: boolean }> = [];
+  const facts: Array<{ k: string; v: ReactNode; mono?: boolean }> = [];
   if (registrationState(doctor) !== "none") {
-    facts.push({ k: registrationState(doctor) === "verified" ? "Registration" : "Registration (as supplied)", v: `${doctor.registration.council} · No. ${doctor.registration.number}`, mono: true });
+    // The council name links to its register page: how to search that
+    // register, what its numbers look like, and how many profiles cite it.
+    const reg = registerForCouncil(doctor.registration.council);
+    facts.push({
+      k: registrationState(doctor) === "verified" ? "Registration" : "Registration (as supplied)",
+      v: reg ? (
+        <>
+          <Link href={paths.register(reg.slug)}>{doctor.registration.council}</Link> · No. {doctor.registration.number}
+        </>
+      ) : (
+        `${doctor.registration.council} · No. ${doctor.registration.number}`
+      ),
+      mono: true,
+    });
   }
   if (doctor.registration.registeredYear) {
     const yrs = new Date().getFullYear() - doctor.registration.registeredYear;

@@ -10,7 +10,7 @@ import { getDb } from "@/lib/db/client";
 import { daysBetween, toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { isProfileIndexable } from "@/lib/seo/gates";
-import type { DataSource, DoctorSuggestion, Measure, MixEntry, Place, PlaceCount, PlaceSpecialtyCount, SupplyProfile, Totals } from "@/lib/data/index";
+import type { DataSource, DoctorSuggestion, Measure, MixEntry, NumberShape, Place, PlaceCount, PlaceSpecialtyCount, RegisterProfile, SupplyProfile, Totals } from "@/lib/data/index";
 import type { DoctorView, Locality, SpecialtyKey } from "@/lib/types";
 import { cleanSubspecialties } from "@/lib/data/subspecialties";
 
@@ -517,6 +517,62 @@ export const dbSource: DataSource = {
       councils: mix("councils"),
       // The mix is counted in SQL; tags that are not subspecialities are dropped here.
       subspecialties: mix("subspecialties").filter((x) => cleanSubspecialties([x.name], specialty).length > 0),
+    };
+  },
+
+  async registerProfile(match: string[]): Promise<RegisterProfile> {
+    if (!match.length) return { total: 0, registerChecked: 0, withYear: 0, earliestYear: null, latestYear: null, shapes: [], specialties: [], cities: [] };
+    // Published doctors whose primary registration names this register. The
+    // number formats are derived from the numbers themselves (digits → 9,
+    // letters → A) so the page can show what "normal" looks like for a
+    // council without anyone writing a rule that the data might not follow.
+    const q = sql`
+      with pool as (
+        select d.id, d.specialty_key, r.number, r.checked_on, r.registered_year
+        from doctors d
+        join medical_registrations r on r.doctor_id = d.id and r.is_primary
+        where d.status = 'published' and r.number <> ''
+          and r.council_normalized in (${sql.join(match.map((m) => sql`${m}`), sql`, `)})
+      ),
+      shapes as (
+        select regexp_replace(regexp_replace(upper(trim(number)), '[0-9]', '9', 'g'), '[A-Z]', 'A', 'g') as shape,
+               min(trim(number)) as sample, count(*)::int as n
+        from pool group by 1 order by n desc, 1 limit 4
+      ),
+      specs as (
+        select specialty_key as name, count(*)::int as n from pool group by 1 order by n desc, 1 limit 8
+      ),
+      cities as (
+        select l.state_slug as "stateSlug", l.city_slug as "citySlug", count(distinct p.id)::int as n
+        from pool p
+        join doctor_practices dp on dp.doctor_id = p.id and dp.active
+        join facilities f on f.id = dp.facility_id
+        join localities l on l.key = f.locality_key
+        group by 1, 2 order by n desc, 2 limit 8
+      )
+      select
+        (select count(*)::int from pool) as total,
+        (select count(*)::int from pool where checked_on is not null) as "registerChecked",
+        (select count(*)::int from pool where registered_year is not null) as "withYear",
+        (select min(registered_year)::int from pool) as "earliestYear",
+        (select max(registered_year)::int from pool) as "latestYear",
+        (select coalesce(json_agg(json_build_object('shape', shape, 'sample', sample, 'n', n)), '[]'::json) from shapes) as shapes,
+        (select coalesce(json_agg(json_build_object('name', name, 'n', n)), '[]'::json) from specs) as specialties,
+        (select coalesce(json_agg(json_build_object('stateSlug', "stateSlug", 'citySlug', "citySlug", 'n', n)), '[]'::json) from cities) as cities
+    `;
+    const rows = (await getDb().execute(q)) as unknown as Array<Record<string, unknown>>;
+    const r = rows[0] ?? {};
+    const num = (k: string) => Number(r[k] ?? 0) || 0;
+    const nullable = (k: string) => (r[k] === null || r[k] === undefined ? null : Number(r[k]));
+    return {
+      total: num("total"),
+      registerChecked: num("registerChecked"),
+      withYear: num("withYear"),
+      earliestYear: nullable("earliestYear"),
+      latestYear: nullable("latestYear"),
+      shapes: ((r.shapes as NumberShape[] | null) ?? []).map((x) => ({ shape: String(x.shape), sample: String(x.sample), n: Number(x.n) })),
+      specialties: ((r.specialties as MixEntry[] | null) ?? []).map((x) => ({ name: String(x.name), n: Number(x.n) })),
+      cities: ((r.cities as PlaceCount[] | null) ?? []).map((x) => ({ stateSlug: String(x.stateSlug), citySlug: String(x.citySlug), n: Number(x.n) })),
     };
   },
   async totals(place?: Place): Promise<Totals> {

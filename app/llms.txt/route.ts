@@ -1,6 +1,7 @@
 import { totals } from "@/lib/data";
 import { POSTS } from "@/lib/blog";
 import { GUIDES } from "@/lib/data/guides";
+import { REGISTERS } from "@/lib/registers";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
@@ -71,6 +72,15 @@ Registers, credentials, costs, records, rights and process. These make no medica
 why they carry no clinical reviewer and need none. [Index](${absoluteUrl(paths.blog())}) · [RSS](${absoluteUrl("/blog/feed.xml")})
 
 ${POSTS.map((p) => `- [${p.title}](${absoluteUrl(paths.blogPost(p.slug))}): ${p.standfirst}`).join("\n")}
+
+## Registers — how to check a registration, by issuing body
+
+One page per council or registering body a profile here can cite: where its public register is
+searched, what its numbers look like on this site (measured), and how many profiles cite it. The
+NMC's Indian Medical Register covers every state medical council; dental, AYUSH and allied-health
+registrations are on other registers and are not checked automatically here. [Index](${absoluteUrl(paths.registers())})
+
+${REGISTERS.map((r) => `- [${r.name}](${absoluteUrl(paths.register(r.slug))}): ${r.standfirst}`).join("\n")}
 
 ## Browse
 

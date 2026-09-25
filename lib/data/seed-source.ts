@@ -3,7 +3,7 @@ import { SEED_DOCTORS, type SeedDoctor } from "@/lib/data/doctors";
 import { LOCALITIES, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { rank } from "@/lib/search/fuzzy";
 import { isProfileIndexable, isProfileVerified } from "@/lib/seo/gates";
-import type { DataSource, DoctorSuggestion, Measure, MixEntry, Place, PlaceCount, PlaceSpecialtyCount, SupplyProfile, Totals } from "@/lib/data/index";
+import type { DataSource, DoctorSuggestion, Measure, MixEntry, Place, PlaceCount, PlaceSpecialtyCount, RegisterProfile, SupplyProfile, Totals } from "@/lib/data/index";
 import type { Doctor, DoctorView, Practice, SpecialtyKey } from "@/lib/types";
 import { registrationTier } from "@/lib/verification";
 
@@ -181,6 +181,38 @@ export const seedSource: DataSource = {
       qualifications: tally(pool.map((d) => d.qualifications.map((q) => q.degree))),
       councils: tally(pool.map((d) => (d.registration?.council ? [d.registration.council] : []))).filter((e) => !/[0-9]/.test(e.name) && !/^(council not stated|not stated|unknown|n\/a)$/i.test(e.name)),
       subspecialties: tally(pool.map((d) => d.subspecialties)).slice(0, 5),
+    };
+  },
+  async registerProfile(match: string[]): Promise<RegisterProfile> {
+    const key = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const pool = ALL.filter((d) => d.registration?.number && d.registration.number !== "—" && match.includes(key(d.registration.council)));
+    const count = <T,>(items: T[], by: (t: T) => string) => {
+      const m = new Map<string, number>();
+      for (const i of items) m.set(by(i), (m.get(by(i)) ?? 0) + 1);
+      return m;
+    };
+    const shapeOf = (n: string) => n.toUpperCase().trim().replace(/[0-9]/g, "9").replace(/[A-Z]/g, "A");
+    const shapes = [...count(pool, (d) => shapeOf(d.registration.number)).entries()]
+      .map(([shape, n]) => ({ shape, n, sample: pool.filter((d) => shapeOf(d.registration.number) === shape).map((d) => d.registration.number.trim()).sort()[0] }))
+      .sort((a, b) => b.n - a.n || a.shape.localeCompare(b.shape))
+      .slice(0, 4);
+    const specialties = [...count(pool, (d) => d.specialty).entries()].map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name)).slice(0, 8);
+    const cityCounts = new Map<string, PlaceCount>();
+    for (const d of pool) for (const c of new Set(d.practices.map((p) => `${p.stateSlug}/${p.citySlug}`))) {
+      const [stateSlug, citySlug] = c.split("/");
+      const cur = cityCounts.get(c) ?? { stateSlug, citySlug, n: 0 };
+      cityCounts.set(c, { ...cur, n: cur.n + 1 });
+    }
+    const years = pool.map((d) => d.registration.registeredYear).filter((y) => Number.isFinite(y) && y > 0);
+    return {
+      total: pool.length,
+      registerChecked: pool.filter((d) => registrationTier(d) >= 2).length,
+      withYear: years.length,
+      earliestYear: years.length ? Math.min(...years) : null,
+      latestYear: years.length ? Math.max(...years) : null,
+      shapes,
+      specialties,
+      cities: [...cityCounts.values()].sort((a, b) => b.n - a.n || a.citySlug.localeCompare(b.citySlug)).slice(0, 8),
     };
   },
   async searchDoctors(query: string, place?: Place): Promise<DoctorView[]> {

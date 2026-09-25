@@ -1,6 +1,7 @@
 import { POSTS } from "@/lib/blog";
 import { GUIDES } from "@/lib/data/guides";
 import { POLICIES } from "@/lib/data/policies";
+import { REGISTERS } from "@/lib/registers";
 import { countsByCity, countsByCitySpecialty, countsByLocalityAll, countsBySpecialty, countsByState, listIndexableSlugs } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
@@ -124,6 +125,11 @@ export function editorialEntries(): SitemapEntry[] {
     ...GUIDES.map((g) => ({
       loc: absoluteUrl(`/health-guides/${g.slug}`),
       lastmod: toIsoDate(g.reviewedOn),
+    })),
+    { loc: absoluteUrl(paths.registers()), lastmod: latestLastmod(REGISTERS.map((r) => ({ loc: absoluteUrl(paths.register(r.slug)), lastmod: toIsoDate(r.checkedOn) }))) },
+    ...REGISTERS.map((r) => ({
+      loc: absoluteUrl(paths.register(r.slug)),
+      lastmod: toIsoDate(r.checkedOn),
     })),
     { loc: absoluteUrl(paths.policies()), lastmod: latestLastmod(POLICIES.map((p) => ({ loc: absoluteUrl(paths.policy(p.slug)), lastmod: toIsoDate(p.updatedOn) }))) },
     ...POLICIES.map((p) => ({

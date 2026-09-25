@@ -132,6 +132,9 @@ export async function SiteFooter() {
               <li>
                 <Link href={paths.blog()}>Blog</Link>
               </li>
+              <li>
+                <Link href={paths.registers()}>Registers</Link>
+              </li>
             </ul>
           </div>
 

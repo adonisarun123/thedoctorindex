@@ -126,6 +126,35 @@ export interface Totals {
   cities: number;
 }
 
+/** One registration-number format seen for a register, e.g. "AAA-99999", with a real example. */
+export interface NumberShape {
+  shape: string;
+  sample: string;
+  n: number;
+}
+
+/**
+ * What the profiles on this site say about one register (a council or
+ * registering body), measured. Feeds /registers/<slug>. Every field is a count
+ * of records; the page prints nothing for a zero.
+ */
+export interface RegisterProfile {
+  /** Published doctors whose primary registration cites this register. */
+  total: number;
+  /** Of those, how many have been checked against a register. */
+  registerChecked: number;
+  /** How many carry a year of registration, and the span. */
+  withYear: number;
+  earliestYear: number | null;
+  latestYear: number | null;
+  /** Most common number formats, digits as 9 and letters as A. */
+  shapes: NumberShape[];
+  /** Speciality keys, most common first. */
+  specialties: MixEntry[];
+  /** Cities the doctors practise in, most common first. */
+  cities: PlaceCount[];
+}
+
 /**
  * Listings are capped. The cap was 200 until 20 Sep 2026, which left 17
  * city × speciality pairs (Indore GP 719, Jabalpur AYUSH 671, ...) with
@@ -163,6 +192,8 @@ export type DataSource = {
   countsByState(measure?: Measure): Promise<Record<string, number>>;
   /** Measured composition of one place, optionally narrowed to one speciality. One query. */
   supplyProfile(place?: Place, specialty?: SpecialtyKey, measure?: Measure): Promise<SupplyProfile>;
+  /** What published profiles say about one register: `match` is the set of normalised council strings that mean it. One query. */
+  registerProfile(match: string[]): Promise<RegisterProfile>;
   /** Every (city x speciality) combination in one query — the sitemap builds 40,000 URLs from this, not from a query per city. */
   countsByCitySpecialty(measure?: Measure): Promise<PlaceSpecialtyCount[]>;
   /** Every (locality x speciality) combination, site-wide, in one query. */
@@ -245,6 +276,7 @@ export const countsByLocality = cached("countsByLocality", async (citySlug: stri
 export const countsByLocalitySpecialty = cached("countsByLocalitySpecialty", async (citySlug: string, measure?: Measure) => (await source()).countsByLocalitySpecialty(citySlug, measure));
 export const countsByState = cached("countsByState", async (measure?: Measure) => (await source()).countsByState(measure));
 export const supplyProfile = cached("supplyProfile", async (place?: Place, k?: SpecialtyKey, measure?: Measure) => (await source()).supplyProfile(place, k, measure));
+export const registerProfile = cached("registerProfile", async (match: string[]) => (await source()).registerProfile(match));
 export const countsByCitySpecialty = cached("countsByCitySpecialty", async (measure?: Measure) => (await source()).countsByCitySpecialty(measure));
 export const countsByLocalityAll = cached("countsByLocalityAll", async (measure?: Measure) => (await source()).countsByLocalityAll(measure));
 export const totals = cached("totals", async (place?: Place) => (await source()).totals(place));
