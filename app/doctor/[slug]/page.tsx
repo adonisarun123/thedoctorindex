@@ -1,4 +1,5 @@
 import { registrationNoun } from "@/lib/data/councils";
+import { qualificationForDegree } from "@/lib/qualifications";
 import { registerForCouncil } from "@/lib/registers";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -178,7 +179,22 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
     facts.push({ k: "Registered since", v: `${doctor.registration.registeredYear}${yrs > 0 ? ` · ${yrs} years` : ""}`, mono: true });
   }
   if (doctor.qualifications.length) {
-    facts.push({ k: qualsVerified.length === doctor.qualifications.length ? "Qualification" : "Qualification (as supplied)", v: doctor.qualifications.map((q) => [q.degree, q.institution, q.year || null].filter(Boolean).join(", ")).join(" · ") });
+    // Each degree links to its qualification page where one exists — what
+    // the letters mean, who awards it, and how many doctors here hold it.
+    facts.push({
+      k: qualsVerified.length === doctor.qualifications.length ? "Qualification" : "Qualification (as supplied)",
+      v: doctor.qualifications.map((q, i) => {
+        const page = qualificationForDegree(q.degree);
+        const rest = [q.institution, q.year || null].filter(Boolean).join(", ");
+        return (
+          <span key={`${q.degree}-${q.year}-${i}`}>
+            {i > 0 ? " · " : ""}
+            {page ? <Link href={paths.qualification(page.slug)}>{q.degree}</Link> : q.degree}
+            {rest ? `, ${rest}` : ""}
+          </span>
+        );
+      }),
+    });
   }
   facts.push({ k: "System of medicine", v: systemLabel(specialty.system) });
   if (doctor.practiceStartYear) facts.push({ k: "Experience", v: `${doctor.yearsOfExperience} years · practising since ${doctor.practiceStartYear}` });

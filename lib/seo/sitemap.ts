@@ -1,6 +1,7 @@
 import { POSTS } from "@/lib/blog";
 import { GUIDES } from "@/lib/data/guides";
 import { POLICIES } from "@/lib/data/policies";
+import { QUALIFICATIONS } from "@/lib/qualifications";
 import { REGISTERS } from "@/lib/registers";
 import { countsByCity, countsByCitySpecialty, countsByLocalityAll, countsBySpecialty, countsByState, listIndexableSlugs } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
@@ -130,6 +131,11 @@ export function editorialEntries(): SitemapEntry[] {
     ...REGISTERS.map((r) => ({
       loc: absoluteUrl(paths.register(r.slug)),
       lastmod: toIsoDate(r.checkedOn),
+    })),
+    { loc: absoluteUrl(paths.qualifications()), lastmod: latestLastmod(QUALIFICATIONS.map((q) => ({ loc: absoluteUrl(paths.qualification(q.slug)), lastmod: toIsoDate(q.checkedOn) }))) },
+    ...QUALIFICATIONS.map((q) => ({
+      loc: absoluteUrl(paths.qualification(q.slug)),
+      lastmod: toIsoDate(q.checkedOn),
     })),
     { loc: absoluteUrl(paths.policies()), lastmod: latestLastmod(POLICIES.map((p) => ({ loc: absoluteUrl(paths.policy(p.slug)), lastmod: toIsoDate(p.updatedOn) }))) },
     ...POLICIES.map((p) => ({

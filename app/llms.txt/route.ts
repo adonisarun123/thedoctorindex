@@ -1,6 +1,7 @@
 import { totals } from "@/lib/data";
 import { POSTS } from "@/lib/blog";
 import { GUIDES } from "@/lib/data/guides";
+import { QUALIFICATIONS } from "@/lib/qualifications";
 import { REGISTERS } from "@/lib/registers";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
@@ -81,6 +82,14 @@ NMC's Indian Medical Register covers every state medical council; dental, AYUSH 
 registrations are on other registers and are not checked automatically here. [Index](${absoluteUrl(paths.registers())})
 
 ${REGISTERS.map((r) => `- [${r.name}](${absoluteUrl(paths.register(r.slug))}): ${r.standfirst}`).join("\n")}
+
+## Qualifications — what each degree, diploma and fellowship means
+
+One page per qualification a profile here can record: what it is, who awards it, what it does and does
+not make its holder, and how many doctors on this site record it (measured). Memberships and society
+fellowships are labelled as such and never treated as degrees. [Index](${absoluteUrl(paths.qualifications())})
+
+${QUALIFICATIONS.map((q) => `- [${q.abbr} — ${q.name}](${absoluteUrl(paths.qualification(q.slug))}): ${q.standfirst}`).join("\n")}
 
 ## Browse
 

@@ -3,7 +3,7 @@ import { SEED_DOCTORS, type SeedDoctor } from "@/lib/data/doctors";
 import { LOCALITIES, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { rank } from "@/lib/search/fuzzy";
 import { isProfileIndexable, isProfileVerified } from "@/lib/seo/gates";
-import type { DataSource, DoctorSuggestion, Measure, MixEntry, Place, PlaceCount, PlaceSpecialtyCount, RegisterProfile, SupplyProfile, Totals } from "@/lib/data/index";
+import type { DataSource, DoctorSuggestion, Measure, MixEntry, Place, PlaceCount, PlaceSpecialtyCount, QualificationProfile, RegisterProfile, SupplyProfile, Totals } from "@/lib/data/index";
 import type { Doctor, DoctorView, Practice, SpecialtyKey } from "@/lib/types";
 import { registrationTier } from "@/lib/verification";
 
@@ -212,6 +212,38 @@ export const seedSource: DataSource = {
       latestYear: years.length ? Math.max(...years) : null,
       shapes,
       specialties,
+      cities: [...cityCounts.values()].sort((a, b) => b.n - a.n || a.citySlug.localeCompare(b.citySlug)).slice(0, 8),
+    };
+  },
+  async qualificationProfile(pattern: string): Promise<QualificationProfile> {
+    const re = new RegExp(pattern);
+    const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9()]/g, "");
+    const pool = ALL.flatMap((d) => {
+      const q = d.qualifications.find((x) => re.test(norm(x.degree)));
+      return q ? [{ d, q }] : [];
+    });
+    const tally = (keys: string[]) => {
+      const m = new Map<string, number>();
+      for (const k of keys) m.set(k, (m.get(k) ?? 0) + 1);
+      return [...m.entries()].map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+    };
+    const branch = (s: string) => /\(([^)]*)\)/.exec(s)?.[1]?.trim() ?? "";
+    const cityCounts = new Map<string, PlaceCount>();
+    for (const { d } of pool) for (const c of new Set(d.practices.map((p) => `${p.stateSlug}/${p.citySlug}`))) {
+      const [stateSlug, citySlug] = c.split("/");
+      const cur = cityCounts.get(c) ?? { stateSlug, citySlug, n: 0 };
+      cityCounts.set(c, { ...cur, n: cur.n + 1 });
+    }
+    const years = pool.map(({ q }) => q.year).filter((y) => Number.isFinite(y) && y > 0);
+    return {
+      total: pool.length,
+      checked: pool.filter(({ q }) => q.state === "verified").length,
+      withYear: years.length,
+      earliestYear: years.length ? Math.min(...years) : null,
+      latestYear: years.length ? Math.max(...years) : null,
+      branches: tally(pool.map(({ q }) => branch(q.degree)).filter(Boolean)).slice(0, 8),
+      institutions: tally(pool.map(({ q }) => q.institution.trim()).filter(Boolean)).filter((x) => x.n >= 3).slice(0, 6),
+      specialties: tally(pool.map(({ d }) => d.specialty)).slice(0, 8),
       cities: [...cityCounts.values()].sort((a, b) => b.n - a.n || a.citySlug.localeCompare(b.citySlug)).slice(0, 8),
     };
   },

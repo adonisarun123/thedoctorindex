@@ -141,6 +141,7 @@ export function SiteHeader() {
           <Link href="/health-guides">Health guides</Link>
           <Link href={paths.blog()}>Blog</Link>
           <Link href={paths.registers()}>Registers</Link>
+          <Link href={paths.qualifications()}>Qualifications</Link>
           <Link href={paths.policy("verification")}>How verification works</Link>
           <Link href={paths.policy("ranking")}>How ranking works</Link>
           <Link href={paths.policies()}>All policies</Link>

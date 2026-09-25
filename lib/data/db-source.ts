@@ -10,7 +10,7 @@ import { getDb } from "@/lib/db/client";
 import { daysBetween, toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { isProfileIndexable } from "@/lib/seo/gates";
-import type { DataSource, DoctorSuggestion, Measure, MixEntry, NumberShape, Place, PlaceCount, PlaceSpecialtyCount, RegisterProfile, SupplyProfile, Totals } from "@/lib/data/index";
+import type { DataSource, DoctorSuggestion, Measure, MixEntry, NumberShape, Place, PlaceCount, PlaceSpecialtyCount, QualificationProfile, RegisterProfile, SupplyProfile, Totals } from "@/lib/data/index";
 import type { DoctorView, Locality, SpecialtyKey } from "@/lib/types";
 import { cleanSubspecialties } from "@/lib/data/subspecialties";
 
@@ -572,6 +572,63 @@ export const dbSource: DataSource = {
       latestYear: nullable("latestYear"),
       shapes: ((r.shapes as NumberShape[] | null) ?? []).map((x) => ({ shape: String(x.shape), sample: String(x.sample), n: Number(x.n) })),
       specialties: ((r.specialties as MixEntry[] | null) ?? []).map((x) => ({ name: String(x.name), n: Number(x.n) })),
+      cities: ((r.cities as PlaceCount[] | null) ?? []).map((x) => ({ stateSlug: String(x.stateSlug), citySlug: String(x.citySlug), n: Number(x.n) })),
+    };
+  },
+
+  async qualificationProfile(pattern: string): Promise<QualificationProfile> {
+    // One matching qualification row per doctor (the first by sort), so a
+    // doctor with "MD" and "MD (Medicine)" counts once. The branch is the
+    // parenthetical as written; institutions drop the import placeholder.
+    const q = sql`
+      with pool as (
+        select distinct on (d.id) d.id, d.specialty_key, q.degree, q.institution, q.year, q.checked_on
+        from doctors d join doctor_qualifications q on q.doctor_id = d.id
+        where d.status = 'published' and upper(regexp_replace(q.degree, '[^A-Za-z0-9()]', '', 'g')) ~ ${pattern}
+        order by d.id, q.sort
+      ),
+      branches as (
+        select upper(regexp_replace(degree, '[^A-Za-z0-9()]', '', 'g')) as norm,
+               min(btrim(regexp_replace(degree, '^[^(]*\\(([^)]*)\\).*$', '\\1'))) as label, count(*)::int as n
+        from pool where degree like '%(%)%' group by 1 order by n desc limit 8
+      ),
+      insts as (
+        select btrim(institution) as name, count(*)::int as n from pool
+        where btrim(institution) <> '' and lower(btrim(institution)) not in ('awarding body not stated', 'not stated', 'unknown', 'n/a')
+        group by 1 having count(*) >= 3 order by n desc, 1 limit 6
+      ),
+      specs as (select specialty_key as name, count(*)::int as n from pool group by 1 order by n desc, 1 limit 8),
+      cities as (
+        select l.state_slug as "stateSlug", l.city_slug as "citySlug", count(distinct p.id)::int as n
+        from pool p join doctor_practices dp on dp.doctor_id = p.id and dp.active
+        join facilities f on f.id = dp.facility_id join localities l on l.key = f.locality_key
+        group by 1, 2 order by n desc, 2 limit 8
+      )
+      select
+        (select count(*)::int from pool) as total,
+        (select count(*)::int from pool where checked_on is not null) as checked,
+        (select count(*)::int from pool where year is not null and year > 0) as "withYear",
+        (select min(year)::int from pool where year > 0) as "earliestYear",
+        (select max(year)::int from pool where year > 0) as "latestYear",
+        (select coalesce(json_agg(json_build_object('name', label, 'n', n)), '[]'::json) from branches) as branches,
+        (select coalesce(json_agg(json_build_object('name', name, 'n', n)), '[]'::json) from insts) as institutions,
+        (select coalesce(json_agg(json_build_object('name', name, 'n', n)), '[]'::json) from specs) as specialties,
+        (select coalesce(json_agg(json_build_object('stateSlug', "stateSlug", 'citySlug', "citySlug", 'n', n)), '[]'::json) from cities) as cities
+    `;
+    const rows = (await getDb().execute(q)) as unknown as Array<Record<string, unknown>>;
+    const r = rows[0] ?? {};
+    const num = (k: string) => Number(r[k] ?? 0) || 0;
+    const nullable = (k: string) => (r[k] === null || r[k] === undefined ? null : Number(r[k]));
+    const mix = (k: string): MixEntry[] => ((r[k] as MixEntry[] | null) ?? []).map((x) => ({ name: String(x.name), n: Number(x.n) }));
+    return {
+      total: num("total"),
+      checked: num("checked"),
+      withYear: num("withYear"),
+      earliestYear: nullable("earliestYear"),
+      latestYear: nullable("latestYear"),
+      branches: mix("branches"),
+      institutions: mix("institutions"),
+      specialties: mix("specialties"),
       cities: ((r.cities as PlaceCount[] | null) ?? []).map((x) => ({ stateSlug: String(x.stateSlug), citySlug: String(x.citySlug), n: Number(x.n) })),
     };
   },

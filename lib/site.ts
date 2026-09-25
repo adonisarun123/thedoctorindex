@@ -81,4 +81,7 @@ export const paths = {
   /** One page per council or registering body: how to check its numbers, and who on this site cites it. */
   registers: () => "/registers",
   register: (slug: string) => `/registers/${slug}`,
+  /** One page per degree, diploma or fellowship: what it means, and who on this site holds it. */
+  qualifications: () => "/qualifications",
+  qualification: (slug: string) => `/qualifications/${slug}`,
 } as const;
