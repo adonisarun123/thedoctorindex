@@ -72,16 +72,7 @@ export function SiteHeader() {
           <HeaderSearch />
         </Suspense>
         <nav className="hnav" aria-label="Primary">
-          <Link className="plain" href="/blog">
-            Blog
-          </Link>
-          <Link className="plain" href="/health-guides">
-            Health guides
-          </Link>
-          <Link className="plain" href={paths.policy("verification")}>
-            How verification works
-          </Link>
-          <AccountMenu />
+          <AccountMenu className="acct" />
           <Link className="cta" href={paths.forDoctors()}>
             For doctors
           </Link>
@@ -92,17 +83,22 @@ export function SiteHeader() {
             className="menubtn"
             aria-expanded={open}
             aria-controls="mobnav"
+            aria-label="Menu"
             onClick={() => setOpen(true)}
           >
             <span className="burger" aria-hidden="true" />
-            Menu
+            <span className="menubtn-label">Menu</span>
           </button>
         </nav>
       </div>
 
       {/* A drawer of its own, fixed to the viewport and scrolling inside
           itself. It used to expand inside the sticky header, so above phone
-          width it grew taller than the screen and could not be scrolled. */}
+          width it grew taller than the screen and could not be scrolled.
+          The bar itself carries only search, account, For doctors and Menu:
+          the editorial and trust links used to sit in the bar too, but at
+          17px text they left the search 30px wide between 900 and 1440px
+          and were hidden by CSS at every width — so they live here. */}
       <div className={`mobnav-back${open ? " open" : ""}`} onClick={() => setOpen(false)} aria-hidden="true" />
       <div
         id="mobnav"
@@ -137,14 +133,16 @@ export function SiteHeader() {
 
           <div className="h">For doctors</div>
           <Link href={paths.forDoctors()}>Doctor sign-in and overview</Link>
+          <Link href={paths.whyThisSite()}>Why The Doctor Index</Link>
           <Link href={paths.claimProfile()}>Claim your profile</Link>
           <Link href={paths.addDoctor()}>Add your profile</Link>
 
           <div className="h">Learn</div>
           <Link href="/health-guides">Health guides</Link>
-          <Link href="/blog">Blog</Link>
+          <Link href={paths.blog()}>Blog</Link>
           <Link href={paths.policy("verification")}>How verification works</Link>
           <Link href={paths.policy("ranking")}>How ranking works</Link>
+          <Link href={paths.policies()}>All policies</Link>
           <Link href="/about">About us</Link>
 
           <div className="h">Appearance</div>

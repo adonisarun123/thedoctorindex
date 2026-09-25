@@ -6,7 +6,7 @@ import { useState } from "react";
 import { SuggestInput, type SuggestItem } from "@/components/SuggestInput";
 import { resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { loadWhat, loadWhere } from "@/lib/search/client";
-import { HOME_CITY, paths } from "@/lib/site";
+import { paths } from "@/lib/site";
 
 /**
  * Two-part search with suggestions under each field (/api/suggest). A
@@ -38,7 +38,7 @@ export function HeaderSearch() {
 
   return (
     <form className="hsearch" onSubmit={submit} role="search">
-      <SuggestInput value={q} onChange={setQ} onPick={pickWhat} load={loadWhat} scope={loc} placeholder="Doctor name or speciality" ariaLabel="Doctor name or speciality" />
+      <SuggestInput value={q} onChange={setQ} onPick={pickWhat} load={loadWhat} scope={loc} placeholder="Doctor or speciality" ariaLabel="Doctor name or speciality" />
       <div className="div" />
       <SuggestInput value={loc} onChange={setLoc} onPick={pickWhere} load={loadWhere} placeholder="City or locality" ariaLabel="City or locality" />
       <button type="submit">Search</button>
@@ -49,13 +49,16 @@ export function HeaderSearch() {
 /**
  * Specialities resolve client-side (the registry is static); places are data,
  * so a location goes to /search?loc=, where the server resolves it against
- * the geography registry and redirects to the listing when both match.
+ * the geography registry and redirects to the listing when both match. A
+ * speciality with no place goes to its national hub, which always exists and
+ * lists every city with supply — not to a fixed home city, whose page may be
+ * empty or 404 for that speciality.
  */
 export function resolveDestination(query: string, location: string): string {
   const specialty = resolveSpecialtyQuery(query);
   const loc = location.trim();
   if (loc) return `${paths.search(query.trim())}&loc=${encodeURIComponent(loc)}`;
-  if (specialty) return paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, specialty.slug);
+  if (specialty) return paths.specialty(specialty.key);
   if (query.trim()) return paths.search(query.trim());
   return paths.home();
 }

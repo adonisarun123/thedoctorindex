@@ -189,16 +189,29 @@ header.site { position: sticky; top: 0; z-index: 40; background: var(--surface);
 .hsearch:focus-within { border-color: var(--accent); }
 .hsearch .div { width: 1px; background: var(--hair-strong); }
 .hsearch button { border: 0; background: var(--accent); color: var(--accent-on); padding: 0 16px; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: 0 var(--r) var(--r) 0; }
-.hnav { display: flex; gap: 18px; align-items: center; flex: none; font-size: 16px; }
+.hnav { display: flex; gap: 12px; align-items: center; flex: none; font-size: 16px; }
 .hnav a { color: var(--ink-2); }
 .hnav .cta { border: 1px solid var(--accent); color: var(--accent); padding: 6px 13px; border-radius: var(--r); font-weight: 500; }
 .hnav .cta:hover { background: var(--accent-soft); text-decoration: none; }
+/* One row above 900px: brand, search (takes the room, capped so the two
+   fields stay readable), then account · For doctors · theme · Menu. The
+   editorial and trust links live in the Menu drawer; three patches used to
+   hide them at every width while they still claimed space in the flow. */
+.hnav .acct { white-space: nowrap; }
+.menubtn { display: inline-flex; }
 @media (max-width: 900px) {
-  .hrow { height: auto; flex-wrap: wrap; padding: 10px 0; gap: 12px; }
+  .hrow { height: auto; flex-wrap: wrap; padding: 8px 0 10px; gap: 10px 12px; }
   .hsearch { order: 3; max-width: none; flex-basis: 100%; }
   .hnav { margin-left: auto; }
+  .hnav .cta { display: none; }
 }
-@media (max-width: 560px) { .hnav a.plain { display: none; } }
+/* 901–1180px: the account link (also in the drawer) gives its ~115px to the
+   search, which otherwise shrinks to 288px with 100px fields. */
+@media (max-width: 1180px) { .hnav .acct { display: none; } }
+@media (max-width: 420px) { .brand .tag { display: none; } }
+/* 320px phones: brand + Menu do not share a row at full width, so the button
+   keeps its icon only (aria-label carries the name). */
+@media (max-width: 360px) { .menubtn-label { display: none; } .menubtn { padding: 8px 12px; } }
 
 /* --- generic surfaces ---------------------------------------------------- */
 .panel { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); }
@@ -471,13 +484,26 @@ select {
 .tablewrap { overflow-x: auto; }
 
 /* --- footer -------------------------------------------------------------- */
-footer.site { border-top: 1px solid var(--hair); background: var(--surface); padding: 32px 0 44px; margin-top: 40px; }
-.fgrid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 26px; }
-@media (max-width: 760px) { .fgrid { grid-template-columns: 1fr 1fr; } }
-.fgrid h5, .fgrid .fh { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.01em; text-transform: none; color: var(--muted); margin: 0 0 10px; font-weight: 500; }
-.fgrid ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 16px; }
-.fgrid a { color: var(--ink-2); }
-.fnote { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--hair); font-size: 15px; color: var(--muted); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+footer.site { border-top: 1px solid var(--hair); background: var(--surface); padding: 40px 0 36px; margin-top: 48px; }
+.fgrid { display: grid; grid-template-columns: 1.6fr repeat(4, minmax(0, 1fr)); gap: 28px 24px; }
+.fgrid > div { min-width: 0; }
+.fbrand { max-width: 36ch; }
+.fabout { font-size: 15px; line-height: 1.55; color: var(--ink-2); margin: 0; }
+.fgriev { font-size: 14px; line-height: 1.55; color: var(--muted); margin: 14px 0 0; }
+.fgrid h5, .fgrid .fh { font-size: 13.5px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.fgrid .fh-gap { margin-top: 22px; }
+.fgrid ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 16px; }
+.fgrid li a, .fgrid .linkbtn { display: inline-block; padding: 5px 0; color: var(--ink-2); }
+.fgrid a:hover { color: var(--accent); }
+.fnote { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--hair); font-size: 14.5px; line-height: 1.5; color: var(--muted); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 32px; flex-wrap: wrap; }
+.fnote p { margin: 0; }
+.fnote-warn { max-width: 60ch; }
+.fnote-warn strong { color: var(--ink-2); font-weight: 600; }
+.fnote-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.fsocial { display: inline-flex; gap: 14px; }
+.fsocial a { color: var(--ink-2); }
+@media (max-width: 1040px) { .fgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .fbrand { grid-column: 1 / -1; max-width: 52ch; } }
+@media (max-width: 760px) { .fgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fgrid li a, .fgrid .linkbtn { padding: 8px 0; } }
 
 /* --- route inspector (development / ?inspect=1) -------------------------- */
 .seotoggle {
@@ -523,7 +549,7 @@ footer.site { border-top: 1px solid var(--hair); background: var(--surface); pad
 
 /* --- header: mobile navigation --------------------------------------------- */
 .menubtn {
-  display: none; align-items: center; gap: 8px;
+  align-items: center; gap: 8px;
   border: 1px solid var(--hair-strong); background: var(--surface);
   border-radius: var(--r); padding: 8px 14px; min-height: 44px; cursor: pointer;
   color: var(--ink); font-size: 16px; font-weight: 600;
@@ -581,11 +607,6 @@ footer.site { border-top: 1px solid var(--hair); background: var(--surface); pad
 .mobnav-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; }
 @media (max-width: 380px) { .mobnav-grid { grid-template-columns: minmax(0, 1fr); } }
 .mobnav-body .themebtn { margin-top: 10px; align-self: flex-start; min-height: 48px; font-size: 17px; }
-@media (max-width: 900px) {
-  .menubtn { display: inline-flex; }
-  .hnav .plain, .hnav .cta { display: none; }
-  .hrow { height: auto; padding: 8px 0 10px; }
-}
 
 /* --- avatars: deterministic tint per record --------------------------------- */
 .av { position: relative; overflow: hidden; }
@@ -870,7 +891,6 @@ p a:hover, li a:hover, dd a:hover, td a:hover { text-decoration-thickness: 2px; 
 @media (max-width: 760px) {
   .two, .locgrid, .deptgrid, .guidegrid, .steps3, .prof, .listing { grid-template-columns: 1fr !important; }
   .tiles { grid-template-columns: 1fr 1fr !important; }
-  .fgrid { grid-template-columns: 1fr 1fr; }
   .wrap { padding-left: 16px; padding-right: 16px; }
   .section { padding-top: 30px; padding-bottom: 30px; }
   h1 { font-size: clamp(1.7rem, 7.5vw, 2.2rem); line-height: 1.15; }
@@ -932,7 +952,7 @@ p a:hover, li a:hover, dd a:hover, td a:hover { text-decoration-thickness: 2px; 
 }
 @media (max-width: 360px) {
   .tiles { grid-template-columns: 1fr !important; }
-  .fgrid { grid-template-columns: 1fr; }
+  .fgrid { grid-template-columns: minmax(0, 1fr); }
   .locgrid { grid-template-columns: 1fr !important; }
   .row .act { grid-template-columns: 1fr; }
 }
@@ -1501,35 +1521,6 @@ ol.procedure span { display: block; color: var(--ink-2); font-size: 18.5px; line
 .fgrid .linkbtn { color: var(--ink-2); text-decoration: none; text-align: left; }
 .fgrid .linkbtn:hover { text-decoration: underline; }
 
-/* Header, 901–1180px: the three text links used to hold their width while the
-   search shrank to ~30px ("Do" / "Cit"). Here they move into the Menu drawer,
-   which already lists them, and the search keeps the room. One row, so the
-   78px sticky-rail offsets elsewhere still hold. */
-@media (min-width: 901px) and (max-width: 1180px) {
-  .hnav .plain { display: none; }
-  .menubtn { display: inline-flex; }
-  .hsearch { min-width: 320px; }
-}
-/* Above 1180px the container caps at 1140px, so the same squeeze held (search
-   234px, fields 78px, even on a 1440px screen). Blog and Health guides join the
-   Menu drawer; "How verification works" stays in the bar as the trust link. */
-@media (min-width: 1181px) {
-  .hnav > a.plain:nth-of-type(-n + 2) { display: none; }
-  .menubtn { display: inline-flex; }
-}
-
-/* Header after the Sep 24 type change: 17px text left no room for the search
-   between 901px and 1440px ("Doctc" / "City c"). The trust and editorial links
-   live in the Menu drawer; the bar keeps search, account, For doctors, Menu.
-   On narrow phones the "India" tag goes so brand and Menu share one row. */
-@media (min-width: 901px) {
-  .hnav > a.plain:nth-of-type(-n + 3) { display: none; }
-  .hsearch { min-width: 360px; }
-}
-@media (max-width: 420px) {
-  .brand .tag { display: none; }
-  .hrow { flex-wrap: wrap; }
-}
 /* Phones: four labels under four bars cannot fit at a readable size
    ("QualificationAddress"). Below 480px the labels become a 2 × 2 checklist
    and the bars go — the tick carries the same state. */

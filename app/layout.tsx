@@ -1,19 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import Link from "next/link";
 import { Suspense } from "react";
 
 import "./globals.css";
-import { Analytics, analyticsConsentGated } from "@/components/Analytics";
-import { CookieSettingsButton } from "@/components/ConsentGate";
-import { Logo } from "@/components/Logo";
+import { Analytics } from "@/components/Analytics";
 import { RouteInspector } from "@/components/RouteInspector";
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { THEME_BOOT_SCRIPT } from "@/components/ThemeToggle";
 import { activeSourceName } from "@/lib/data";
-import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { env } from "@/lib/env";
-import { SITE, absoluteUrl, paths, HOME_CITY } from "@/lib/site";
+import { SITE, absoluteUrl } from "@/lib/site";
 import { organizationLd, webSiteLd } from "@/lib/seo/structured-data";
 
 /*
@@ -115,77 +112,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <main id="main">{children}</main>
 
-        <footer className="site">
-          <div className="wrap">
-            <div className="fgrid">
-              <div>
-                <p className="flogo">
-                  <Logo height={30} />
-                </p>
-                <p style={{ fontSize: "13.5px", color: "var(--muted)", maxWidth: "34ch" }}>
-                  A free, verified directory of practising doctors in India. Basic profiles are
-                  permanently free. Organic ranking is never for sale.
-                </p>
-                <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "12px" }}>
-                  Grievance officer:{" "}
-                  <a href={`mailto:${SITE.grievanceEmail}`}>{SITE.grievanceEmail}</a>
-                  <br />
-                  <Link href={paths.policy("grievance")}>Grievance process and timelines</Link>
-                </p>
-              </div>
-              <div>
-                <p className="fh">Trust</p>
-                <ul>
-                  <li><Link href="/about">About and ownership</Link></li>
-                  <li><Link href={paths.policy("verification")}>Verification methodology</Link></li>
-                  <li><Link href={paths.policy("ranking")}>Ranking &amp; sorting</Link></li>
-                  <li><Link href={paths.policy("reviews")}>Review policy</Link></li>
-                  <li><Link href={paths.policy("editorial")}>Editorial &amp; medical review</Link></li>
-                  <li><Link href={paths.policy("corrections")}>Corrections &amp; takedowns</Link></li>
-                  <li><Link href={paths.policy("advertising")}>Advertising &amp; sponsorship</Link></li>
-                  <li><Link href={paths.policies()}>All policies</Link></li>
-                </ul>
-              </div>
-              <div>
-                <p className="fh">For doctors</p>
-                <ul>
-                  <li><Link href={paths.addDoctor()}>Add your profile</Link></li>
-                  <li><Link href={paths.claimProfile()}>Claim an existing profile</Link></li>
-                  <li><Link href="/dashboard">Doctor dashboard</Link></li>
-                </ul>
-                <p className="fh" style={{ marginTop: "18px" }}>Legal</p>
-                <ul>
-                  <li><Link href={paths.policy("privacy")}>Privacy</Link></li>
-                  <li><Link href={paths.policy("terms")}>Terms of use</Link></li>
-                  {analyticsConsentGated() ? <li><CookieSettingsButton /></li> : null}
-                </ul>
-              </div>
-              <div>
-                <p className="fh">Browse</p>
-                <ul>
-                  <li><Link href="/doctors">All locations</Link></li>
-                  <li><Link href="/specialties">All specialities</Link></li>
-                  <li><Link href="/health-guides">Health guides</Link></li>
-                  {SPECIALTY_KEYS.filter((k) => SPECIALTIES[k].guide).map((k) => (
-                    <li key={k}>
-                      <Link
-                        href={paths.citySpecialty(HOME_CITY.stateSlug, HOME_CITY.slug, SPECIALTIES[k].slug)}
-                      >
-                        {SPECIALTIES[k].plural} in {HOME_CITY.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            <div className="fnote">
-              <span>
-                Not for emergencies. If someone is in immediate danger, call {SITE.emergencyNumber}.
-                Information on this site is a directory, not medical advice.
-              </span>
-            </div>
-          </div>
-        </footer>
+        <SiteFooter />
 
         <Suspense fallback={null}>
           <RouteInspector />
