@@ -11,7 +11,7 @@ config();
 /**
  * Publish recorded portrait candidates onto their profiles, in bulk.
  *
- *   npm run db:publish-photos -- [--published-only] [--limit N] [--concurrency 4] [--dry]
+ *   npm run db:publish-photos -- [--published-only] [--limit N] [--concurrency 4] [--max-ratio 1.6] [--dry]
  *
  * WHAT THIS ASSERTS, PLAINLY: `photo_consent` is the flag the public photo
  * route checks, and setting it is a claim that we hold permission to publish
@@ -43,6 +43,7 @@ const PAUSE_MS = Number(arg("--pause", "250"));
 // Optional: only candidates recorded from one source (e.g. "import:aggregator:apollo247 (apollo247.com)"),
 // and the basis to record in the audit log when the permission differs from the default.
 const SOURCE = arg("--source", "");
+const MAX_RATIO = Number(arg("--max-ratio", "1.6")); // some sources frame portraits 16:9; the resizer face-crops to a square
 const BASIS = arg("--basis", "site owner instruction — not doctor consent, not a hospital licence");
 
 const MAX_FETCH_BYTES = 15 * 1024 * 1024;
@@ -108,7 +109,7 @@ async function looksLikeAPortrait(bytes: Buffer) {
   const h = m.height ?? 0;
   if (w < 150 || h < 150) return `too small (${w}×${h})`;
   const ratio = w / h;
-  if (ratio < 0.5 || ratio > 1.6) return `not a portrait shape (${w}×${h})`;
+  if (ratio < 0.5 || ratio > MAX_RATIO) return `not a portrait shape (${w}×${h})`;
   return null;
 }
 
