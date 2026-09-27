@@ -5,12 +5,14 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
+import { SpecialtyContentView } from "@/components/SpecialtyContentView";
 import { countIndexable, countsByCity } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
+import { specialtyContent } from "@/lib/data/specialty-content";
 import { SPECIALTY_KEYS, specialtyByKey } from "@/lib/data/taxonomy";
 import { withOverride } from "@/lib/seo/override";
 import { GATES, listingGate } from "@/lib/seo/gates";
-import { breadcrumbLd, specialtyLd } from "@/lib/seo/structured-data";
+import { breadcrumbLd, faqLd, specialtyLd } from "@/lib/seo/structured-data";
 import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
@@ -69,6 +71,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   }
   const stateGroups = [...byState.values()].sort((a, b) => b.listed - a.listed || a.state.name.localeCompare(b.state.name));
   const fmt = (n: number) => n.toLocaleString("en-IN");
+  const content = specialtyContent(specialty.key);
   const gate = await withOverride(paths.specialty(specialty.key), listingGate("national", eligible, Boolean(specialty.guide)));
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
@@ -83,7 +86,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
     canonical: absoluteUrl(paths.specialty(specialty.key)),
     index: gate.indexable,
     gate: { name: "National speciality gate", checks: gate.checks },
-    structuredData: "CollectionPage + MedicalWebPage (about MedicalSpecialty, lastReviewed), BreadcrumbList",
+    structuredData: "CollectionPage + MedicalWebPage (about MedicalSpecialty, lastReviewed), FAQPage when long-form content exists, BreadcrumbList",
     notes: [
       {
         label: "Why this indexes",
@@ -101,7 +104,13 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
   return (
     <>
       <RouteMeta data={routeMeta} />
-      <JsonLd data={[specialtyLd(specialty, count, openCities.map((c) => paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug))), breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path })))]} />
+      <JsonLd
+        data={[
+          specialtyLd(specialty, count, openCities.map((c) => paths.citySpecialty(c.stateSlug, c.citySlug, specialty.slug))),
+          ...(content?.faqs.length ? [faqLd(paths.specialty(specialty.key), content.faqs)] : []),
+          breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path }))),
+        ]}
+      />
       <Breadcrumbs items={crumbs} />
 
       <div className="wrap">
@@ -136,6 +145,8 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
             </p>
           )}
 
+          {content ? <SpecialtyContentView specialty={specialty} content={content} /> : null}
+
           <h2>Also called</h2>
           <p>
             {specialty.aliases.join(", ")}. These map to this one page — synonyms with the same
@@ -144,7 +155,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
 
           {specialty.reviewedOn ? (
             <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
-              Medically reviewed · last substantive review {specialty.reviewedOn}.
+              {content ? "The summary and reasons to consult at the top of this page were medically reviewed" : "Medically reviewed"} · last substantive review {specialty.reviewedOn}.
             </p>
           ) : (
             <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
