@@ -66,6 +66,8 @@ test("in all mode a thin profile (no claim, photo, bio or quality) is live but n
   assert.equal(isProfilePublishable(thin), true, "still a page, just noindex");
   assert.equal(isProfileIndexable({ ...thin, photoUrl: "/photos/x" }), true);
   assert.equal(isProfileIndexable({ ...thin, claimed: true }), true);
+  assert.equal(isProfileIndexable({ ...thin, registration: { ...thin.registration, number: "12345", checkedOn: "27 Sep 2026" } }), true, "a register-checked number is a verified fact");
+  assert.equal(isProfileIndexable({ ...thin, registration: { ...thin.registration, number: "12345", checkedOn: "—" } }), false, "a supplied, unchecked number is not");
   assert.equal(isProfileIndexable({ ...thin, about: "x".repeat(201) }), true);
   assert.equal(isProfileIndexable({ ...thin, about: "x".repeat(200) }), false, "200 chars is the template line, not a bio");
 });

@@ -68,8 +68,8 @@ export const PROFILE_ABOUT_MIN_CHARS = 200;
 
 /**
  * A profile with something on it a reader could not get from the name and
- * speciality alone: claimed by the doctor, a consented photo, a real bio, or a
- * quality score at the gate. 24k imported profiles with none of these made up
+ * speciality alone: claimed by the doctor, a registration checked against the
+ * register, a consented photo, a real bio, or a quality score at the gate. 24k imported profiles with none of these made up
  * 86% of the sitemap on 27 Sep 2026 and Google stopped fetching; they stay
  * live and linked, with noindex, and re-qualify the day one of these arrives.
  * Mirrored in SQL by SUBSTANTIVE_SQL in lib/data/db-source.ts.
@@ -80,6 +80,7 @@ export type IndexableDoctor = Doctor & { photoUrl?: string | null };
 export function isProfileSubstantive(d: IndexableDoctor): boolean {
   return (
     d.claimed ||
+    registrationState(d) === "verified" ||
     Boolean(d.photoUrl) ||
     (d.about ?? "").trim().length > PROFILE_ABOUT_MIN_CHARS ||
     d.qualityScore >= GATES.profileQuality
@@ -130,11 +131,13 @@ export function profileGate(d: IndexableDoctor): GateResult {
       detail: d.status === "retired" ? "Retired record" : d.practices.length ? `${d.practices.length} practice location${d.practices.length === 1 ? "" : "s"} on record` : "No practice location on record",
     },
     {
-      label: "Substantive: claimed, photo, bio or quality at the gate",
+      label: "Substantive: claimed, register-checked, photo, bio or quality at the gate",
       pass: isProfileSubstantive(d),
       detail: d.claimed
         ? "Claimed by the doctor"
-        : d.photoUrl
+        : registrationState(d) === "verified"
+          ? "Registration checked against the register"
+          : d.photoUrl
           ? "Consented photo on record"
           : (d.about ?? "").trim().length > PROFILE_ABOUT_MIN_CHARS
             ? "Bio on record"

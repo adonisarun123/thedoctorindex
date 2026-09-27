@@ -337,12 +337,18 @@ const PUBLISHED_JOIN = sql`
 const ELIGIBLE_JOIN = env.gates.profileIndexMode === "all" ? PUBLISHED_JOIN : INDEXABLE_JOIN;
 
 /**
- * isProfileSubstantive() in SQL: claimed, a consented photo, a bio over
+ * isProfileSubstantive() in SQL: claimed, the primary registration checked
+ * against the register, a consented photo, a bio over
  * PROFILE_ABOUT_MIN_CHARS, or quality at the gate. Only the index set (the
  * profile sitemap) applies it; listing gates keep the wider eligible pool.
  */
 const SUBSTANTIVE_SQL = sql`(
   d.claimed
+  or exists (
+    select 1 from medical_registrations r
+    where r.doctor_id = d.id and r.number <> '' and r.checked_on is not null
+      and (r.is_primary or not exists (select 1 from medical_registrations r2 where r2.doctor_id = d.id and r2.is_primary))
+  )
   or (d.photo_file_id is not null and d.photo_consent)
   or length(btrim(coalesce(d.about, ''))) > ${PROFILE_ABOUT_MIN_CHARS}
   or d.quality_score >= ${env.gates.profileQuality}
