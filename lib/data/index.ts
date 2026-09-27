@@ -188,7 +188,7 @@ export interface QualificationProfile {
  * (card rows, ~1 KB each), so keep this under the data cache's 2 MB ceiling.
  */
 export const LISTING_CAP = 1000;
-/** Rows rendered per page of a listing; further pages are `?page=` facets (noindex, canonical unchanged). */
+/** Rows rendered per page of a listing; `?page=N` pages are self-canonical and indexable (listingPageParam in lib/seo/gates.ts). */
 export const LISTING_PAGE = 60;
 /** Internal search returns at most this many matches; the page is noindex, so the cap is a cost decision, not a crawl one. */
 export const SEARCH_CAP = 100;

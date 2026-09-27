@@ -3,8 +3,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { ListingView } from "@/components/ListingView";
 import type { RouteMetaData } from "@/components/RouteMeta";
-import { countIndexable, pathRedirect, supplyProfile } from "@/lib/data";
-import { GATES, hasFacetParams, listingGate } from "@/lib/seo/gates";
+import { LISTING_CAP, LISTING_PAGE, countIndexable, pathRedirect, supplyProfile } from "@/lib/data";
+import { GATES, hasFacetParams, listingGate, listingPageParam } from "@/lib/seo/gates";
 import { resolveListing, type ListingParams } from "@/lib/seo/listing";
 import { pageMeta } from "@/lib/seo/meta";
 import { withOverride } from "@/lib/seo/override";
@@ -36,6 +36,9 @@ const resolve = resolveListing;
  */
 export const dynamic = "force-dynamic";
 
+/** Last page of the unfiltered listing: the listing is capped at LISTING_CAP profiles, LISTING_PAGE a page. */
+const lastPage = (published: number) => Math.max(1, Math.ceil(Math.min(published, LISTING_CAP) / LISTING_PAGE));
+
 export async function generateMetadata({
   params,
   searchParams,
@@ -62,6 +65,8 @@ export async function generateMetadata({
     countIndexable(specialty.key, gatePlace, "eligible"),
   ]);
   if (publishedCount === 0) return { title: "Page not found", robots: { index: false, follow: false } };
+  const pageNo = listingPageParam(sp);
+  if (pageNo === null || pageNo === "first" || pageNo > lastPage(publishedCount)) return { title: "Page not found", robots: { index: false, follow: false } };
   const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", eligibleCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 
@@ -86,9 +91,9 @@ export async function generateMetadata({
     ". Every profile states what has been checked, and when.",
   ].join("");
   return pageMeta({
-    title: `${specialty.plural} in ${placeName}`,
-    description: desc,
-    path: canonicalPath,
+    title: pageNo > 1 ? `${specialty.plural} in ${placeName} — page ${pageNo}` : `${specialty.plural} in ${placeName}`,
+    description: pageNo > 1 ? `Page ${pageNo}. ${desc}` : desc,
+    path: pageNo > 1 ? `${canonicalPath}?page=${pageNo}` : canonicalPath,
     index: gate.indexable && !faceted,
     image: { url: absoluteUrl(`/og/listing${canonicalPath.replace(/^\/doctors/, "")}`), alt: `${specialty.plural} in ${placeName}` },
   });
@@ -129,6 +134,9 @@ export default async function ListingPage({
     countIndexable(specialty.key, gatePlace, "eligible"),
   ]);
   if (publishedCount === 0) notFound();
+  const pageNo = listingPageParam(sp);
+  if (pageNo === "first") permanentRedirect(canonicalPath);
+  if (pageNo === null || pageNo > lastPage(publishedCount)) notFound();
   const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", eligibleCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 
@@ -136,7 +144,7 @@ export default async function ListingPage({
     route: locality ? "Locality × speciality" : "City × speciality",
     title: `${specialty.plural} in ${placeName} | The Doctor Index`,
     h1: `${specialty.plural} in ${placeName}`,
-    canonical: absoluteUrl(canonicalPath),
+    canonical: absoluteUrl(pageNo > 1 ? `${canonicalPath}?page=${pageNo}` : canonicalPath),
     index: gate.indexable && !faceted,
     gate: {
       name: `Inventory gate (threshold ${locality ? GATES.localitySpecialty : GATES.citySpecialty})`,
@@ -148,7 +156,7 @@ export default async function ListingPage({
         label: "Facets",
         text: faceted
           ? "A filter or sort parameter is present, so this view is noindex,follow. The canonical still points at the unfiltered page."
-          : "No filter or sort parameter present. Any filter, sort or page parameter makes the view a facet and sets noindex — we never expose an unlimited crawlable parameter space.",
+          : "No filter or sort parameter present. Filters and sort are facets (noindex). ?page=N is not: each page is self-canonical and follows the gate, ?page=1 redirects to the bare URL, and a page past the last or a malformed value 404s.",
       },
       {
         label: "Title wording",

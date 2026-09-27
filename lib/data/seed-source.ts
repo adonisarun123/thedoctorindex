@@ -2,7 +2,7 @@ import { lookupRedirect } from "@/lib/seo/redirects";
 import { SEED_DOCTORS, type SeedDoctor } from "@/lib/data/doctors";
 import { LOCALITIES, resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { rank } from "@/lib/search/fuzzy";
-import { isProfileIndexable, isProfileVerified } from "@/lib/seo/gates";
+import { isProfileEligible, isProfileIndexable, isProfileVerified } from "@/lib/seo/gates";
 import type { DataSource, DoctorSuggestion, Measure, MixEntry, Place, PlaceCount, PlaceSpecialtyCount, QualificationProfile, RegisterProfile, SupplyProfile, Totals } from "@/lib/data/index";
 import type { Doctor, DoctorView, Practice, SpecialtyKey } from "@/lib/types";
 import { registrationTier } from "@/lib/verification";
@@ -45,7 +45,7 @@ function inPlace(d: DoctorView, place?: Place): boolean {
 }
 
 /** Verified supply ("indexable"), everything published ("published"), or whatever the current index mode publishes ("eligible"). */
-const matches = (d: DoctorView, measure: Measure) => (measure === "published" ? true : measure === "eligible" ? isProfileIndexable(d) : isProfileVerified(d));
+const matches = (d: DoctorView, measure: Measure) => (measure === "published" ? true : measure === "eligible" ? isProfileEligible(d) : isProfileVerified(d));
 const indexable = (place?: Place, specialty?: SpecialtyKey, measure: Measure = "indexable") => ALL.filter((d) => matches(d, measure) && (!specialty || d.specialty === specialty) && inPlace(d, place));
 
 export const seedSource: DataSource = {

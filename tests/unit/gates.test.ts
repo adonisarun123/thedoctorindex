@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { SEED_DOCTORS } from "../../lib/data/doctors";
-import { GATES, hasFacetParams, isProfileIndexable, isProfilePublishable, isProfileVerified, listingGate, profileGate } from "../../lib/seo/gates";
+import { GATES, hasFacetParams, isProfileIndexable, isProfilePublishable, isProfileSubstantive, isProfileVerified, listingGate, listingPageParam, profileGate } from "../../lib/seo/gates";
 import type { Doctor } from "../../lib/types";
 
 test("listing gate thresholds", () => {
@@ -12,12 +12,21 @@ test("listing gate thresholds", () => {
   assert.equal(listingGate("national", GATES.nationalSpecialty - 1, true).indexable, false);
 });
 
-test("any facet, sort, page, query or near parameter makes a view noindex", () => {
+test("any facet, sort, query or near parameter makes a view noindex; page does not", () => {
   assert.equal(hasFacetParams({}), false);
   assert.equal(hasFacetParams({ sort: "reviews" }), true);
   assert.equal(hasFacetParams({ near: "1,2" }), true);
   assert.equal(hasFacetParams({ locality: "" }), false);
   assert.equal(hasFacetParams({ utm_source: "x" }), false);
+  assert.equal(hasFacetParams({ page: "2" }), false);
+});
+
+test("listing ?page= is read strictly: bare, 2..9999, explicit 1 redirects, anything else 404s", () => {
+  assert.equal(listingPageParam({}), 1);
+  assert.equal(listingPageParam({ page: "2" }), 2);
+  assert.equal(listingPageParam({ page: "17" }), 17);
+  assert.equal(listingPageParam({ page: "1" }), "first");
+  for (const bad of ["0", "-1", "abc", "2.5", "02", "", "99999"]) assert.equal(listingPageParam({ page: bad }), null, bad);
 });
 
 const seed = SEED_DOCTORS.find((d) => d.status === "active" && d.qualityScore >= GATES.profileQuality)!;
@@ -43,7 +52,20 @@ test("profile gate in all mode reports the verification checks without requiring
   const g = profileGate(unverified);
   assert.equal(g.indexable, true);
   assert.equal(g.checks[0].label, "Published with a practice");
-  assert.ok(g.checks.slice(1).every((c) => c.label.endsWith("(shown, not required)")));
-  assert.equal(g.checks.slice(1).some((c) => !c.pass), true);
+  assert.ok(g.checks[1].label.startsWith("Substantive"));
+  assert.ok(g.checks.slice(2).every((c) => c.label.endsWith("(shown, not required)")));
+  assert.equal(g.checks.slice(2).some((c) => !c.pass), true);
   assert.equal(profileGate({ ...unverified, practices: [] }).indexable, false);
+});
+
+test("in all mode a thin profile (no claim, photo, bio or quality) is live but not indexed", () => {
+  const thin = { ...unverified, claimed: false, about: "", photoUrl: null };
+  assert.equal(isProfileSubstantive(thin), false);
+  assert.equal(isProfileIndexable(thin), false);
+  assert.equal(profileGate(thin).indexable, false);
+  assert.equal(isProfilePublishable(thin), true, "still a page, just noindex");
+  assert.equal(isProfileIndexable({ ...thin, photoUrl: "/photos/x" }), true);
+  assert.equal(isProfileIndexable({ ...thin, claimed: true }), true);
+  assert.equal(isProfileIndexable({ ...thin, about: "x".repeat(201) }), true);
+  assert.equal(isProfileIndexable({ ...thin, about: "x".repeat(200) }), false, "200 chars is the template line, not a bio");
 });

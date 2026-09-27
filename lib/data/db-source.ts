@@ -9,7 +9,7 @@ import { normalize } from "@/lib/search/fuzzy";
 import { getDb } from "@/lib/db/client";
 import { daysBetween, toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
-import { isProfileIndexable } from "@/lib/seo/gates";
+import { PROFILE_ABOUT_MIN_CHARS, isProfileIndexable } from "@/lib/seo/gates";
 import type { DataSource, DoctorSuggestion, Measure, MixEntry, NumberShape, Place, PlaceCount, PlaceSpecialtyCount, QualificationProfile, RegisterProfile, SupplyProfile, Totals } from "@/lib/data/index";
 import type { DoctorView, Locality, SpecialtyKey } from "@/lib/types";
 import { cleanSubspecialties } from "@/lib/data/subspecialties";
@@ -335,6 +335,18 @@ const PUBLISHED_JOIN = sql`
  * the sitemap.
  */
 const ELIGIBLE_JOIN = env.gates.profileIndexMode === "all" ? PUBLISHED_JOIN : INDEXABLE_JOIN;
+
+/**
+ * isProfileSubstantive() in SQL: claimed, a consented photo, a bio over
+ * PROFILE_ABOUT_MIN_CHARS, or quality at the gate. Only the index set (the
+ * profile sitemap) applies it; listing gates keep the wider eligible pool.
+ */
+const SUBSTANTIVE_SQL = sql`(
+  d.claimed
+  or (d.photo_file_id is not null and d.photo_consent)
+  or length(btrim(coalesce(d.about, ''))) > ${PROFILE_ABOUT_MIN_CHARS}
+  or d.quality_score >= ${env.gates.profileQuality}
+)`;
 
 const joinFor = (m: Measure | undefined) => (m === "published" ? PUBLISHED_JOIN : m === "eligible" ? ELIGIBLE_JOIN : INDEXABLE_JOIN);
 
@@ -731,10 +743,13 @@ export const dbSource: DataSource = {
     return viewsByIds(rows.map((r) => r.id), "card");
   },
   async listIndexableSlugs(): Promise<Array<{ slug: string; lastVerifiedOn: string }>> {
-    // Mirrors isProfileIndexable(): every published profile with an active
-    // practice in "all" mode, verified supply only in "verified" mode.
+    // Mirrors isProfileIndexable(): substantive published profiles with an
+    // active practice in "all" mode, verified supply only in "verified" mode.
+    // lastmod falls back to the publication date so every entry carries one.
     const rows = (await getDb().execute(sql`
-      select d.slug, d.last_verified_on as lv ${ELIGIBLE_JOIN} group by d.id, d.slug, d.last_verified_on order by d.slug
+      select d.slug, coalesce(d.last_verified_on, d.published_at::date) as lv ${ELIGIBLE_JOIN}
+        ${env.gates.profileIndexMode === "all" ? sql`and ${SUBSTANTIVE_SQL}` : sql``}
+      group by d.id, d.slug, d.last_verified_on, d.published_at order by d.slug
     `)) as unknown as Array<{ slug: string; lv: string | null }>;
     return rows.map((r) => ({ slug: r.slug, lastVerifiedOn: toDisplay(r.lv) }));
   },
