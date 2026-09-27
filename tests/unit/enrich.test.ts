@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { buildQuery, parsePlaces, pickBest, scoreHit, type ProfileForGoogle } from "../../lib/enrich/google";
 import { coreTokens, nameCovers, nameTight, nameTokens, phoneDigits, queryToken, similarity } from "../../lib/enrich/names";
-import { COUNCILS_BY_STATE, NmcClient, councilId, matchOnRegister, parseRow, placeHint } from "../../lib/enrich/nmc";
+import { ANY_COUNCIL, COUNCILS, COUNCILS_BY_STATE, NmcClient, councilId, detailOf, isRemoved, rowCouncil, matchOnRegister, parseRow, placeHint } from "../../lib/enrich/nmc";
 
 test("name tokens drop honorifics, brackets and maiden-name notes", () => {
   assert.deepEqual(nameTokens("Dr. AGRAWAL ASHOK"), ["agrawal", "ashok"]);
@@ -25,58 +25,74 @@ test("coverage is order-free and tolerates a middle name; tight rejects long ext
   assert.equal(nameTight("Agrawal Ashok Kumar Prasad", "Agrawal Ashok"), false);
 });
 
-test("council names map to register ids; non-modern councils map to none", () => {
-  assert.equal(councilId("Madhya Pradesh Medical Council"), 15);
-  assert.equal(councilId("MPMC"), 15);
-  assert.equal(councilId("Mahakaushal Medical Council"), 35);
-  assert.equal(councilId("Karnataka Medical Council"), 13);
-  assert.equal(councilId("Medical Council of India"), 46);
+test("council names map to register codes; non-modern councils map to none", () => {
+  assert.equal(councilId("Madhya Pradesh Medical Council"), "MAD");
+  assert.equal(councilId("MPMC"), "MAD");
+  assert.equal(councilId("Mahakaushal Medical Council"), "MAD", "historical councils map to the state council that now holds them");
+  assert.equal(councilId("Mysore Medical Council"), "KAR");
+  assert.equal(councilId("Karnataka Medical Council"), "KAR");
+  assert.equal(councilId("Kerala State Medical Council"), "TC");
+  assert.equal(councilId("Gujarat Medical Council"), "GUJ");
+  assert.equal(councilId("Medical Council of India"), "MCI");
+  assert.equal(councilId("Pondicherry Medical Council"), ANY_COUNCIL, "medical, but not a filter the register offers");
   assert.equal(councilId("Dental Council of India"), null);
   assert.equal(councilId("State Homoeopathy Council Bhopal Mp"), null);
+  assert.equal(councilId("Travancore-Cochin Medical Council (Indian medicine)"), null);
   assert.equal(councilId("Council not stated"), null);
-  assert.deepEqual(COUNCILS_BY_STATE["madhya-pradesh"], [15, 35, 28]);
+  assert.deepEqual(COUNCILS_BY_STATE.gujarat, ["GUJ", "MAH"]);
+  for (const codes of Object.values(COUNCILS_BY_STATE)) for (const c of codes) assert.ok(COUNCILS[c], `${c} is a council code the register lists`);
 });
 
-test("register rows parse without keeping the father's name; place hints drop house detail", () => {
-  const row = parseRow([1, 1987, "7975", "Madhya Pradesh Medical Council", "Agrawal Neena", "Dr. K N Mittal", "<a href=\"javascript:void(0);\" onclick=\"openDoctorDetailsnew('399156', '7975')\">View</a>"]);
-  assert.deepEqual(row, { year: 1987, registrationNo: "7975", council: "Madhya Pradesh Medical Council", name: "Agrawal Neena", doctorId: "399156" });
-  assert.equal(Object.keys(row!).includes("fatherName"), false);
+test("register rows parse without keeping father's name, DOB or address; place hints drop house detail, PIN and country", () => {
+  const api = { id: 13584393, name: "Agrawal Neena", father_name: "K N Mittal", dob: "1960-01-01 00:00:00", registration_no: "7975", registration_date: "11-02-1987", state_medical_council: "Madhya Pradesh Medical Council", year_of_info: 1987, permanent_address: "D 203,SECTOR-2,SUNCITY,BOPAL,AHMEDABAD,,AHMEDABAD,GUJARAT,380058,INDIA", qualification: "M.B.B.S.", qualification_year: "1985", university: "Devi Ahilya", removed_status: null };
+  const row = parseRow(api);
+  assert.deepEqual(row, { year: 1987, registrationNo: "7975", council: "Madhya Pradesh Medical Council", name: "Agrawal Neena", doctorId: "13584393" });
+  for (const k of ["fatherName", "father_name", "dob", "permanent_address"]) assert.equal(Object.keys(row!).includes(k), false);
+  const d = detailOf(api);
+  assert.deepEqual(d, { degree: "M.B.B.S.", university: "Devi Ahilya", yearOfPassing: 1985, registrationDate: "11-02-1987", place: "AHMEDABAD, GUJARAT", removed: false });
   assert.equal(placeHint("M. I. G. No. I Civil Lines, Shahdol, M. P"), "Shahdol, M. P");
   assert.equal(placeHint("Indore"), null);
+  assert.equal(isRemoved(null), false);
+  assert.equal(isRemoved(0), false);
+  assert.equal(isRemoved("0"), false);
+  assert.equal(isRemoved(1), true);
+  assert.equal(isRemoved("true"), true);
+  assert.equal(parseRow({ id: 1, name: "", registration_no: "1" }), null);
 });
 
+/** rows: [id, regNo, council code, name]; codes other than MAD render as "Other Council". */
 function fakeRegister(rows: Array<[string, string, string, string]>, details: Record<string, Record<string, unknown>> = {}) {
   const calls: string[] = [];
-  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+  const fetchImpl = (async (input: string | URL | Request) => {
     const url = String(input);
     calls.push(url);
-    if (url.includes("indian-medical-register")) return new Response("<html/>", { status: 200, headers: { "set-cookie": "JSESSIONID=abc; Path=/" } });
-    if (url.includes("getPaginatedDoctor")) {
+    if (url.includes("/indian-medical-register/search")) {
       const q = new URL(url).searchParams;
       const name = (q.get("name") ?? "").toLowerCase();
-      const no = q.get("registrationNo") ?? "";
-      const smc = q.get("smcId") ?? "";
-      const hits = rows.filter(([id, regNo, council, nm]) => (no ? regNo === no : nm.toLowerCase().includes(name)) && (!smc || council === smc)).map(([id, regNo, council, nm], i) => [i + 1, 1990, regNo, council === "15" ? "Madhya Pradesh Medical Council" : "Other Council", nm, "Father", `<a onclick="openDoctorDetailsnew('${id}', '${regNo}')">View</a>`]);
-      return Response.json({ recordsFiltered: hits.length, data: hits });
+      const no = q.get("reg_no") ?? "";
+      const state = q.get("state") ?? "";
+      const perPage = Number(q.get("per_page") ?? "25");
+      const page = Number(q.get("page") ?? "1");
+      const all = rows
+        .filter(([, regNo, code, nm]) => (no ? regNo.includes(no) : nm.toLowerCase().includes(name)) && (!state || code === state))
+        .map(([id, regNo, code, nm]) => ({ id: Number(id), name: nm, father_name: "Father", dob: "1960-01-01 00:00:00", registration_no: regNo, registration_date: "01-01-1990", state_medical_council: code === "MAD" ? "Madhya Pradesh Medical Council" : "Other Council", year_of_info: 1990, permanent_address: "12 Palasia, Indore, M.P,452001,INDIA", qualification: "MBBS", qualification_year: "1988", university: "Devi Ahilya", removed_status: null, ...(details[id] ?? {}) }));
+      const data = all.slice((page - 1) * perPage, page * perPage);
+      return Response.json({ success: true, data, pagination: { total: all.length, count: data.length, per_page: perPage, current_page: page, total_pages: Math.max(1, Math.ceil(all.length / perPage)) } });
     }
-    if (url.includes("getDoctorDetailsByIdImrExt")) {
-      const body = JSON.parse(String(init?.body ?? "{}"));
-      return Response.json({ doctorDegree: "MBBS", university: "Devi Ahilya", yearOfPassing: 1988, addressLine1: "12 Palasia, Indore, M.P", removedStatus: false, ...(details[body.doctorId] ?? {}) });
-    }
-    return new Response("nope", { status: 404 });
+    return new Response("<html>Page Not Found</html>", { status: 404, headers: { "content-type": "text/html" } });
   }) as typeof fetch;
   return { client: new NmcClient({ pauseMs: 0, fetchImpl }), calls };
 }
 
 test("number on file that the register knows under the same name is confirmed", async () => {
-  const { client } = fakeRegister([["1", "7975", "15", "Agrawal Ashok Kumar"]]);
+  const { client } = fakeRegister([["1", "7975", "MAD", "Agrawal Ashok Kumar"]]);
   const out = await matchOnRegister(client, { name: "AGRAWAL ASHOK", stateSlug: "madhya-pradesh", registration: { number: "7975", council: "Madhya Pradesh Medical Council" } });
   assert.equal(out.status, "confirmed");
   assert.equal("match" in out && out.match.detail?.degree, "MBBS");
 });
 
 test("a wrong number on file is replaced by a unique name match, and reported when the name is not found", async () => {
-  const { client } = fakeRegister([["1", "7975", "15", "Verma Sunita"], ["2", "8001", "15", "Agrawal Ashok"]]);
+  const { client } = fakeRegister([["1", "7975", "MAD", "Verma Sunita"], ["2", "8001", "MAD", "Agrawal Ashok"]]);
   const out = await matchOnRegister(client, { name: "Agrawal Ashok", stateSlug: "madhya-pradesh", registration: { number: "7975", council: "Madhya Pradesh Medical Council" } });
   assert.equal(out.status, "matched");
   assert.equal("match" in out && out.match.registrationNo, "8001");
@@ -86,21 +102,21 @@ test("a wrong number on file is replaced by a unique name match, and reported wh
 });
 
 test("a prefixed number the register stores without its prefix is still confirmed", async () => {
-  const { client, calls } = fakeRegister([["1", "3037", "15", "Sahu (Miss.) Jaishree"]]);
+  const { client, calls } = fakeRegister([["1", "3037", "MAD", "Sahu (Miss.) Jaishree"]]);
   const out = await matchOnRegister(client, { name: "Sahu Jaishree", stateSlug: "madhya-pradesh", registration: { number: "MP-3037", council: "Madhya Pradesh Medical Council" } });
   assert.equal(out.status, "confirmed");
-  assert.equal(calls.filter((c) => c.includes("registrationNo=3037")).length, 1);
+  assert.equal(calls.filter((c) => c.includes("reg_no=3037")).length, 1);
 });
 
 test("without a number, exactly one tight name match fills the registration", async () => {
-  const { client } = fakeRegister([["1", "8001", "15", "Agrawal Ashok Kumar"], ["2", "8002", "15", "Agrawal Ashish"], ["3", "8003", "15", "Agrawal Ashok Kumar Prasad Rao"]]);
+  const { client } = fakeRegister([["1", "8001", "MAD", "Agrawal Ashok Kumar"], ["2", "8002", "MAD", "Agrawal Ashish"], ["3", "8003", "MAD", "Agrawal Ashok Kumar Prasad Rao"]]);
   const out = await matchOnRegister(client, { name: "Agrawal Ashok", stateSlug: "madhya-pradesh", registration: null });
   assert.equal(out.status, "matched");
   assert.equal("match" in out && out.match.registrationNo, "8001");
 });
 
 test("two tight matches are ambiguous and carry candidates with register detail", async () => {
-  const { client } = fakeRegister([["1", "8001", "15", "Agrawal Ashok"], ["2", "8002", "15", "Ashok Agrawal"]]);
+  const { client } = fakeRegister([["1", "8001", "MAD", "Agrawal Ashok"], ["2", "8002", "MAD", "Ashok Agrawal"]]);
   const out = await matchOnRegister(client, { name: "Agrawal Ashok", stateSlug: "madhya-pradesh", registration: null });
   assert.equal(out.status, "ambiguous");
   assert.equal("candidates" in out && out.candidates.length, 2);
@@ -108,16 +124,16 @@ test("two tight matches are ambiguous and carry candidates with register detail"
 });
 
 test("a struck-off unique match is never filled", async () => {
-  const { client } = fakeRegister([["1", "8001", "15", "Agrawal Ashok"]], { "1": { removedStatus: true } });
+  const { client } = fakeRegister([["1", "8001", "MAD", "Agrawal Ashok"]], { "1": { removed_status: 1 } });
   const out = await matchOnRegister(client, { name: "Agrawal Ashok", stateSlug: "madhya-pradesh", registration: null });
   assert.equal(out.status, "removed");
 });
 
 test("single-token names and unknown states are not searched", async () => {
-  const { client, calls } = fakeRegister([["1", "8001", "15", "Agrawal Ashok"]]);
+  const { client, calls } = fakeRegister([["1", "8001", "MAD", "Agrawal Ashok"]]);
   assert.equal((await matchOnRegister(client, { name: "Agrawal", stateSlug: "madhya-pradesh", registration: null })).status, "not_found");
   assert.equal((await matchOnRegister(client, { name: "Agrawal Ashok", stateSlug: null, registration: null })).status, "not_found");
-  assert.equal(calls.filter((c) => c.includes("getPaginatedDoctor")).length, 0);
+  assert.equal(calls.filter((c) => c.includes("/indian-medical-register/search")).length, 0);
 });
 
 const profile: ProfileForGoogle = { doctorName: "Agrawal Ashok", facilityName: "Dr. Agrawal Clinic", address: "12 Palasia Square", postalCode: "452001", phone: "+91 98260 12345", localityName: "Palasia", cityName: "Indore", stateName: "Madhya Pradesh", lat: 22.72, lng: 75.88 };
@@ -165,4 +181,16 @@ test("registration numbers as written on profiles are queried safely and matched
   assert.equal(b.accept("123456"), false);
   const c = registrationQuery(" MP - 8585 ");
   assert.equal(c.queryNumber, "MP-8585");
+  const d = registrationQuery("DMC/R/1053");
+  assert.equal(d.queryNumber, "DMC/R/1053", "slashed numbers that are not number/year are searched whole");
+  assert.equal(d.accept("DMC/R/1053"), true);
+  assert.equal(d.accept("DMC/R/10536"), false);
+  assert.equal(registrationQuery("TSMC / FMR / 19132").queryNumber, "TSMC/FMR/19132");
+});
+
+test("a row's council comes from its code when the register's label contradicts it", () => {
+  assert.equal(rowCouncil({ state_medical_council: "Tamil Nadu Medical Council", state_code: "MAD" }), "Madhya Pradesh Medical Council");
+  assert.equal(rowCouncil({ state_medical_council: "Kerala State Medical Council", state_code: "TC" }), "Kerala State Medical Council");
+  assert.equal(rowCouncil({ state_medical_council: "Telangana Medical Council", state_code: "TEL" }), "Telangana Medical Council");
+  assert.equal(rowCouncil({ state_medical_council: "Gujarat Medical Council", state_code: null }), "Gujarat Medical Council");
 });

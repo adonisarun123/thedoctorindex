@@ -4,155 +4,166 @@ import { coreTokens, nameCovers, nameTight, queryToken } from "@/lib/enrich/name
  * NMC Indian Medical Register client and matcher.
  *
  * The register (nmc.org.in › Information Desk › Indian Medical Register) is a
- * public verification service. We query it the way its own search form does,
- * one request at a time with a pause between requests, and keep only
- * professional data: registration number, council, year, primary degree and
- * university. Father's name, date of birth and addresses are never stored.
+ * public verification service. Since the site was rebuilt (seen 27 Sep 2026)
+ * its search page calls one JSON endpoint:
+ *
+ *   GET https://nmc.org.in/indian-medical-register/search
+ *       ?search_type=name|reg_no|year|state|advance
+ *       &name=&reg_no=&year=&state=<council code>&page=N&per_page=25|50|100
+ *
+ * Each result row already carries the registration date, primary degree,
+ * university and struck-off status, so there is no separate detail call any
+ * more. `per_page` is capped at 100 (larger values silently fall back to 25).
+ * `name` is a substring match on the register's name string, so word order
+ * matters; `reg_no` is a substring match, so exactness is enforced here.
+ *
+ * We query it the way its own search form does, one request at a time with a
+ * pause between requests, and keep only professional data: registration
+ * number, council, year, primary degree and university. Father's name, date of
+ * birth and addresses are never stored (an address is reduced to a district /
+ * state hint for staff disambiguation and never persisted beyond that).
  *
  * Modern-medicine councils only: dentists, AYUSH and allied professions are on
  * other registers and are marked not_applicable by the worker.
  *
- * nmc.org.in serves its certificate without the SSL.com intermediate, which
- * Node rejects ("unable to verify the first certificate"). `npm run db:enrich`
- * therefore runs with NODE_EXTRA_CA_CERTS pointing at that intermediate
- * (lib/enrich/certs/, fingerprint BF:BC:39:E9…0C:69, fetched from the URL in
- * the leaf certificate's Authority Information Access). Trust is added, never
- * relaxed.
+ * `npm run db:enrich` still runs with NODE_EXTRA_CA_CERTS pointing at the
+ * SSL.com intermediate in lib/enrich/certs/; the rebuilt host serves a full
+ * chain, so the extra trust is now redundant but harmless. Trust is added,
+ * never relaxed.
  */
 
-const BASE = "https://www.nmc.org.in";
-const PAGE = `${BASE}/information-desk/indian-medical-register/`;
+const BASE = "https://nmc.org.in";
+const PAGE = `${BASE}/information-desk/indian-medical-register`;
+const SEARCH = `${BASE}/indian-medical-register/search`;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36 TheDoctorIndex-verification/1.0 (+https://www.thedoctorindex.com/policies/verification)";
+const PER_PAGE = 100;
 
-/** State Medical Council ids as the register numbers them (from its own council select). */
-export const COUNCILS: Record<number, string> = {
-  1: "Andhra Pradesh Medical Council",
-  2: "Arunachal Pradesh Medical Council",
-  3: "Assam Medical Council",
-  4: "Bihar Medical Council",
-  5: "Chattisgarh Medical Council",
-  6: "Delhi Medical Council",
-  7: "Goa Medical Council",
-  8: "Gujarat Medical Council",
-  9: "Haryana Medical Council",
-  10: "Himachal Pradesh Medical Council",
-  11: "Jammu & Kashmir Medical Council",
-  12: "Jharkhand Medical Council",
-  13: "Karnataka Medical Council",
-  14: "Kerala Medical Council",
-  15: "Madhya Pradesh Medical Council",
-  16: "Maharashtra Medical Council",
-  17: "Orissa Council of Medical Registration",
-  18: "Punjab Medical Council",
-  19: "Rajasthan Medical Council",
-  20: "Sikkim Medical Council",
-  21: "Tamil Nadu Medical Council",
-  22: "Tripura State Medical Council",
-  23: "Uttar Pradesh Medical Council",
-  24: "Uttarakhand Medical Council",
-  25: "West Bengal Medical Council",
-  26: "Manipur Medical Council",
-  27: "Bareilly Medical Council",
-  28: "Bhopal Medical Council",
-  29: "Bombay Medical Council",
-  30: "Chandigarh Medical Council",
-  33: "Travancore Cochin Medical Council",
-  35: "Mahakoshal Medical Council",
-  36: "Madras Medical Council",
-  37: "Mysore Medical Council",
-  38: "Pondicherry Medical Council",
-  40: "Vidharba Medical Council",
-  41: "Nagaland Medical Council",
-  42: "Mizoram Medical Council",
-  43: "Telangana State Medical Council",
-  45: "Hyderabad Medical Council",
-  46: "Medical Council of India",
-  51: "Meghalaya Medical Council",
+/**
+ * Council codes as the register's own council select lists them (GET
+ * /indian-medical-register/states, 27 Sep 2026), each with the council name
+ * as this site stores it. The register's own labels are not always right:
+ * Madhya Pradesh rows (state_code MAD) come back labelled "Tamil Nadu Medical
+ * Council", so a row's council is taken from its code whenever the label
+ * contradicts it (see `rowCouncil`).
+ */
+export const COUNCILS: Record<string, string> = {
+  AND: "Andhra Pradesh Medical Council",
+  ARU: "Arunachal Pradesh Medical Council",
+  ASS: "Assam Medical Council",
+  BIH: "Bihar Medical Council",
+  CHA: "Chattisgarh Medical Council",
+  DEL: "Delhi Medical Council",
+  GOA: "Goa Medical Council",
+  GUJ: "Gujarat Medical Council",
+  HAR: "Haryana Medical Council",
+  HIM: "Himachal Pradesh Medical Council",
+  JAM: "Jammu & Kashmir Medical Council",
+  JHA: "Jharkhand Medical Council",
+  KAR: "Karnataka Medical Council",
+  MAD: "Madhya Pradesh Medical Council",
+  MAH: "Maharashtra Medical Council",
+  MAN: "Manipur Medical Council",
+  MCI: "Medical Council of India",
+  MIZ: "Mizoram Medical Council",
+  NAG: "Nagaland Medical Council",
+  ORI: "Orissa Council of Medical Registration",
+  PUN: "Punjab Medical Council",
+  RAJ: "Rajasthan Medical Council",
+  SIK: "Sikkim Medical Council",
+  TAM: "Tamil Nadu Medical Council",
+  TEL: "Telangana State Medical Council",
+  TC: "Kerala State Medical Council",
+  TRI: "Tripura State Medical Council",
+  UP: "Uttar Pradesh Medical Council",
+  UTT: "Uttarakhand Medical Council",
+  WES: "West Bengal Medical Council",
 };
 
-/** Councils to search for a doctor practising in a state: the current council first, then the historical ones that issued numbers there. */
-export const COUNCILS_BY_STATE: Record<string, number[]> = {
-  "andhra-pradesh": [1, 45],
-  "arunachal-pradesh": [2],
-  assam: [3],
-  bihar: [4],
-  chhattisgarh: [5, 15],
-  chandigarh: [30, 18],
-  delhi: [6],
-  goa: [7, 29],
-  gujarat: [8, 29],
-  haryana: [9, 18],
-  "himachal-pradesh": [10, 18],
-  "jammu-and-kashmir": [11],
-  jharkhand: [12, 4],
-  karnataka: [13, 37],
-  kerala: [14, 33],
-  "madhya-pradesh": [15, 35, 28],
-  maharashtra: [16, 29, 40],
-  manipur: [26],
-  meghalaya: [51, 3],
-  mizoram: [42],
-  nagaland: [41],
-  odisha: [17],
-  puducherry: [38, 36],
-  punjab: [18],
-  rajasthan: [19],
-  sikkim: [20],
-  "tamil-nadu": [21, 36],
-  telangana: [43, 45, 1],
-  tripura: [22],
-  "uttar-pradesh": [23, 27],
-  uttarakhand: [24, 23],
-  "west-bengal": [25],
+/**
+ * Search without a council filter. Used for medical councils the register no
+ * longer lists as a filter (Meghalaya, Chandigarh, Pondicherry): the number or
+ * name match is still exact, it just is not narrowed by council first.
+ */
+export const ANY_COUNCIL = "*";
+
+/** Councils to search for a doctor practising in a state: the current council first, then neighbours that issued numbers there, then the all-India register. */
+export const COUNCILS_BY_STATE: Record<string, string[]> = {
+  "andhra-pradesh": ["AND", "TEL"],
+  "arunachal-pradesh": ["ARU", "ASS"],
+  assam: ["ASS"],
+  bihar: ["BIH"],
+  chhattisgarh: ["CHA", "MAD"],
+  chandigarh: ["PUN", "HAR"],
+  delhi: ["DEL"],
+  goa: ["GOA", "MAH"],
+  gujarat: ["GUJ", "MAH"],
+  haryana: ["HAR", "PUN"],
+  "himachal-pradesh": ["HIM", "PUN"],
+  "jammu-and-kashmir": ["JAM"],
+  jharkhand: ["JHA", "BIH"],
+  karnataka: ["KAR"],
+  kerala: ["TC"],
+  "madhya-pradesh": ["MAD"],
+  maharashtra: ["MAH"],
+  manipur: ["MAN"],
+  meghalaya: ["ASS"],
+  mizoram: ["MIZ"],
+  nagaland: ["NAG"],
+  odisha: ["ORI"],
+  puducherry: ["TAM"],
+  punjab: ["PUN"],
+  rajasthan: ["RAJ"],
+  sikkim: ["SIK"],
+  "tamil-nadu": ["TAM"],
+  telangana: ["TEL", "AND"],
+  tripura: ["TRI"],
+  "uttar-pradesh": ["UP"],
+  uttarakhand: ["UTT", "UP"],
+  "west-bengal": ["WES"],
 };
 
-/** Map a council name as written in the profile to the register's id, or null when it is not a modern-medicine council the register knows. */
-export function councilId(name: string | null | undefined): number | null {
+/**
+ * Map a council name as written in the profile to the register's council code,
+ * ANY_COUNCIL for a medical council the register cannot filter on, or null
+ * when it is not a modern-medicine council at all. Historical councils map to
+ * the state council that now holds their records.
+ */
+export function councilId(name: string | null | undefined): string | null {
   if (!name) return null;
   const n = name.toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
   if (/dental|homoeo|homeo|ayur|unani|siddha|sowa|naturopath|paramedical|rehabilitation|nursing|pharmac|physio|occupational|allied|indian medicine|indian system/.test(n)) return null;
-  const aliases: Array<[RegExp, number]> = [
-    [/\bmpmc\b|madhya pradesh|^mp\b|^m p\b/, 15],
-    [/mahakoshal|mahakaushal/, 35],
-    [/bhopal/, 28],
-    [/uttar pradesh|^up\b|upmc/, 23],
-    [/bareilly/, 27],
-    [/maharashtra|^mmc\b/, 16],
-    [/bombay/, 29],
-    [/vidharba|vidarbha/, 40],
-    [/karnataka|^kmc\b/, 13],
-    [/mysore/, 37],
-    [/tamil ?nadu|tnmc/, 21],
-    [/madras/, 36],
-    [/kerala|travancore/, 14],
-    [/telangana/, 43],
-    [/hyderabad/, 45],
-    [/andhra|^ap\b/, 1],
-    [/west bengal|^wb\b/, 25],
-    [/gujarat/, 8],
-    [/rajasthan/, 19],
-    [/bihar/, 4],
-    [/delhi|^dmc\b/, 6],
-    [/punjab/, 18],
-    [/haryana/, 9],
-    [/chattisgarh|chhattisgarh/, 5],
-    [/jharkhand/, 12],
-    [/orissa|odisha/, 17],
-    [/assam/, 3],
-    [/uttarakhand|uttaranchal/, 24],
-    [/himachal/, 10],
-    [/jammu|kashmir/, 11],
-    [/goa\b/, 7],
-    [/chandigarh/, 30],
-    [/pondicherry|puducherry/, 38],
-    [/tripura/, 22],
-    [/sikkim/, 20],
-    [/manipur/, 26],
-    [/meghalaya/, 51],
-    [/mizoram/, 42],
-    [/nagaland/, 41],
-    [/arunachal/, 2],
-    [/medical council of india|^mci\b|national medical commission|^nmc\b/, 46],
+  const aliases: Array<[RegExp, string]> = [
+    [/\bmpmc\b|madhya pradesh|^mp\b|^m p\b|mahakoshal|mahakaushal|bhopal/, "MAD"],
+    [/uttar pradesh|^up\b|upmc|bareilly/, "UP"],
+    [/maharashtra|^mmc\b|bombay|vidharba|vidarbha/, "MAH"],
+    [/karnataka|^kmc\b|mysore/, "KAR"],
+    [/tamil ?nadu|tnmc|madras/, "TAM"],
+    [/kerala|travancore/, "TC"],
+    [/telangana|hyderabad/, "TEL"],
+    [/andhra|^ap\b/, "AND"],
+    [/west bengal|^wb\b/, "WES"],
+    [/gujarat/, "GUJ"],
+    [/rajasthan/, "RAJ"],
+    [/bihar/, "BIH"],
+    [/delhi|^dmc\b/, "DEL"],
+    [/punjab/, "PUN"],
+    [/haryana/, "HAR"],
+    [/chattisgarh|chhattisgarh/, "CHA"],
+    [/jharkhand/, "JHA"],
+    [/orissa|odisha/, "ORI"],
+    [/assam/, "ASS"],
+    [/uttarakhand|uttaranchal/, "UTT"],
+    [/himachal|himanchal/, "HIM"],
+    [/jammu|kashmir/, "JAM"],
+    [/goa\b/, "GOA"],
+    [/tripura/, "TRI"],
+    [/sikkim/, "SIK"],
+    [/manipur/, "MAN"],
+    [/mizoram/, "MIZ"],
+    [/nagaland/, "NAG"],
+    [/arunachal/, "ARU"],
+    [/chandigarh|pondicherry|puducherry|meghalaya/, ANY_COUNCIL],
+    [/medical council of india|^mci\b|national medical commission|^nmc\b/, "MCI"],
   ];
   for (const [re, id] of aliases) if (re.test(n)) return id;
   return null;
@@ -163,7 +174,7 @@ export interface RegisterRow {
   registrationNo: string;
   council: string;
   name: string;
-  /** Register's internal id, needed for the detail call. */
+  /** Register's internal row id. */
   doctorId: string;
 }
 
@@ -172,7 +183,7 @@ export interface RegisterDetail {
   university: string | null;
   yearOfPassing: number | null;
   registrationDate: string | null;
-  /** First address line, reduced to a place hint (district / city words). Never the full address. */
+  /** Address reduced to a place hint (district / state words). Never the full address. */
   place: string | null;
   removed: boolean;
 }
@@ -197,12 +208,29 @@ export interface NmcClientOptions {
   log?: (msg: string) => void;
 }
 
+/** One row as the register's JSON search returns it. Only the fields we read are typed. */
+export interface RegisterApiRow {
+  id: number | string;
+  name?: string | null;
+  registration_no?: string | null;
+  registration_date?: string | null;
+  state_medical_council?: string | null;
+  state_code?: string | null;
+  year_of_info?: number | string | null;
+  permanent_address?: string | null;
+  qualification?: string | null;
+  qualification_year?: string | number | null;
+  university?: string | null;
+  removed_status?: unknown;
+}
+
 export class NmcClient {
-  private cookie = "";
   private lastAt = 0;
   private readonly pauseMs: number;
   private readonly fetchImpl: typeof fetch;
   private readonly log: (msg: string) => void;
+  /** Detail travels with each search row now; kept here so `detail()` costs no request. */
+  private readonly details = new Map<string, RegisterDetail>();
   requests = 0;
 
   constructor(opts: NmcClientOptions = {}) {
@@ -217,9 +245,21 @@ export class NmcClient {
     this.lastAt = Date.now();
   }
 
-  /** GET with one retry on a 5xx or a dropped connection; the register answers 500 to malformed queries and, occasionally, to good ones. */
+  private headers(): Record<string, string> {
+    return { "User-Agent": UA, Referer: PAGE, Accept: "application/json, text/javascript, */*; q=0.01", "X-Requested-With": "XMLHttpRequest" };
+  }
+
+  /** GET with one retry on a 5xx or a dropped connection. */
   private async get(url: string): Promise<Response> {
-    let res = await this.fetchImpl(url, { headers: this.headers() });
+    this.requests++;
+    let res: Response;
+    try {
+      res = await this.fetchImpl(url, { headers: this.headers() });
+    } catch {
+      await new Promise((r) => setTimeout(r, 2500));
+      this.requests++;
+      return this.fetchImpl(url, { headers: this.headers() });
+    }
     if (res.status >= 500) {
       await new Promise((r) => setTimeout(r, 2500));
       this.requests++;
@@ -228,104 +268,105 @@ export class NmcClient {
     return res;
   }
 
-  private headers(json = false): Record<string, string> {
-    const h: Record<string, string> = { "User-Agent": UA, Referer: PAGE, Accept: "application/json, text/javascript, */*; q=0.01", "X-Requested-With": "XMLHttpRequest" };
-    if (this.cookie) h.Cookie = this.cookie;
-    if (json) h["Content-Type"] = "application/json";
-    return h;
-  }
-
-  /** The register's search rejects requests without the session cookie its page sets. */
-  async session(): Promise<void> {
-    if (this.cookie) return;
-    await this.pace();
-    this.requests++;
-    const res = await this.fetchImpl(PAGE, { headers: { "User-Agent": UA }, redirect: "follow" });
-    const raw = (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];
-    const single = res.headers.get("set-cookie");
-    const jar = raw.length ? raw : single ? [single] : [];
-    this.cookie = jar.map((c) => c.split(";")[0]).join("; ");
-    this.log(`nmc session ${res.status} cookies=${jar.length}`);
-  }
-
-  /** Paginated search. `name` is a substring match on the register's name field; `registrationNo` is exact. */
-  async search(params: { name?: string; registrationNo?: string; smcId?: number; year?: number }, max = 500): Promise<{ total: number; rows: RegisterRow[] }> {
-    await this.session();
+  /**
+   * Paginated search. `name` is a substring match on the register's name
+   * string; `registrationNo` is a substring match (callers enforce exactness);
+   * `smcId` is a council code from COUNCILS, or ANY_COUNCIL / absent for none.
+   */
+  async search(params: { name?: string; registrationNo?: string; smcId?: string; year?: number }, max = 500): Promise<{ total: number; rows: RegisterRow[] }> {
     const rows: RegisterRow[] = [];
     let total = 0;
-    for (let start = 0; start < max; start += 500) {
+    const state = params.smcId && params.smcId !== ANY_COUNCIL ? params.smcId : "";
+    for (let page = 1; rows.length < max; page++) {
       await this.pace();
-      this.requests++;
-      const q = new URLSearchParams({
-        service: "getPaginatedDoctor",
-        draw: "1",
-        start: String(start),
-        length: "500",
-        name: params.name ?? "",
-        registrationNo: params.registrationNo ?? "",
-        smcId: params.smcId ? String(params.smcId) : "",
-        year: params.year ? String(params.year) : "",
-      });
-      const res = await this.get(`${BASE}/MCIRest/open/getPaginatedData?${q}`);
+      const q = new URLSearchParams({ search_type: "advance", name: params.name ?? "", reg_no: params.registrationNo ?? "", year: params.year ? String(params.year) : "", state, page: String(page), per_page: String(PER_PAGE) });
+      const res = await this.get(`${SEARCH}?${q}`);
       if (!res.ok) throw new Error(`nmc search ${res.status}`);
-      const body = (await res.json()) as { recordsFiltered?: number; recordsTotal?: number; data?: unknown[][] };
-      total = Number(body.recordsFiltered ?? body.recordsTotal ?? 0);
-      for (const r of body.data ?? []) {
+      const type = res.headers.get("content-type") ?? "";
+      if (!type.includes("json")) throw new Error(`nmc search returned ${type || "no content type"} (register page changed?)`);
+      const body = (await res.json()) as { success?: boolean; data?: RegisterApiRow[]; pagination?: { total?: number; total_pages?: number; per_page?: number } };
+      if (body.success === false) throw new Error("nmc search success=false");
+      total = Number(body.pagination?.total ?? 0);
+      const data = body.data ?? [];
+      for (const r of data) {
         const parsed = parseRow(r);
-        if (parsed) rows.push(parsed);
+        if (!parsed) continue;
+        rows.push(parsed);
+        this.details.set(parsed.doctorId, detailOf(r));
       }
-      if (rows.length >= total || (body.data ?? []).length < 500) break;
+      const pages = Number(body.pagination?.total_pages ?? 1);
+      if (!data.length || page >= pages || rows.length >= total) break;
     }
+    this.log(`nmc search ${JSON.stringify(params)} → ${rows.length}/${total}`);
     return { total, rows };
   }
 
+  /** Register detail for a row returned by `search`. No request: the search row carried it. */
   async detail(row: RegisterRow): Promise<RegisterDetail> {
-    await this.session();
-    await this.pace();
-    this.requests++;
-    const res = await this.fetchImpl(`${BASE}/MCIRest/open/getDataFromService?service=getDoctorDetailsByIdImrExt`, {
-      method: "POST",
-      headers: this.headers(true),
-      body: JSON.stringify({ doctorId: row.doctorId, regdNoValue: row.registrationNo }),
-    });
-    if (!res.ok) throw new Error(`nmc detail ${res.status}`);
-    const d = (await res.json()) as Record<string, unknown>;
-    return {
-      degree: str(d.doctorDegree),
-      university: str(d.university),
-      yearOfPassing: num(d.yearOfPassing) ?? num(d.monthandyearOfPass),
-      registrationDate: str(d.regDate) ?? str(d.registrationDate),
-      place: placeHint(str(d.addressLine1)),
-      removed: d.removedStatus === true || d.removedStatus === "true",
-    };
+    const d = this.details.get(row.doctorId);
+    if (!d) throw new Error(`nmc detail: row ${row.doctorId} was not returned by a search in this session`);
+    return d;
   }
 }
 
 function str(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
-  return s && s !== "null" && s !== "None" ? s : null;
+  return s && s !== "null" && s !== "None" && s !== "N/A" ? s : null;
 }
 function num(v: unknown): number | null {
   const n = Number(String(v ?? "").replace(/[^0-9]/g, "").slice(0, 4));
   return Number.isFinite(n) && n > 1900 && n < 2100 ? n : null;
 }
 
-/** Reduce an address line to its last two comma-separated parts (district, state), dropping house-level detail. */
-export function placeHint(line: string | null): string | null {
-  if (!line) return null;
-  const parts = line.split(",").map((p) => p.trim()).filter(Boolean);
-  if (parts.length <= 1) return null;
-  return parts.slice(-2).join(", ").slice(0, 60);
+/** The register reports struck-off entries as a truthy removed_status (1, "1", true, "true", "Yes"); null / 0 mean on the register. */
+export function isRemoved(v: unknown): boolean {
+  if (v === true) return true;
+  const s = String(v ?? "").trim().toLowerCase();
+  return s === "1" || s === "true" || s === "yes" || s === "y" || s === "removed";
 }
 
-/** A DataTables row: [sl, year, regNo, council, name, fatherName, viewLink]. Father's name is dropped on purpose. */
-export function parseRow(r: unknown[]): RegisterRow | null {
-  if (!Array.isArray(r) || r.length < 7) return null;
-  const link = String(r[6] ?? "");
-  const m = link.match(/openDoctorDetailsnew\('([^']+)'/);
-  if (!m) return null;
-  return { year: num(r[1]), registrationNo: String(r[2] ?? "").trim(), council: String(r[3] ?? "").trim(), name: String(r[4] ?? "").trim(), doctorId: m[1] };
+/** Reduce an address to its last two place parts (district, state), dropping house-level detail, PIN codes and the country. */
+export function placeHint(line: string | null): string | null {
+  if (!line) return null;
+  const parts = line
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p && !/^\d{3}\s?\d{3}$/.test(p) && !/^india$/i.test(p));
+  const deduped = parts.filter((p, i) => i === 0 || p.toLowerCase() !== parts[i - 1].toLowerCase());
+  if (deduped.length <= 1) return null;
+  return deduped.slice(-2).join(", ").slice(0, 60);
+}
+
+/** A search row reduced to what we keep. Father's name, date of birth and address are dropped on purpose. */
+export function parseRow(r: RegisterApiRow): RegisterRow | null {
+  if (!r || r.id === undefined || r.id === null) return null;
+  const registrationNo = str(r.registration_no);
+  const name = str(r.name);
+  if (!registrationNo || !name) return null;
+  return { year: num(r.year_of_info), registrationNo, council: rowCouncil(r), name, doctorId: String(r.id) };
+}
+
+/** The row's council: the register's label, unless it names a different council than the row's code, in which case the code wins. */
+export function rowCouncil(r: Pick<RegisterApiRow, "state_medical_council" | "state_code">): string {
+  const label = str(r.state_medical_council);
+  const code = str(r.state_code)?.toUpperCase() ?? null;
+  const byCode = code ? COUNCILS[code] : undefined;
+  if (!byCode) return label ?? "";
+  if (!label) return byCode;
+  const labelCode = councilId(label);
+  return labelCode && labelCode !== code ? byCode : label;
+}
+
+export function detailOf(r: RegisterApiRow): RegisterDetail {
+  return {
+    degree: str(r.qualification),
+    university: str(r.university),
+    yearOfPassing: num(r.qualification_year),
+    registrationDate: str(r.registration_date),
+    place: placeHint(str(r.permanent_address)),
+    removed: isRemoved(r.removed_status),
+  };
 }
 
 const normNo = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -333,15 +374,20 @@ const normNo = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
 /**
  * What to send the register for a number as written on a profile, and how to
  * recognise the same number in its answer. "MP-87 / 2007" is number MP-87 of
- * 2007: the register is queried with "MP-87" (slashes and spaces make it
- * answer 500) and a row is accepted when its number equals MP-87 or the
+ * 2007: the register is queried with "MP-87" and a row is accepted when its number equals MP-87 or the
  * whole string. Plain numbers ("12345") accept "12345" and a council-prefixed
  * form of it ("MP-12345").
  */
 export function registrationQuery(raw: string): { queryNumber: string; accept: (rowNumber: string) => boolean } {
   const trimmed = raw.trim();
-  const [head] = trimmed.split(/\s*\/\s*/);
-  const queryNumber = (head || trimmed).replace(/[^A-Za-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const parts = trimmed.split(/\s*\/\s*/);
+  // "MP-87 / 2007" is number MP-87 of 2007: drop a trailing year. Any other
+  // slashed form ("DMC/R/1053", "TSMC/FMR/19132") is the number itself, and the
+  // rebuilt register searches it as written.
+  const yearTail = parts.length > 1 && /^(19|20)\d{2}$/.test(parts[parts.length - 1]);
+  const kept = yearTail ? parts.slice(0, -1) : parts;
+  const clean = (s: string) => s.replace(/[^A-Za-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const queryNumber = kept.map(clean).filter(Boolean).join("/") || clean(trimmed);
   const wanted = new Set([normNo(queryNumber), normNo(trimmed)].filter(Boolean));
   const digitsOnly = /^\d+$/.test(queryNumber);
   return {
