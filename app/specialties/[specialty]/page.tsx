@@ -5,9 +5,10 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
-import { SpecialtyContentView } from "@/components/SpecialtyContentView";
+import { SpecialtyArticle } from "@/components/SpecialtyArticle";
 import { countIndexable, countsByCity } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
+import { guideForSpecialty } from "@/lib/data/guides";
 import { specialtyContent } from "@/lib/data/specialty-content";
 import { SPECIALTY_KEYS, specialtyByKey } from "@/lib/data/taxonomy";
 import { withOverride } from "@/lib/seo/override";
@@ -113,60 +114,14 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
       />
       <Breadcrumbs items={crumbs} />
 
-      <div className="wrap">
-        <div className="doc">
-          <span className="eyebrow">{specialty.department}</span>
-          <h1 style={{ marginTop: "10px" }}>{specialty.name}</h1>
-          <div className="upd">
-            {[
-              `${listedTotal.toLocaleString("en-IN")} listed ${specialty.plural.toLowerCase()}`,
-              count > 0 ? `${count.toLocaleString("en-IN")} verified` : null,
-              `${listedCities.length} ${listedCities.length === 1 ? "city" : "cities"}`,
-            ].filter(Boolean).join(" · ")}
-          </div>
+      <SpecialtyArticle
+        specialty={specialty}
+        content={content}
+        guideSlug={guideForSpecialty(specialty.key)?.slug ?? null}
+        stats={{ listed: listedTotal, cities: listedCities.length, states: stateGroups.length, verified: count }}
+      />
 
-          {specialty.guide ? (
-            <>
-              <p>{specialty.guide}</p>
-              {specialty.when.length > 0 ? (
-                <>
-                  <h2>Reasons people consult this speciality</h2>
-                  <ul>
-                    {specialty.when.map((w) => (
-                      <li key={w}>{w}</li>
-                    ))}
-                  </ul>
-                </>
-              ) : null}
-            </>
-          ) : (
-            <p>
-              Orientation copy for {specialty.aOne} has not been written yet. The profiles themselves are complete and reachable.
-            </p>
-          )}
-
-          {content ? <SpecialtyContentView specialty={specialty} content={content} /> : null}
-
-          <h2>Also called</h2>
-          <p>
-            {specialty.aliases.join(", ")}. These map to this one page — synonyms with the same
-            intent do not get their own URL.
-          </p>
-
-          {specialty.reviewedOn ? (
-            <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
-              {content ? "The summary and reasons to consult at the top of this page were medically reviewed" : "Medically reviewed"} · last substantive review {specialty.reviewedOn}.
-            </p>
-          ) : (
-            <p style={{ fontSize: "12.5px", color: "var(--muted)" }}>
-              General orientation written by The Doctor Index, not medical advice about your
-              situation, and not yet reviewed by a clinician. Speak to a doctor about your own case.
-            </p>
-          )}
-        </div>
-      </div>
-
-      <section className="section" aria-labelledby="by-place">
+      <section className="section sp-places" id="by-place-sec" aria-labelledby="by-place">
         <div className="wrap">
           <div className="section-head">
             <div>
