@@ -6,6 +6,7 @@ import { track } from "@/lib/services/events";
 import { storeFile } from "@/lib/services/files";
 import { createClaim } from "@/lib/services/workflow";
 import { displayName } from "@/lib/display-name";
+import { claimSource } from "@/lib/claim-source";
 
 export interface ClaimState {
   ok?: boolean;
@@ -41,7 +42,8 @@ export async function claimAction(_prev: ClaimState, form: FormData): Promise<Cl
       evidenceFileId = stored.id;
     }
     await createClaim(user.id, doctor.dbId, registration, method, evidenceFileId, council || undefined);
-    await track("claim_started", { doctorId: doctor.dbId });
+    const src = claimSource(form.get("src"));
+    await track("claim_started", { doctorId: doctor.dbId, query: src ? `src:${src}` : null });
     return { ok: true, doctorName: displayName(doctor) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Something went wrong." };

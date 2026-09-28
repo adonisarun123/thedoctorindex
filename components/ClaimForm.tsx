@@ -14,7 +14,7 @@ export interface ClaimTarget {
   council: string;
 }
 
-export function ClaimForm({ initialRegistration, profile }: { initialRegistration: string; profile: ClaimTarget | null }) {
+export function ClaimForm({ initialRegistration, profile, source = null }: { initialRegistration: string; profile: ClaimTarget | null; source?: string | null }) {
   const [state, act, pending] = useActionState<ClaimState, FormData>(claimAction, {});
   const [method, setMethod] = useState("practice_otp");
 
@@ -31,6 +31,7 @@ export function ClaimForm({ initialRegistration, profile }: { initialRegistratio
 
   return (
     <form className="panel pad" action={act}>
+      {source ? <input type="hidden" name="src" value={source} /> : null}
       {state.error ? <div className="notice alert" style={{ marginBottom: "16px" }}>{state.error}</div> : null}
       {profile ? (
         <div className="notice" style={{ marginBottom: "16px" }}>

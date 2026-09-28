@@ -10,6 +10,8 @@ import { SPECIALTIES } from "@/lib/data/specialties";
 import { registrationState } from "@/lib/verification";
 import { absoluteUrl } from "@/lib/site";
 import { displayName } from "@/lib/display-name";
+import { claimSource } from "@/lib/claim-source";
+import { track } from "@/lib/services/events";
 
 export const metadata: Metadata = {
   title: "Claim your doctor profile",
@@ -22,6 +24,7 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
   const sp = await searchParams;
   const initial = typeof sp.registration === "string" ? sp.registration : "";
   const profileSlug = typeof sp.profile === "string" ? sp.profile : "";
+  const src = claimSource(sp.src);
   const doctor = profileSlug ? await getDoctorBySlug(profileSlug) : null;
   const profile = doctor && !doctor.claimed
     ? {
@@ -35,9 +38,12 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
             : "",
       }
     : null;
-  const nextQuery = profile ? `?profile=${encodeURIComponent(profile.slug)}` : initial ? `?registration=${encodeURIComponent(initial)}` : "";
+  const nextQuery = profile ? `?profile=${encodeURIComponent(profile.slug)}${src ? `&src=${src}` : ""}` : initial ? `?registration=${encodeURIComponent(initial)}` : "";
   const user = await getSessionUser();
   if (user && !user.profileComplete) redirect(setupPath(`/claim-profile${nextQuery}`));
+  // Count the open once per visit that arrives with a tag; untagged opens are the
+  // site's own buttons and are already counted as profile views.
+  if (src && doctor?.dbId && !user) await track("claim_link_opened", { doctorId: doctor.dbId, query: `src:${src}`, path: "/claim-profile" });
   return (
     <>
       <RouteMeta
@@ -58,7 +64,7 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
             Claiming is free and gives you control of the editable fields, the right to reply to reviews, and access to how patients are finding you.
           </p>
           {user ? (
-            <ClaimForm initialRegistration={initial} profile={profile} />
+            <ClaimForm initialRegistration={initial} profile={profile} source={src} />
           ) : (
             <div className="panel pad">
               <div className="eyebrow" style={{ marginBottom: "10px" }}>Sign in first</div>

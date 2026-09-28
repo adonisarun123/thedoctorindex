@@ -22,6 +22,7 @@ import { breadcrumbLd, doctorLd, faqLd } from "@/lib/seo/structured-data";
 import { addressLine, buildFaq, facilityLabel, summarySentence, supplySentence, verificationLine } from "@/lib/seo/profile-content";
 import { GoogleListingCard } from "@/components/GoogleListing";
 import { absoluteUrl, paths, SITE } from "@/lib/site";
+import { claimLink } from "@/lib/claim-source";
 import type { DoctorCredential, DoctorView } from "@/lib/types";
 import { displayName, honorific } from "@/lib/display-name";
 
@@ -152,7 +153,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
   const checks = profileChecks(doctor);
   const passed = checks.filter((c) => c.ok).length;
   const qualsVerified = doctor.qualifications.filter((q) => q.state === "verified");
-  const claimHref = doctor.claimed ? "/dashboard" : `${paths.claimProfile()}?profile=${encodeURIComponent(doctor.slug)}`;
+  const claimHref = doctor.claimed ? "/dashboard" : claimLink(doctor.slug, "profile");
   const surname = doctor.name.split(" ").slice(-1)[0];
 
   // "On record": only facts the record actually holds. A missing fact is
