@@ -8,6 +8,9 @@ import { recomputeQuality } from "@/lib/services/doctors";
 import { doctorAnalytics } from "@/lib/services/events";
 import { listChangesForDoctor, reconfirmSchedule } from "@/lib/services/workflow";
 import { QrShare } from "@/components/QrShare";
+import { EmbedBadge } from "@/components/EmbedBadge";
+import { badgeSnippet } from "@/lib/tdi/badge";
+import { registrationState } from "@/lib/verification";
 import { paths, SITE } from "@/lib/site";
 import { displayName } from "@/lib/display-name";
 
@@ -53,8 +56,17 @@ export default async function DashboardOverview() {
       </div>
 
       {live && doctor.tdiId ? (
-        <div style={{ maxWidth: 420, marginBottom: "16px" }}>
-          <QrShare tdiId={doctor.tdiId} name={`${displayName(doctor)}`} origin={SITE.origin} />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
+          <div style={{ flex: "1 1 300px", maxWidth: 420 }}>
+            <QrShare tdiId={doctor.tdiId} name={`${displayName(doctor)}`} origin={SITE.origin} />
+          </div>
+          <div style={{ flex: "1 1 300px", maxWidth: 420 }}>
+            <EmbedBadge
+              tdiId={doctor.tdiId}
+              verified={registrationState(doctor) === "verified"}
+              snippet={badgeSnippet({ origin: SITE.origin, slug: doctor.slug, tdiId: doctor.tdiId, name: displayName(doctor), state: registrationState(doctor) === "verified" ? "verified" : "listed" })}
+            />
+          </div>
         </div>
       ) : null}
 
