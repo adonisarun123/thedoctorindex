@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { ClaimForm } from "@/components/ClaimForm";
+import { FunnelStep } from "@/components/FunnelStep";
 import { OtpSignIn } from "@/components/OtpSignIn";
 import { RouteMeta } from "@/components/RouteMeta";
 import { getSessionUser, setupPath } from "@/lib/auth/session";
@@ -63,6 +64,7 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
           <p style={{ color: "var(--ink-2)", fontSize: "15px", marginBottom: "22px", maxWidth: "58ch" }}>
             Claiming is free and gives you control of the editable fields, the right to reply to reviews, and access to how patients are finding you.
           </p>
+          <FunnelStep event="claim_page_view" params={{ step: user ? "form" : "sign_in", has_profile: Boolean(profile), src }} />
           {user ? (
             <ClaimForm initialRegistration={initial} profile={profile} source={src} />
           ) : (

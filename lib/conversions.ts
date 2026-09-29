@@ -14,7 +14,8 @@
  * pick one per conversion.
  *
  * Nothing that identifies a doctor or a patient is sent: no slug, no name, no
- * registration number. The channel tag (`src`) is the only parameter.
+ * registration number. The channel tag (`src`) and, on a claim, the chosen
+ * verification method are the only parameters.
  *
  * NEXT_PUBLIC_* values are read as literal property accesses so Next inlines
  * them into the client bundle; lib/env.ts's dynamic lookup would not be.
@@ -37,11 +38,14 @@ const ADS_LABELS: Partial<Record<ConversionName, string>> = {
 
 type GtagWindow = Window & { gtag?: (...args: unknown[]) => void };
 
-export function sendConversion(name: ConversionName, params: { src?: string | null } = {}): void {
+export function sendConversion(name: ConversionName, params: { src?: string | null; method?: string | null } = {}): void {
   if (typeof window === "undefined") return;
   const gtag = (window as GtagWindow).gtag;
   if (typeof gtag !== "function") return;
-  gtag("event", name, params.src ? { src: params.src } : {});
+  const p: Record<string, string> = {};
+  if (params.src) p.src = params.src;
+  if (params.method) p.method = params.method;
+  gtag("event", name, p);
   const label = ADS_LABELS[name];
   if (/^AW-\d+$/.test(ADS_ID) && label) {
     gtag("event", "conversion", { send_to: `${ADS_ID}/${label}` });

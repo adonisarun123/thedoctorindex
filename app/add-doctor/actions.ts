@@ -7,6 +7,7 @@ import { createSubmission, type SubmissionPayload } from "@/lib/services/workflo
 import type { DoctorView } from "@/lib/types";
 import { localityFromForm } from "@/lib/services/places";
 import { claimSource } from "@/lib/claim-source";
+import { workflowErrorCode } from "@/lib/funnel-errors";
 
 /**
  * Duplicate check, run on the server so the directory never ships to the
@@ -19,14 +20,16 @@ export async function lookupRegistration(registrationNumber: string, council: st
 export interface SubmitState {
   ok?: boolean;
   error?: string;
+  /** Enumerated cause, for analytics (lib/funnel.ts). Never shown. */
+  code?: string;
   id?: string;
 }
 
 export async function submitProfileAction(_prev: SubmitState, form: FormData): Promise<SubmitState> {
   try {
     const user = await getSessionUser();
-    if (!user) return { error: "Sign in before submitting." };
-    if (!user.profileComplete) return { error: "Complete your account details first." };
+    if (!user) return { error: "Sign in before submitting.", code: "signed_out" };
+    if (!user.profileComplete) return { error: "Complete your account details first.", code: "account_incomplete" };
     const list = (k: string) => String(form.get(k) ?? "").split(",").map((x) => x.trim()).filter(Boolean);
     const payload: SubmissionPayload = {
       name: String(form.get("name") ?? "").replace(/^dr\.?\s*/i, "").trim(),
@@ -60,17 +63,18 @@ export async function submitProfileAction(_prev: SubmitState, form: FormData): P
         accurate: form.get("c_accurate") === "on",
       },
     };
-    if (!payload.name || !payload.specialtyKey) return { error: "Name and speciality are required." };
-    if (!payload.consents.publish || !payload.consents.accurate) return { error: "The publication and accuracy consents are required." };
-    if (/\b(best|no\.?\s*1|top|most trusted)\b/i.test(payload.about ?? "")) return { error: "Superlatives such as “best” are not allowed in the introduction. Describe what you treat and where." };
+    if (!payload.name || !payload.specialtyKey) return { error: "Name and speciality are required.", code: "missing_name_specialty" };
+    if (!payload.consents.publish || !payload.consents.accurate) return { error: "The publication and accuracy consents are required.", code: "missing_consent" };
+    if (/\b(best|no\.?\s*1|top|most trusted)\b/i.test(payload.about ?? "")) return { error: "Superlatives such as “best” are not allowed in the introduction. Describe what you treat and where.", code: "superlative" };
     const council = String(form.get("council") ?? "").trim();
     const registration = String(form.get("registration") ?? "").trim();
-    if (!council || !registration) return { error: "The council or registering body and the registration number are required." };
+    if (!council || !registration) return { error: "The council or registering body and the registration number are required.", code: "no_registration" };
     const row = await createSubmission(user.id, council, registration, payload);
     const src = claimSource(form.get("src"));
     await track("profile_submitted", { query: src ? `src:${src}` : null });
     return { ok: true, id: row.id };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Something went wrong." };
+    const message = e instanceof Error ? e.message : "Something went wrong.";
+    return { error: message, code: workflowErrorCode(message) };
   }
 }

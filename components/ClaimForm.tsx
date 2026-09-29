@@ -6,6 +6,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { claimAction, type ClaimState } from "@/app/claim-profile/actions";
 import { CouncilSelect } from "@/components/CouncilSelect";
 import { sendConversion } from "@/lib/conversions";
+import { trackEvent } from "@/lib/funnel";
 
 export interface ClaimTarget {
   slug: string;
@@ -22,9 +23,15 @@ export function ClaimForm({ initialRegistration, profile, source = null }: { ini
   useEffect(() => {
     if (state.ok && !reported.current) {
       reported.current = true;
-      sendConversion("doctor_claim_submitted", { src: source });
+      sendConversion("doctor_claim_submitted", { src: source, method });
     }
+    // method is read at the moment of success only; it must not re-trigger this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.ok, source]);
+  useEffect(() => {
+    if (state.error) trackEvent("claim_error", { error_code: state.code ?? "unknown", method });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   if (state.ok) {
     return (
@@ -38,7 +45,7 @@ export function ClaimForm({ initialRegistration, profile, source = null }: { ini
   }
 
   return (
-    <form className="panel pad" action={act}>
+    <form className="panel pad" action={act} data-funnel="claim" onSubmit={() => trackEvent("claim_submit_attempt", { method })}>
       {source ? <input type="hidden" name="src" value={source} /> : null}
       {state.error ? <div className="notice alert" style={{ marginBottom: "16px" }}>{state.error}</div> : null}
       {profile ? (
@@ -68,7 +75,10 @@ export function ClaimForm({ initialRegistration, profile, source = null }: { ini
           ["document", "Upload supporting evidence for manual review"],
         ].map(([value, label]) => (
           <label className="fopt" style={{ padding: "5px 0" }} key={value}>
-            <input type="radio" name="method" value={value} checked={method === value} onChange={() => setMethod(value)} />
+            <input type="radio" name="method" value={value} checked={method === value} onChange={() => {
+              setMethod(value);
+              trackEvent("claim_method_select", { method: value });
+            }} />
             {label}
           </label>
         ))}

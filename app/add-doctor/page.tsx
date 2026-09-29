@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { lookupRegistration } from "@/app/add-doctor/actions";
 import { AddDoctorFlow } from "@/components/AddDoctorFlow";
 import { OtpSignIn } from "@/components/OtpSignIn";
+import { FunnelStep } from "@/components/FunnelStep";
 import { RouteMeta } from "@/components/RouteMeta";
 import { getSessionUser, setupPath } from "@/lib/auth/session";
 import { absoluteUrl } from "@/lib/site";
@@ -49,6 +50,7 @@ export default async function AddDoctorPage({ searchParams }: { searchParams: Pr
             <AddDoctorFlow lookup={lookupRegistration} source={src} />
           ) : (
             <div className="panel pad">
+              <FunnelStep event="add_profile_page_view" params={{ step: "sign_in", src }} />
               <div className="eyebrow" style={{ marginBottom: "10px" }}>Sign in first</div>
               <p style={{ fontSize: "14.5px", color: "var(--ink-2)", marginBottom: "16px" }}>
                 Your profile is tied to a verified email or mobile number. It is how you get back in to manage it, and it is never shown publicly.

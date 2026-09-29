@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import { requestOtpAction, verifyOtpAction, type SignInState } from "@/app/sign-in/actions";
+import { flowFromNext, trackEvent } from "@/lib/funnel";
 
 /**
  * Two-step passwordless sign-in shared by patients, doctors and staff. The
@@ -14,10 +15,23 @@ export function OtpSignIn({ next, label, allowPhone = process.env.NEXT_PUBLIC_SM
     async (prev, form) => (prev.step === "verify" && form.get("code") ? verifyOtpAction(prev, form) : requestOtpAction(prev, form)),
     { step: "identify", next },
   );
+  // Sign-in is step one of every doctor journey, so it is tagged with the
+  // journey it serves (claim, add_doctor, …). A successful verify redirects,
+  // so "verified" shows up as the next step's view, not here.
+  const flow = flowFromNext(next);
+  const seen = useRef<SignInState | null>(null);
+  useEffect(() => {
+    if (seen.current === state) return;
+    const first = seen.current === null;
+    seen.current = state;
+    if (first) return;
+    if (state.error) trackEvent("otp_error", { flow, stage: state.step === "verify" ? "verify" : "request" });
+    else if (state.step === "verify") trackEvent("otp_requested", { flow });
+  }, [state, flow]);
 
   if (state.step === "verify") {
     return (
-      <form action={act}>
+      <form action={act} data-funnel="sign_in_code" data-funnel-flow={flow} onSubmit={() => trackEvent("otp_submitted", { flow })}>
         <input type="hidden" name="identifier" value={state.identifier} />
         <input type="hidden" name="next" value={state.next ?? next} />
         <div className="notice good" style={{ marginBottom: "16px" }}>
@@ -37,7 +51,7 @@ export function OtpSignIn({ next, label, allowPhone = process.env.NEXT_PUBLIC_SM
   }
 
   return (
-    <form action={act}>
+    <form action={act} data-funnel="sign_in" data-funnel-flow={flow}>
       <input type="hidden" name="next" value={next} />
       {state.error ? <div className="notice alert" style={{ marginBottom: "12px" }}>{state.error}</div> : null}
       <div className="field">

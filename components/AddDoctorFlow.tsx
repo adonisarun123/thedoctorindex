@@ -13,6 +13,7 @@ import { paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
 import { displayName } from "@/lib/display-name";
 import { sendConversion } from "@/lib/conversions";
+import { trackEvent } from "@/lib/funnel";
 
 /**
  * Registration-first submission (plan §9.2). Step 1 checks council +
@@ -34,12 +35,22 @@ export function AddDoctorFlow({ lookup, source = null }: { lookup: (registration
       sendConversion("doctor_profile_submitted", { src: source });
     }
   }, [state.ok, source]);
+  // One view per step shown: registration → match_found | no_match → details.
+  const stepName = step === 1 ? "registration" : step === 2 ? (match ? "match_found" : "no_match") : "details";
+  useEffect(() => {
+    if (!state.ok) trackEvent("add_profile_page_view", { step: stepName, src: source });
+  }, [stepName, source, state.ok]);
+  useEffect(() => {
+    if (state.error) trackEvent("add_profile_error", { error_code: state.code ?? "unknown" });
+  }, [state]);
 
   async function check() {
     setChecking(true);
-    setMatch(await lookup(registration, council));
+    const found = await lookup(registration, council);
+    setMatch(found);
     setChecking(false);
     setStep(2);
+    trackEvent("register_check", { match: found ? "found" : "none" });
   }
 
   if (state.ok) {
@@ -64,7 +75,7 @@ export function AddDoctorFlow({ lookup, source = null }: { lookup: (registration
       </div>
 
       {step === 1 ? (
-        <div className="panel pad">
+        <div className="panel pad" data-funnel="add_profile_registration">
           <div className="notice good" style={{ marginBottom: "20px" }}>
             <b>Registration first.</b> We ask for your council or professional-body registration before anything else — medical, dental, AYUSH and allied-health registrations are all accepted. It is how we tell two doctors with the same name apart, and it is what stops someone else creating a page in your name.
           </div>
@@ -133,7 +144,7 @@ export function AddDoctorFlow({ lookup, source = null }: { lookup: (registration
       ) : null}
 
       {step === 3 ? (
-        <form className="panel pad" action={act}>
+        <form className="panel pad" action={act} data-funnel="add_profile" onSubmit={() => trackEvent("add_profile_submit_attempt")}>
           <input type="hidden" name="council" value={council} />
           <input type="hidden" name="registration" value={registration} />
           {source ? <input type="hidden" name="src" value={source} /> : null}

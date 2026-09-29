@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import "./globals.css";
 import { Analytics } from "@/components/Analytics";
+import { FunnelTracker } from "@/components/FunnelTracker";
 import { RouteInspector } from "@/components/RouteInspector";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -119,6 +120,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Suspense>
 
         <Analytics />
+        <FunnelTracker />
       </body>
     </html>
   );

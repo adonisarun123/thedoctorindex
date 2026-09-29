@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { trackEvent } from "@/lib/funnel";
 import { paths } from "@/lib/site";
 
 /**
@@ -100,7 +101,7 @@ function GatedButton({ practiceId, purpose, label, variant, hint }: { practiceId
   if (!practiceId || isIn === false || isIn === null) {
     // Not signed in (or not yet known, or a seed-mode build with no practice ids): route through sign-in.
     return (
-      <Link className={cls(variant)} href={paths.signIn(pathname || "/")} title={hint} rel="nofollow">
+      <Link className={cls(variant)} href={paths.signIn(pathname || "/")} title={hint} rel="nofollow" onClick={() => trackEvent("contact_click", { contact_type: purpose, signed_in: false })}>
         {label}
       </Link>
     );
@@ -129,6 +130,7 @@ function GatedButton({ practiceId, purpose, label, variant, hint }: { practiceId
       className={cls(variant)}
       disabled={state === "busy"}
       onClick={async () => {
+        trackEvent("contact_click", { contact_type: purpose, signed_in: true });
         setState("busy");
         const c = await loadContact(practiceId, purpose);
         if (!c) return setState("error");
@@ -154,7 +156,7 @@ export function DirectionsButton({ practiceId, variant = "outline" }: { practice
 
 export function EnquiryLink({ href, variant = "quiet", label = "Request appointment" }: { href: string; variant?: "solid" | "outline" | "quiet"; label?: string }) {
   return (
-    <Link className={cls(variant)} href={href}>
+    <Link className={cls(variant)} href={href} onClick={() => trackEvent("contact_click", { contact_type: "enquire" })}>
       {label}
     </Link>
   );
