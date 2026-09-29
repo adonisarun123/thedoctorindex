@@ -65,7 +65,7 @@ export function Analytics() {
           "window.gtag = gtag;",
           "gtag('js', new Date());",
           `gtag('config', ${quotedId});`,
-          ...(env.gadsId ? [`gtag('config', ${JSON.stringify(env.gadsId)});`] : []),
+          // Ads config lives in components/GoogleAdsTag.tsx (footer snippet); not repeated here.
         ].join("\n")}
       </Script>
     </>

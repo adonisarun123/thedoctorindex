@@ -103,7 +103,7 @@ export function ConsentGate({
                 : "gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });",
               "gtag('js', new Date());",
               `gtag('config', ${quotedId});`,
-              ...(adsId ? [`gtag('config', ${JSON.stringify(adsId)});`] : []),
+              // Ads config lives in components/GoogleAdsTag.tsx (footer snippet); not repeated here.
             ].join("\n")}
           </Script>
           <Script

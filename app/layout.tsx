@@ -6,6 +6,7 @@ import "./globals.css";
 import { Analytics } from "@/components/Analytics";
 import { FunnelTracker } from "@/components/FunnelTracker";
 import { RouteInspector } from "@/components/RouteInspector";
+import { GoogleAdsTag } from "@/components/GoogleAdsTag";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { THEME_BOOT_SCRIPT } from "@/components/ThemeToggle";
@@ -114,6 +115,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main id="main">{children}</main>
 
         <SiteFooter />
+        <GoogleAdsTag />
 
         <Suspense fallback={null}>
           <RouteInspector />
