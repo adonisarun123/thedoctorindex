@@ -28,7 +28,7 @@ export type ConversionName =
   | "doctor_claim_submitted" // claim form accepted (primary conversion)
   | "doctor_profile_submitted"; // new profile submitted for verification (primary conversion)
 
-const ADS_ID = process.env.NEXT_PUBLIC_GADS_ID ?? "";
+const ADS_ID = process.env.NEXT_PUBLIC_GADS_ID ?? "AW-18482115489";
 const ADS_LABELS: Partial<Record<ConversionName, string>> = {
   doctor_claim_submitted: process.env.NEXT_PUBLIC_GADS_CLAIM_LABEL ?? "",
   doctor_profile_submitted: process.env.NEXT_PUBLIC_GADS_PROFILE_LABEL ?? "",

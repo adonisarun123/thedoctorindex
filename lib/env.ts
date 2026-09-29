@@ -56,13 +56,14 @@ export const env = {
    */
   ga4MeasurementId: str("NEXT_PUBLIC_GA4_MEASUREMENT_ID", "G-VC636R0Y49"),
   /**
-   * Google Ads tag id (AW-123456789). Empty = no Ads tag, and the consent
+   * Google Ads tag id. Public like the GA4 id, so the account's id
+   * (AW-18482115489) is the default. Set it to "off" (any non-AW value) for no Ads tag; then the consent
    * banner asks for analytics only. When set, the banner also asks for ad
    * measurement (ad_storage / ad_user_data; never ad_personalization), and the
    * consent version gains a "+ads" suffix so everyone is asked again once.
    * Conversion labels are read client-side in lib/conversions.ts.
    */
-  gadsId: /^AW-\d+$/.test(str("NEXT_PUBLIC_GADS_ID", "")) ? str("NEXT_PUBLIC_GADS_ID", "") : "",
+  gadsId: /^AW-\d+$/.test(str("NEXT_PUBLIC_GADS_ID", "AW-18482115489")) ? str("NEXT_PUBLIC_GADS_ID", "AW-18482115489") : "",
   /**
    * Cookie consent gate for analytics (components/ConsentGate.tsx). ON unless
    * explicitly set to "0": with it on, gtag.js is not loaded at all until the
