@@ -5,6 +5,7 @@ import { findByRegistration, getDoctorBySlug } from "@/lib/data";
 import { track } from "@/lib/services/events";
 import { storeFile } from "@/lib/services/files";
 import { createClaim } from "@/lib/services/workflow";
+import { recordReferral } from "@/lib/services/tribe";
 import { displayName } from "@/lib/display-name";
 import { claimSource } from "@/lib/claim-source";
 import { workflowErrorCode } from "@/lib/funnel-errors";
@@ -48,6 +49,8 @@ export async function claimAction(_prev: ClaimState, form: FormData): Promise<Cl
     await createClaim(user.id, doctor.dbId, registration, method, evidenceFileId, council || undefined);
     const src = claimSource(form.get("src"));
     await track("claim_started", { doctorId: doctor.dbId, query: src ? `src:${src}` : null });
+    // Grow Your Tribe: credit the colleague whose invite link brought this doctor here, if any.
+    await recordReferral({ refereeUserId: user.id, doctorId: doctor.dbId, kind: "claim" });
     return { ok: true, doctorName: displayName(doctor) };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Something went wrong.";

@@ -8,6 +8,7 @@ import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { notifyUser } from "@/lib/services/notify";
 import { SENSITIVE_FIELDS, applyField, createDoctor, normalizeKey, recomputeQuality, snapshotRevision, type NewDoctorInput } from "@/lib/services/doctors";
+import { linkSubmissionDoctor, settleReferralsForDoctor } from "@/lib/services/tribe";
 import { displayName } from "@/lib/display-name";
 
 /**
@@ -86,6 +87,9 @@ export async function decideSubmission(id: string, decision: "approved" | "rejec
     doctorId = created.id;
     await db.update(s.doctors).set({ photoConsent: Boolean(p.consents?.photo), phoneConsent: Boolean(p.consents?.phone) }).where(eq(s.doctors.id, doctorId));
     await db.update(s.users).set({ role: "doctor" }).where(and(eq(s.users.id, sub.userId), eq(s.users.role, "patient")));
+    // Grow Your Tribe: the invitee's pending referral now has a profile to point at.
+    await linkSubmissionDoctor(sub.userId, doctorId);
+    await settleReferralsForDoctor(doctorId);
   }
   await db.update(s.doctorSubmissions).set({ status: decision, doctorId, reviewerNote: note ?? null, decidedAt: decision === "in_review" ? null : new Date(), decidedByUserId: staffUserId }).where(eq(s.doctorSubmissions.id, id));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `submission.${decision}`, entityType: "submission", entityId: id, after: { doctorId }, reason: note });
@@ -137,6 +141,7 @@ export async function decideClaim(id: string, decision: "approved" | "rejected",
       await tx.update(s.doctorClaims).set({ status: "rejected", decidedAt: new Date(), decidedByUserId: staffUserId, note: "Another claim on this profile was approved." }).where(and(eq(s.doctorClaims.doctorId, c.doctorId), eq(s.doctorClaims.status, "pending"), sql`${s.doctorClaims.id} <> ${id}`));
     });
     await recomputeQuality(c.doctorId);
+    await settleReferralsForDoctor(c.doctorId);
   }
   await db.update(s.doctorClaims).set({ status: decision, decidedAt: new Date(), decidedByUserId: staffUserId, note: note ?? null }).where(eq(s.doctorClaims.id, id));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `claim.${decision}`, entityType: "claim", entityId: id, after: { doctorId: c.doctorId, userId: c.userId }, reason: note });

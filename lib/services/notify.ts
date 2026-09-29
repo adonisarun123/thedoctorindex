@@ -23,7 +23,9 @@ type Kind =
   | { kind: "reply"; decision: "published" | "rejected"; doctorName: string; reason?: string | null }
   | { kind: "manager_invite"; doctorName: string; invitedBy: string }
   | { kind: "review_received"; doctorName: string; authorLabel: string }
-  | { kind: "enquiry_received"; doctorName: string; preferredDay: string | null };
+  | { kind: "enquiry_received"; doctorName: string; preferredDay: string | null }
+  | { kind: "tribe_level"; level: number; verified: number; rewardKind: "voucher" | "recognition"; amountInr: number; holdDays: number }
+  | { kind: "tribe_reward_issued"; level: number; rewardKind: "voucher" | "recognition"; amountInr: number; voucherCode: string | null };
 
 function body(n: Kind): { subject: string; text: string } {
   const sign = `\n\n— ${SITE.name}\n${absoluteUrl("/")}\nThis is a transactional message about an action on your account; it is not marketing.`;
@@ -65,6 +67,21 @@ function body(n: Kind): { subject: string; text: string } {
       return { subject: `A new review of ${n.doctorName} is in moderation`, text: `${n.authorLabel} has written a review. It is being moderated and will appear on the profile if it meets the policy. You can reply once it is published: ${absoluteUrl("/dashboard/reviews")}.` + sign };
     case "enquiry_received":
       return { subject: `New appointment enquiry — ${n.doctorName}`, text: `A patient has asked for an appointment${n.preferredDay ? ` (${n.preferredDay})` : ""}. Their contact details are in your dashboard, never in email: ${absoluteUrl("/dashboard/enquiries")}.` + sign };
+    case "tribe_level":
+      return {
+        subject: `Your tribe reached Level ${n.level}`,
+        text:
+          `${n.verified} colleagues you invited now have verified profiles on ${SITE.name}, which takes your tribe to Level ${n.level}.` +
+          (n.rewardKind === "voucher"
+            ? `\n\nThat earns a ₹${n.amountInr.toLocaleString("en-IN")} Amazon gift voucher. It is released after a ${n.holdDays}-day review window and the code is sent to this address; you will also find it on your tribe page.`
+            : `\n\nYou have reached the cash limit for this financial year, so this level is recorded on your tribe page as recognition rather than a voucher.`) +
+          `\n\nKeep going: ${absoluteUrl("/dashboard/tribe")}` +
+          sign,
+      };
+    case "tribe_reward_issued":
+      return n.rewardKind === "voucher" && n.voucherCode
+        ? { subject: `Your Level ${n.level} gift voucher — ${SITE.name}`, text: `Thank you for growing the index. Here is your ₹${n.amountInr.toLocaleString("en-IN")} Amazon gift voucher for reaching Level ${n.level}:\n\n${n.voucherCode}\n\nRedeem it at amazon.in under Gift Cards → Redeem. The code is also on your tribe page: ${absoluteUrl("/dashboard/tribe")}.` + sign }
+        : { subject: `Level ${n.level} confirmed — ${SITE.name}`, text: `Your Level ${n.level} has been confirmed and is now shown on your tribe page: ${absoluteUrl("/dashboard/tribe")}.` + sign };
   }
 }
 

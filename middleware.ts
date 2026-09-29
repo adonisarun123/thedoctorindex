@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { env } from "@/lib/env";
 import { lookupRedirect } from "@/lib/seo/redirects";
+import { parseReferralCode, TRIBE, tribeChannel } from "@/lib/tribe";
 
 /**
  * Permanent redirects for renamed and merged profiles.
@@ -56,6 +57,19 @@ export function middleware(request: NextRequest) {
   }
 
   const response = NextResponse.next();
+
+  // Grow Your Tribe: an invite link (/join?ref=DRXXXXXX&ch=whatsapp) is
+  // remembered on the invitee's browser so the claim or new-profile action
+  // they take later — usually after a sign-in round trip — can credit the
+  // colleague who sent it. Malformed codes are dropped, never stored.
+  if (path === "/join" && TRIBE.enabled) {
+    const ref = parseReferralCode(request.nextUrl.searchParams.get("ref"));
+    if (ref) {
+      const opts = { path: "/", httpOnly: true, sameSite: "lax" as const, secure: request.nextUrl.protocol === "https:", maxAge: TRIBE.cookieDays * 86400 };
+      response.cookies.set(TRIBE.cookieName, ref, opts);
+      response.cookies.set(`${TRIBE.cookieName}_ch`, tribeChannel(request.nextUrl.searchParams.get("ch")), opts);
+    }
+  }
 
   // Shared-cache the canonical browse pages.
   //

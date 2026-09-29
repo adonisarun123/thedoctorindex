@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { findByRegistration } from "@/lib/data";
 import { track } from "@/lib/services/events";
 import { createSubmission, type SubmissionPayload } from "@/lib/services/workflow";
+import { recordReferral } from "@/lib/services/tribe";
 import type { DoctorView } from "@/lib/types";
 import { localityFromForm } from "@/lib/services/places";
 import { claimSource } from "@/lib/claim-source";
@@ -72,6 +73,8 @@ export async function submitProfileAction(_prev: SubmitState, form: FormData): P
     const row = await createSubmission(user.id, council, registration, payload);
     const src = claimSource(form.get("src"));
     await track("profile_submitted", { query: src ? `src:${src}` : null });
+    // Grow Your Tribe: the profile does not exist yet; the referral is attached to it on approval.
+    await recordReferral({ refereeUserId: user.id, kind: "submission" });
     return { ok: true, id: row.id };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Something went wrong.";

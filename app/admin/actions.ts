@@ -14,6 +14,7 @@ import { removeDoctorPhoto, setDoctorPhoto } from "@/lib/services/photos";
 import { moderateResponse, moderateReview, resolveReviewReport, validateEvidence } from "@/lib/services/reviews";
 import { recomputeSeoRoutes, setSeoOverride } from "@/lib/services/seo";
 import { decideChange, decideClaim, decideSubmission } from "@/lib/services/workflow";
+import { cancelReward, issueReward, rejectReferral, settleReferralsForDoctor } from "@/lib/services/tribe";
 import { localityFromForm } from "@/lib/services/places";
 import { revalidateDoctors } from "@/lib/data/revalidate";
 
@@ -476,6 +477,7 @@ export async function acceptRegisterCandidateAction(_p: AdminState, f: FormData)
     });
     await audit({ actorUserId: u.id, actorRole: "staff", action: "doctor.registration.verified", entityType: "doctor", entityId: doctorId, after: { council, number, year, registerName, source: "nmc-imr" }, reason: "Chosen from NMC register candidates" });
     await recomputeQuality(doctorId);
+    await settleReferralsForDoctor(doctorId);
     return done("Registration recorded as verified.", ["/admin/enrichment", `/admin/doctors/${doctorId}`]);
   } catch (e) {
     return fail(e);
@@ -535,6 +537,41 @@ export async function revalidateSiteAction(_p: AdminState, _f: FormData): Promis
     const u = await requireStaff("super_admin");
     await audit({ actorUserId: u.id, actorRole: "staff", action: "cache.revalidated", entityType: "system" });
     return done("Public pages will re-render on next request.", ["/admin"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* Grow Your Tribe */
+export async function issueRewardAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("super_admin", "support_officer");
+    await issueReward(str(f, "id"), u.id, str(f, "voucherCode"), str(f, "note") || undefined);
+    return done("Reward issued and the doctor emailed.", ["/admin/tribe"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function cancelRewardAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("super_admin", "support_officer");
+    const note = str(f, "note");
+    if (!note) throw new Error("Give a reason; it is written to the audit log.");
+    await cancelReward(str(f, "id"), u.id, note);
+    return done("Reward cancelled.", ["/admin/tribe"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function rejectReferralAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("super_admin", "verification_officer");
+    const note = str(f, "note");
+    if (!note) throw new Error("Give a reason; it is written to the audit log.");
+    await rejectReferral(str(f, "id"), u.id, note);
+    return done("Referral reversed and the referrer's levels recomputed.", ["/admin/tribe"]);
   } catch (e) {
     return fail(e);
   }

@@ -7,6 +7,8 @@ import { listEnquiries } from "@/lib/services/cases";
 import { recomputeQuality } from "@/lib/services/doctors";
 import { doctorAnalytics } from "@/lib/services/events";
 import { listChangesForDoctor, reconfirmSchedule } from "@/lib/services/workflow";
+import { verifiedCount } from "@/lib/services/tribe";
+import { progressFor, TRIBE } from "@/lib/tribe";
 import { QrShare } from "@/components/QrShare";
 import { EmbedBadge } from "@/components/EmbedBadge";
 import { badgeSnippet } from "@/lib/tdi/badge";
@@ -23,13 +25,15 @@ function pct(now: number, prev: number): string {
 export default async function DashboardOverview() {
   const ctx = await getDashboardContext();
   const { doctor } = ctx;
-  const [{ score, checklist }, analytics, changes, schedule, enquiries] = await Promise.all([
+  const [{ score, checklist }, analytics, changes, schedule, enquiries, tribeVerified] = await Promise.all([
     recomputeQuality(ctx.doctorId),
     doctorAnalytics(ctx.doctorId),
     listChangesForDoctor(ctx.doctorId),
     reconfirmSchedule(ctx.doctorId),
     listEnquiries({ doctorId: ctx.doctorId, status: "new" }),
+    ctx.asManager ? Promise.resolve(0) : verifiedCount(ctx.user.id),
   ]);
+  const tribe = progressFor(tribeVerified);
   const actions = Object.values(analytics.actions).reduce((a, b) => a + b, 0);
   const prevActions = Object.values(analytics.actionsPrev).reduce((a, b) => a + b, 0);
   const unreplied = doctor.reviews.filter((r) => !r.reply);
@@ -152,6 +156,18 @@ export default async function DashboardOverview() {
             <div className="chart-axis"><span>28 days ago</span><span>today</span></div>
             <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}><Link href="/dashboard/analytics">How patients find you →</Link></p>
           </div>
+
+          {TRIBE.enabled && live && !ctx.asManager ? (
+            <div className="panel pad">
+              <div className="chart-head"><span className="t">Grow your tribe</span><span className="m">Level {tribe.level}</span></div>
+              <div className="progress"><i style={{ width: `${tribe.pct}%` }} /></div>
+              <p style={{ fontSize: "13.5px", color: "var(--muted)", marginTop: "10px" }}>
+                {tribe.verified ? `${tribe.verified} colleague${tribe.verified === 1 ? "" : "s"} verified through your link` : "Your colleagues are already listed here, unclaimed."}
+                {tribe.maxed ? "" : ` ${tribe.remaining} more to Level ${tribe.level + 1}${TRIBE.rewardInr ? ` and a ₹${TRIBE.rewardInr.toLocaleString("en-IN")} voucher` : ""}.`}{" "}
+                <Link href="/dashboard/tribe">Invite them →</Link>
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </>

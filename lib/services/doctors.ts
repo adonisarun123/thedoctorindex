@@ -8,6 +8,7 @@ import { getDb } from "@/lib/db/client";
 import { daysBetween, todayIso } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
+import { clawbackForDoctor, settleReferralsForDoctor } from "@/lib/services/tribe";
 import { normalizeLanguages } from "@/lib/data/languages";
 import { cleanSubspecialties } from "@/lib/data/subspecialties";
 
@@ -334,6 +335,9 @@ export async function setDoctorStatus(doctorId: string, status: "published" | "s
   }).where(eq(s.doctors.id, doctorId));
   await snapshotRevision(doctorId, `status:${status}`, actorUserId);
   await audit({ actorUserId, actorRole: "staff", action: `doctor.status.${status}`, entityType: "doctor", entityId: doctorId, before: { status: d.status }, after: { status }, reason });
+  // Grow Your Tribe: a profile that leaves publication stops counting for whoever referred it.
+  if (status === "suspended" || status === "archived") await clawbackForDoctor(doctorId, `Profile ${status}${reason ? `: ${reason}` : "."}`);
+  else if (status === "published") await settleReferralsForDoctor(doctorId);
 }
 
 /** Mark `duplicateId` as merged into `targetId`: reviews move, old slug 301s. */
@@ -353,6 +357,7 @@ export async function mergeDoctor(duplicateId: string, targetId: string, actorUs
   await recomputeQuality(targetId);
   await snapshotRevision(targetId, "merge-target", actorUserId);
   await audit({ actorUserId, actorRole: "staff", action: "doctor.merged", entityType: "doctor", entityId: duplicateId, after: { mergedInto: targetId }, reason });
+  await clawbackForDoctor(duplicateId, "Profile merged into another record.");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -415,6 +420,8 @@ export async function markRegistrationChecked(doctorId: string, actorUserId: str
   if (result === "verified") await db.update(s.doctors).set({ lastVerifiedOn: today }).where(eq(s.doctors.id, doctorId));
   await audit({ actorUserId, actorRole: "staff", action: `doctor.registration.${result}`, entityType: "doctor", entityId: doctorId, reason: note });
   await recomputeQuality(doctorId);
+  if (result === "verified") await settleReferralsForDoctor(doctorId);
+  else await clawbackForDoctor(doctorId, "Registration failed the register check.");
 }
 
 /**
@@ -521,6 +528,7 @@ export async function markAllVerified(doctorId: string, actorUserId: string | nu
     after: summary,
     reason: note ?? "Marked all as verified",
   });
+  if (summary.registrations) await settleReferralsForDoctor(doctorId);
   await recomputeQuality(doctorId);
   return summary;
 }

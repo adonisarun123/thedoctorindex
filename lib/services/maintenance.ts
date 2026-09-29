@@ -10,6 +10,7 @@ import { deleteFile } from "@/lib/services/files";
 import { absoluteUrl, paths } from "@/lib/site";
 import { recomputeSeoRoutes } from "@/lib/services/seo";
 import { snapshotDailyStats } from "@/lib/services/admin-stats";
+import { settlePendingReferrals } from "@/lib/services/tribe";
 
 /**
  * Scheduled housekeeping (plan §13 retention, §11.4 gates). Idempotent;
@@ -31,6 +32,8 @@ export interface MaintenanceReport {
   indexNowSubmitted: number;
   /** Calendar day (Asia/Kolkata) whose admin_daily_stats row was written. */
   statsDay: string;
+  /** Pending Grow Your Tribe referrals re-evaluated this run. */
+  referralsSettled: number;
   ms: number;
 }
 
@@ -85,6 +88,8 @@ export async function runMaintenance(actorUserId: string | null = null): Promise
 
   // Dashboard history: today's stock figures, after the recompute above so the row reflects it.
   const stats = await snapshotDailyStats();
+  // Grow Your Tribe: referrals whose profile was register-checked by the worker rather than by hand.
+  const referralsSettled = await settlePendingReferrals();
 
   const report: MaintenanceReport = {
     evidencePurged: due.length,
@@ -97,6 +102,7 @@ export async function runMaintenance(actorUserId: string | null = null): Promise
     seoRoutes,
     indexNowSubmitted: indexNow.submitted,
     statsDay: stats.day,
+    referralsSettled,
     ms: Date.now() - t0,
   };
   await audit({ actorUserId, actorRole: actorUserId ? "staff" : "system", action: "maintenance.ran", entityType: "system", after: report });

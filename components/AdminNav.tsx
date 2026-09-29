@@ -16,6 +16,7 @@ const ITEMS: Array<{ href: string; label: string; countKey?: string }> = [
   { href: "/admin/doctors", label: "Doctors" },
   { href: "/admin/calls", label: "Call queue" },
   { href: "/admin/enrichment", label: "Register matching", countKey: "enrichment_queue" },
+  { href: "/admin/tribe", label: "Tribe rewards", countKey: "tribe" },
   { href: "/admin/taxonomy", label: "Taxonomy" },
   { href: "/admin/seo", label: "SEO routes" },
   { href: "/admin/audit", label: "Audit log" },

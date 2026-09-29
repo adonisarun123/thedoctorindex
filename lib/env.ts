@@ -138,6 +138,30 @@ export const env = {
     deindexAfterDays: num("FRESHNESS_DEINDEX_AFTER_DAYS", 365),
   },
 
+  /* --- Grow Your Tribe (doctor referrals, §19) --------------------------- */
+  tribe: {
+    /** Programme switch. Off hides the tribe page and the /join landing. */
+    enabled: flag("TRIBE_ENABLED", true),
+    /** Verified referrals per level. */
+    levelSize: num("TRIBE_LEVEL_SIZE", 10),
+    maxLevel: num("TRIBE_MAX_LEVEL", 50),
+    /** Gift-card value per level crossed. */
+    rewardInr: num("TRIBE_REWARD_INR", 500),
+    /**
+     * Cash per referrer per Indian financial year (Apr–Mar). Levels crossed
+     * beyond it earn recognition, not a voucher: past ₹20,000 in a year a
+     * benefit to a professional attracts TDS under s.194R, and any cash to a
+     * registered practitioner from a health-adjacent business sits close to
+     * the NMC gifts rule. 0 = no cap. Confirm the figure with the CA.
+     */
+    cashCapInrPerFy: num("TRIBE_CASH_CAP_INR_PER_FY", 20000),
+    /** Days a reward sits in review before staff may issue it. */
+    holdDays: num("TRIBE_REWARD_HOLD_DAYS", 14),
+    /** How long an invite link is remembered on the invitee's browser. */
+    cookieDays: num("TRIBE_COOKIE_DAYS", 90),
+    cookieName: str("TRIBE_COOKIE_NAME", "tdi_ref"),
+  },
+
   /* --- feature flags ----------------------------------------------------- */
   features: {
     mapView: flag("NEXT_PUBLIC_FEATURE_MAP_VIEW"),

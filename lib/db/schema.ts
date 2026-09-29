@@ -90,6 +90,10 @@ export const seoRouteKind = pgEnum("seo_route_kind", ["national", "city", "local
 export const seoOverride = pgEnum("seo_override", ["force_index", "force_noindex"]);
 export const otpPurpose = pgEnum("otp_purpose", ["sign_in", "claim", "enquiry"]);
 export const gender = pgEnum("gender", ["F", "M", "X"]);
+/** Grow Your Tribe (lib/services/tribe.ts). */
+export const referralStatus = pgEnum("referral_status", ["pending", "verified", "rejected", "clawed_back"]);
+export const tribeRewardKind = pgEnum("tribe_reward_kind", ["voucher", "recognition"]);
+export const tribeRewardStatus = pgEnum("tribe_reward_status", ["pending_review", "issued", "cancelled"]);
 
 /* ------------------------------------------------------------------------- */
 /* Identity and access                                                       */
@@ -807,6 +811,80 @@ export const rateLimits = pgTable(
 );
 
 /* ------------------------------------------------------------------------- */
+/* Grow Your Tribe — doctor-to-doctor referrals (lib/services/tribe.ts)      */
+/* ------------------------------------------------------------------------- */
+
+/** One permanent code per referring account, minted the first time they open the tribe page. */
+export const referralCodes = pgTable("referral_codes", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  code: text("code").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * A referral is recorded the moment the invitee starts a claim or a new
+ * profile with a referral cookie present, and counts (`verified`) only once
+ * that profile is published under the invitee's account AND its registration
+ * has been checked against the register. Nothing is paid for a sign-up, an
+ * invite or a pending claim. One credit per invitee account and per doctor
+ * record, ever — a second claim, a re-registration or a re-import earns nothing.
+ */
+export const referrals = pgTable(
+  "referrals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    referrerUserId: uuid("referrer_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    refereeUserId: uuid("referee_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    /** The profile the invitee claimed or created; null until a new-profile submission is approved. */
+    doctorId: uuid("doctor_id").references(() => doctors.id, { onDelete: "set null" }),
+    /** claim | submission */
+    kind: text("kind").notNull(),
+    /** Channel tag the invite link carried (whatsapp, linkedin, link …). */
+    channel: text("channel"),
+    status: referralStatus("status").notNull().default("pending"),
+    /** Why it is pending, rejected or clawed back, in staff-readable words. */
+    reason: text("reason"),
+    ipHash: text("ip_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("referrals_referee_uq").on(t.refereeUserId),
+    uniqueIndex("referrals_doctor_uq").on(t.doctorId).where(sql`${t.doctorId} is not null`),
+    index("referrals_referrer_status_idx").on(t.referrerUserId, t.status),
+  ],
+);
+
+/**
+ * One row per level a referrer has crossed. Levels are computed from verified
+ * referrals (lib/tribe.ts); a row is created when the level is reached, held
+ * for a review window, and issued by staff with the voucher code. Cash stops
+ * at the per-financial-year cap and later levels are `recognition` only —
+ * see .env.example §19 for why.
+ */
+export const tribeRewards = pgTable(
+  "tribe_rewards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    level: integer("level").notNull(),
+    kind: tribeRewardKind("kind").notNull().default("voucher"),
+    amountInr: integer("amount_inr").notNull().default(0),
+    status: tribeRewardStatus("status").notNull().default("pending_review"),
+    /** Earliest moment staff may issue it; the fraud-review window. */
+    holdUntil: timestamp("hold_until", { withTimezone: true }).notNull(),
+    /** The gift-card code as issued. Staff-only; shown once to the doctor by email and on their tribe page. */
+    voucherCode: text("voucher_code"),
+    issuedAt: timestamp("issued_at", { withTimezone: true }),
+    issuedByUserId: uuid("issued_by_user_id").references(() => users.id),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("tribe_rewards_user_level_uq").on(t.userId, t.level), index("tribe_rewards_status_idx").on(t.status, t.holdUntil)],
+);
+
+/* ------------------------------------------------------------------------- */
 /* Relations (for db.query.*)                                                */
 /* ------------------------------------------------------------------------- */
 
@@ -896,6 +974,9 @@ export const doctorManagersRelations = relations(doctorManagers, ({ one }) => ({
 export const usersRelations = relations(users, ({ one, many }) => ({
   staff: one(staffMembers, { fields: [users.id], references: [staffMembers.userId] }),
   sessions: many(sessions),
+  referralsMade: many(referrals, { relationName: "referrer" }),
+  referralsReceived: many(referrals, { relationName: "referee" }),
+  tribeRewards: many(tribeRewards),
 }));
 export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, { fields: [sessions.userId], references: [users.id] }),
@@ -909,4 +990,12 @@ export const staffMembersRelations = relations(staffMembers, ({ one }) => ({
 export const seoRoutesRelations = relations(seoRoutes, ({ one }) => ({
   specialty: one(specialties, { fields: [seoRoutes.specialtyKey], references: [specialties.key] }),
   locality: one(localities, { fields: [seoRoutes.localityKey], references: [localities.key] }),
+}));
+export const referralsRelations = relations(referrals, ({ one }) => ({
+  referrer: one(users, { fields: [referrals.referrerUserId], references: [users.id], relationName: "referrer" }),
+  referee: one(users, { fields: [referrals.refereeUserId], references: [users.id], relationName: "referee" }),
+  doctor: one(doctors, { fields: [referrals.doctorId], references: [doctors.id] }),
+}));
+export const tribeRewardsRelations = relations(tribeRewards, ({ one }) => ({
+  user: one(users, { fields: [tribeRewards.userId], references: [users.id] }),
 }));

@@ -15,6 +15,7 @@ const ITEMS: Array<{ href: string; label: string; countKey?: string }> = [
   { href: "/dashboard/analytics", label: "How patients find you" },
   { href: "/dashboard/verification", label: "Verification & changes", countKey: "changes" },
   { href: "/dashboard/team", label: "Team access" },
+  { href: "/dashboard/tribe", label: "Grow your tribe" },
 ];
 
 export function DashboardNav({ name, id, registration, counts }: { name: string; id: string; registration: string; counts: Record<string, number> }) {
