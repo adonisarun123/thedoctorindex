@@ -7,7 +7,7 @@
  * `src:<tag>`. Short lowercase tags only; anything else is dropped rather than
  * stored, since the value arrives from a URL anyone can edit.
  */
-export const CLAIM_SOURCES = ["profile", "linkedin", "whatsapp", "email", "qr", "badge", "hospital", "other"] as const;
+export const CLAIM_SOURCES = ["profile", "linkedin", "whatsapp", "email", "qr", "badge", "hospital", "gads", "meta", "lp", "other"] as const;
 
 export function claimSource(raw: unknown): string | null {
   if (typeof raw !== "string") return null;

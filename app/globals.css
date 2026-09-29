@@ -1691,3 +1691,125 @@ ol.procedure span { display: block; color: var(--ink-2); font-size: 18.5px; line
 }
 .sp-places .section-head h2 { font-family: var(--font-display); font-size: 1.7rem; }
 .sp-places .section-head p { font-size: 15px !important; }
+
+/* --- doctor landing page (app/for-doctors/free-profile) -------------------- */
+.lp-hero { background: var(--brand-navy); color: #ffffff; border-bottom: 4px solid var(--brand-teal); }
+.lp-hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: start; padding-top: 56px; padding-bottom: 56px; }
+.lp-hero .eyebrow { color: color-mix(in srgb, #ffffff 68%, transparent); }
+.lp-hero h1 { color: #ffffff; font-size: 3rem; font-weight: 500; line-height: 1.08; margin-top: 12px; max-width: 18ch; }
+.lp-lede { margin-top: 18px; font-size: 18.5px; line-height: 1.55; color: color-mix(in srgb, #ffffff 86%, transparent); max-width: 52ch; }
+.lp-ticks { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 10px; font-size: 16.5px; }
+.lp-ticks li { position: relative; padding-left: 30px; color: #ffffff; }
+.lp-ticks li::before {
+  content: ""; position: absolute; left: 0; top: 3px; width: 20px; height: 20px; border-radius: 100px;
+  background: var(--brand-teal) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5.5 10.5l3 3 6-7' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 20px no-repeat;
+}
+
+.lp-card { background: var(--surface); color: var(--ink); border-radius: 8px; padding: 26px 26px 22px; box-shadow: 0 28px 60px -34px rgba(0, 0, 0, 0.85); scroll-margin-top: 90px; }
+.lp-card h2 { margin: 0 0 14px; font-size: 1.6rem; }
+.lp-find-label { display: block; font-weight: 600; font-size: 15.5px; margin-bottom: 6px; }
+.lp-find-box { display: flex; align-items: center; gap: 10px; border: 2px solid var(--hair-strong); border-radius: 6px; padding: 0 14px; background: var(--surface); color: var(--muted); }
+.lp-find-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lp-find-box input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 18px; color: var(--ink); padding: 14px 0; }
+.lp-find-box input:focus { outline: none; }
+.lp-find-hint { font-size: 14px; color: var(--muted); margin-top: 6px; }
+.lp-spin { width: 18px; height: 18px; border-radius: 100px; border: 2px solid var(--hair-strong); border-top-color: var(--accent); animation: lp-spin 0.7s linear infinite; flex: none; }
+@keyframes lp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .lp-spin { animation-duration: 2s; } }
+
+.lp-results { list-style: none; margin: 14px 0 0; padding: 0; border: 1px solid var(--hair); border-radius: 6px; max-height: 380px; overflow-y: auto; }
+.lp-result { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 11px 12px; border-bottom: 1px solid var(--hair); }
+.lp-result:last-child { border-bottom: 0; }
+.lp-result .av { flex: none; }
+.lp-result-t { min-width: 0; }
+.lp-result .nm { font-weight: 600; font-size: 16.5px; line-height: 1.3; overflow-wrap: anywhere; }
+.lp-result .sub { font-size: 14.5px; color: var(--muted); line-height: 1.35; margin-top: 2px; }
+.lp-result-act { white-space: nowrap; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.lp-empty { margin-top: 14px; font-size: 15.5px; color: var(--ink-2); background: var(--surface-2); border-radius: 6px; padding: 12px 14px; }
+.lp-find-foot { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hair); font-size: 16px; color: var(--ink-2); }
+.lp-find-foot a { font-weight: 600; }
+
+.lp-section { padding: 56px 0; }
+.lp-alt { background: var(--surface); border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
+.lp-h2 { font-size: 2rem; margin: 0 0 24px; }
+.lp-benefits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.lp-benefit { background: var(--surface); border: 1px solid var(--hair); border-top: 3px solid var(--brand-teal); border-radius: var(--r); padding: 20px; }
+.lp-benefit h3 { margin: 0 0 8px; font-size: 1.15rem; }
+.lp-benefit p { margin: 0; font-size: 15.5px; color: var(--ink-2); line-height: 1.55; }
+
+.lp-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.lp-steps li { display: flex; gap: 14px; align-items: flex-start; }
+.lp-steps h3 { margin: 4px 0 6px; font-size: 1.15rem; }
+.lp-steps p { margin: 0; font-size: 15.5px; color: var(--ink-2); line-height: 1.55; }
+.lp-num { flex: none; width: 38px; height: 38px; border-radius: 100px; background: var(--brand-navy); color: #ffffff; display: grid; place-items: center; font-weight: 600; font-size: 17px; }
+.lp-cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+.lp-big { min-height: 50px; padding: 0 26px; font-size: 17px; display: inline-flex; align-items: center; justify-content: center; }
+
+.lp-two { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 48px; align-items: start; }
+.lp-nots { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 16px; color: var(--ink-2); line-height: 1.5; }
+.lp-small { font-size: 14.5px; color: var(--muted); margin-top: 16px; }
+.lp-faq details { border-bottom: 1px solid var(--hair); }
+.lp-faq details:first-child { border-top: 1px solid var(--hair); }
+.lp-faq summary { cursor: pointer; list-style: none; padding: 15px 30px 15px 0; font-weight: 600; font-size: 16.5px; position: relative; }
+.lp-faq summary::-webkit-details-marker { display: none; }
+.lp-faq summary::after { content: "+"; position: absolute; right: 4px; top: 12px; font-size: 22px; font-weight: 400; color: var(--muted); }
+.lp-faq details[open] summary::after { content: "–"; }
+.lp-faq details p { margin: 0 0 16px; font-size: 15.5px; color: var(--ink-2); line-height: 1.6; }
+
+.lp-final { background: var(--brand-navy); color: #ffffff; border-top: 4px solid var(--brand-teal); }
+.lp-final-in { padding-top: 56px; padding-bottom: 56px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.lp-final h2 { color: #ffffff; font-size: 2.2rem; margin: 0; max-width: 22ch; }
+.lp-final p { color: color-mix(in srgb, #ffffff 82%, transparent); font-size: 17.5px; margin: 12px 0 0; }
+.lp-final .lp-cta-row { justify-content: center; margin-top: 24px; }
+.lp-on-dark { background: #ffffff; color: var(--brand-navy); border-color: #ffffff; font-weight: 600; }
+.lp-on-dark:hover { background: var(--teal-soft); }
+.lp-ghost { background: transparent; color: #ffffff; border-color: color-mix(in srgb, #ffffff 55%, transparent); }
+.lp-ghost:hover { background: color-mix(in srgb, #ffffff 10%, transparent); color: #ffffff; }
+.lp-final .lp-muted-dark { color: color-mix(in srgb, #ffffff 72%, transparent); }
+.lp-final .lp-muted-dark a { color: #ffffff; text-decoration: underline; }
+
+/* Sticky action bar: phones only, where the search card scrolls out of view. */
+.lp-sticky { display: none; }
+@media (max-width: 860px) {
+  .lp-hero-grid { grid-template-columns: 1fr; gap: 28px; padding-top: 32px; padding-bottom: 36px; }
+  .lp-hero h1 { font-size: 2.2rem; }
+  .lp-lede { font-size: 17px; }
+  .lp-benefits { grid-template-columns: repeat(2, 1fr); }
+  .lp-steps { grid-template-columns: 1fr; gap: 18px; }
+  .lp-two { grid-template-columns: 1fr; gap: 40px; }
+  .lp-section { padding: 40px 0; }
+  .lp-h2 { font-size: 1.65rem; }
+  .lp-final h2 { font-size: 1.8rem; }
+  .lp-sticky {
+    display: flex; gap: 8px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface);
+    border-top: 1px solid var(--hair-strong); box-shadow: 0 -8px 24px -18px rgba(11, 26, 46, 0.6);
+  }
+  .lp-sticky .btn { flex: 1; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; }
+  body:has(.lp-sticky) main { padding-bottom: 96px; }
+}
+@media (max-width: 560px) {
+  .wrap.lp-hero-grid, .lp-section .wrap, .lp-final-in { padding-left: 16px; padding-right: 16px; }
+  .lp-hero h1 { font-size: 1.9rem; }
+  .lp-card { padding: 20px 16px 18px; margin: 0 -4px; }
+  .lp-benefits { grid-template-columns: 1fr; }
+  .lp-result { grid-template-columns: auto 1fr; }
+  .lp-result-act { grid-column: 1 / -1; width: 100%; }
+  .lp-cta-row .btn { flex: 1 1 100%; }
+}
+
+/* Landing page focus: the patient search in the site header would leak paid
+   doctor clicks into the directory, so it is hidden on this page only. */
+body:has(.lp-hero) header.site .hsearch { display: none; }
+.lp-result-act, .lp-result-act:hover { text-decoration: none; }
+/* Phones: the search card comes straight after the headline, so the action
+   is above the fold; the supporting copy follows it. */
+@media (max-width: 860px) {
+  .lp-hero-copy { display: contents; }
+  .lp-hero-grid { gap: 0; }
+  .lp-hero .eyebrow { order: 0; }
+  .lp-hero h1 { order: 1; font-size: 1.95rem; margin-bottom: 18px; }
+  .lp-card { order: 2; }
+  .lp-lede { order: 3; margin-top: 24px; }
+  .lp-ticks { order: 4; }
+}

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { claimAction, type ClaimState } from "@/app/claim-profile/actions";
 import { CouncilSelect } from "@/components/CouncilSelect";
+import { sendConversion } from "@/lib/conversions";
 
 export interface ClaimTarget {
   slug: string;
@@ -17,6 +18,13 @@ export interface ClaimTarget {
 export function ClaimForm({ initialRegistration, profile, source = null }: { initialRegistration: string; profile: ClaimTarget | null; source?: string | null }) {
   const [state, act, pending] = useActionState<ClaimState, FormData>(claimAction, {});
   const [method, setMethod] = useState("practice_otp");
+  const reported = useRef(false);
+  useEffect(() => {
+    if (state.ok && !reported.current) {
+      reported.current = true;
+      sendConversion("doctor_claim_submitted", { src: source });
+    }
+  }, [state.ok, source]);
 
   if (state.ok) {
     return (

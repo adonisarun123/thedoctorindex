@@ -40,8 +40,9 @@ export function Analytics() {
     return (
       <ConsentGate
         measurementId={id}
+        adsId={env.gadsId}
         cookieName={env.consentCookieName}
-        version={env.consentVersion}
+        version={env.gadsId ? `${env.consentVersion}+ads` : env.consentVersion}
         privacyHref="/policies/privacy#cookies"
       />
     );
@@ -61,8 +62,10 @@ export function Analytics() {
         {[
           "window.dataLayer = window.dataLayer || [];",
           "function gtag(){dataLayer.push(arguments);}",
+          "window.gtag = gtag;",
           "gtag('js', new Date());",
           `gtag('config', ${quotedId});`,
+          ...(env.gadsId ? [`gtag('config', ${JSON.stringify(env.gadsId)});`] : []),
         ].join("\n")}
       </Script>
     </>

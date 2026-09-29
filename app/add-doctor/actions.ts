@@ -6,6 +6,7 @@ import { track } from "@/lib/services/events";
 import { createSubmission, type SubmissionPayload } from "@/lib/services/workflow";
 import type { DoctorView } from "@/lib/types";
 import { localityFromForm } from "@/lib/services/places";
+import { claimSource } from "@/lib/claim-source";
 
 /**
  * Duplicate check, run on the server so the directory never ships to the
@@ -66,7 +67,8 @@ export async function submitProfileAction(_prev: SubmitState, form: FormData): P
     const registration = String(form.get("registration") ?? "").trim();
     if (!council || !registration) return { error: "The council or registering body and the registration number are required." };
     const row = await createSubmission(user.id, council, registration, payload);
-    await track("profile_submitted");
+    const src = claimSource(form.get("src"));
+    await track("profile_submitted", { query: src ? `src:${src}` : null });
     return { ok: true, id: row.id };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Something went wrong." };

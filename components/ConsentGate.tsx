@@ -23,15 +23,22 @@ type GtagWindow = Window & { gtag?: (...args: unknown[]) => void } & Record<stri
  *
  * Declining — first time or later from "Cookie settings" — disables the tag
  * for the rest of the page's life and deletes any _ga cookies it had set.
- * Advertising storage is denied unconditionally: this site runs no ads.
+ * Advertising storage follows the same single choice only when a Google Ads
+ * tag is configured (adsId): that is conversion measurement for the site's own
+ * doctor-acquisition ads — which ad brought a doctor who then claimed a
+ * profile. ad_personalization is denied unconditionally: no remarketing lists
+ * are built from visitors of a health directory. With no adsId, all ad
+ * storage stays denied and the banner asks about analytics only.
  */
 export function ConsentGate({
   measurementId,
+  adsId = "",
   cookieName,
   version,
   privacyHref,
 }: {
   measurementId: string;
+  adsId?: string;
   cookieName: string;
   version: string;
   privacyHref: string;
@@ -67,7 +74,7 @@ export function ConsentGate({
       document.cookie = consentCookie(cookieName, version, next, window.location.protocol === "https:");
       w[`ga-disable-${measurementId}`] = next === "denied";
       if (typeof w.gtag === "function") {
-        w.gtag("consent", "update", { analytics_storage: next });
+        w.gtag("consent", "update", adsId ? { analytics_storage: next, ad_storage: next, ad_user_data: next } : { analytics_storage: next });
       }
       if (next === "denied") {
         for (const c of analyticsCookieDeletions(document.cookie, window.location.hostname)) {
@@ -77,7 +84,7 @@ export function ConsentGate({
       setChoice(next);
       setOpen(false);
     },
-    [cookieName, version, measurementId],
+    [cookieName, version, measurementId, adsId],
   );
 
   const quotedId = JSON.stringify(measurementId);
@@ -91,9 +98,12 @@ export function ConsentGate({
               "window.dataLayer = window.dataLayer || [];",
               "function gtag(){dataLayer.push(arguments);}",
               "window.gtag = gtag;",
-              "gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });",
+              adsId
+                ? "gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'denied' });"
+                : "gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });",
               "gtag('js', new Date());",
               `gtag('config', ${quotedId});`,
+              ...(adsId ? [`gtag('config', ${JSON.stringify(adsId)});`] : []),
             ].join("\n")}
           </Script>
           <Script
@@ -108,18 +118,20 @@ export function ConsentGate({
         <section className="consent" role="region" aria-labelledby="consent-h">
           <div className="consent-in">
             <h2 id="consent-h" ref={headingRef} tabIndex={-1}>
-              Analytics cookies
+              {adsId ? "Analytics and ad measurement cookies" : "Analytics cookies"}
             </h2>
             <p>
               We would like to use Google Analytics to count visits and see which pages help people
-              find a doctor. It sets cookies on your device. Which doctors you look at and what you
-              search for are not sent. You can change your mind any time from{" "}
+              find a doctor
+              {adsId ? ", and Google Ads to measure which of our own adverts bring doctors to list their practice" : ""}
+              . {adsId ? "Both set" : "It sets"} cookies on your device. Which doctors you look at and what you
+              search for are not sent{adsId ? ", and we never use your visit to show you adverts elsewhere" : ""}. You can change your mind any time from{" "}
               <em>Cookie settings</em> at the foot of every page.{" "}
               <a href={privacyHref}>Privacy policy</a>
             </p>
             <div className="consent-acts">
               <button type="button" className="btn solid" onClick={() => decide("granted")}>
-                Allow analytics
+                {adsId ? "Allow" : "Allow analytics"}
               </button>
               <button type="button" className="btn solid" onClick={() => decide("denied")}>
                 Decline

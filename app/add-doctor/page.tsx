@@ -7,6 +7,7 @@ import { OtpSignIn } from "@/components/OtpSignIn";
 import { RouteMeta } from "@/components/RouteMeta";
 import { getSessionUser, setupPath } from "@/lib/auth/session";
 import { absoluteUrl } from "@/lib/site";
+import { claimSource } from "@/lib/claim-source";
 
 export const metadata: Metadata = {
   title: "Create your free doctor profile",
@@ -15,9 +16,13 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-export default async function AddDoctorPage() {
+export default async function AddDoctorPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // The channel tag rides along through sign-in and account setup, so a profile
+  // created from an ad is counted against that ad (events.query = src:<tag>).
+  const src = claimSource((await searchParams).src);
+  const self = src ? `/add-doctor?src=${src}` : "/add-doctor";
   const user = await getSessionUser();
-  if (user && !user.profileComplete) redirect(setupPath("/add-doctor"));
+  if (user && !user.profileComplete) redirect(setupPath(self));
   return (
     <>
       <RouteMeta
@@ -41,14 +46,14 @@ export default async function AddDoctorPage() {
             <div className="notice" style={{ marginBottom: "16px" }}><b>Read-only build.</b> No database is configured, so submissions cannot be saved here.</div>
           ) : null}
           {user ? (
-            <AddDoctorFlow lookup={lookupRegistration} />
+            <AddDoctorFlow lookup={lookupRegistration} source={src} />
           ) : (
             <div className="panel pad">
               <div className="eyebrow" style={{ marginBottom: "10px" }}>Sign in first</div>
               <p style={{ fontSize: "14.5px", color: "var(--ink-2)", marginBottom: "16px" }}>
                 Your profile is tied to a verified email or mobile number. It is how you get back in to manage it, and it is never shown publicly.
               </p>
-              <OtpSignIn next="/add-doctor" label="Continue" />
+              <OtpSignIn next={self} label="Continue" />
             </div>
           )}
         </div>

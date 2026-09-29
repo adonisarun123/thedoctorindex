@@ -53,12 +53,12 @@ export function consentCookie(name: string, version: string, choice: ConsentChoi
   ].join("; ");
 }
 
-/** Names of the Google Analytics cookies present: `_ga` and `_ga_<stream>`. */
+/** Names of the Google Analytics and Google Ads cookies present: `_ga`, `_ga_<stream>`, `_gcl_*`. */
 export function analyticsCookieNames(cookieString: string): string[] {
   const names = new Set<string>();
   for (const part of cookieString.split(";")) {
     const name = part.split("=")[0]?.trim() ?? "";
-    if (name === "_ga" || name.startsWith("_ga_") || name === "_gid" || name === "_gat") names.add(name);
+    if (name === "_ga" || name.startsWith("_ga_") || name === "_gid" || name === "_gat" || name.startsWith("_gcl_")) names.add(name);
   }
   return [...names];
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { submitProfileAction, type SubmitState } from "@/app/add-doctor/actions";
 import { CouncilSelect } from "@/components/CouncilSelect";
@@ -12,6 +12,7 @@ import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
 import { displayName } from "@/lib/display-name";
+import { sendConversion } from "@/lib/conversions";
 
 /**
  * Registration-first submission (plan §9.2). Step 1 checks council +
@@ -19,13 +20,20 @@ import { displayName } from "@/lib/display-name";
  * claim flow instead of creating a duplicate. Step 3 writes a submission that
  * staff approve in the admin panel.
  */
-export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string, council: string) => Promise<DoctorView | null> }) {
+export function AddDoctorFlow({ lookup, source = null }: { lookup: (registrationNumber: string, council: string) => Promise<DoctorView | null>; source?: string | null }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [registration, setRegistration] = useState("");
   const [council, setCouncil] = useState(COUNCIL_NAMES[0]);
   const [match, setMatch] = useState<DoctorView | null>(null);
   const [checking, setChecking] = useState(false);
   const [state, act, pending] = useActionState<SubmitState, FormData>(submitProfileAction, {});
+  const reported = useRef(false);
+  useEffect(() => {
+    if (state.ok && !reported.current) {
+      reported.current = true;
+      sendConversion("doctor_profile_submitted", { src: source });
+    }
+  }, [state.ok, source]);
 
   async function check() {
     setChecking(true);
@@ -96,7 +104,7 @@ export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string,
                 <TrustBadges doctor={match} />
               </div>
               <div className="act">
-                <Link className="btn solid" href={`${paths.claimProfile()}?profile=${encodeURIComponent(match.slug)}`}>Claim this profile</Link>
+                <Link className="btn solid" href={`${paths.claimProfile()}?profile=${encodeURIComponent(match.slug)}${source ? `&src=${source}` : ""}`}>Claim this profile</Link>
               </div>
             </article>
           </div>
@@ -128,6 +136,7 @@ export function AddDoctorFlow({ lookup }: { lookup: (registrationNumber: string,
         <form className="panel pad" action={act}>
           <input type="hidden" name="council" value={council} />
           <input type="hidden" name="registration" value={registration} />
+          {source ? <input type="hidden" name="src" value={source} /> : null}
           {state.error ? <div className="notice alert" style={{ marginBottom: "16px" }}>{state.error}</div> : null}
 
           <div className="two">

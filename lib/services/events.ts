@@ -13,7 +13,7 @@ import { events } from "@/lib/db/schema";
 export type EventKind =
   | "search_started" | "search_completed" | "zero_results" | "filter_applied" | "profile_viewed"
   | "call_clicked" | "directions_clicked" | "website_clicked" | "whatsapp_clicked" | "enquiry_submitted"
-  | "profile_started" | "profile_submitted" | "claim_link_opened" | "claim_started" | "claim_approved"
+  | "doctor_lp_viewed" | "profile_started" | "profile_submitted" | "claim_link_opened" | "claim_started" | "claim_approved"
   | "review_started" | "review_submitted" | "review_published" | "review_reported"
   | "correction_submitted" | "grievance_submitted";
 
