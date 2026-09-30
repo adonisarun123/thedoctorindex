@@ -27,7 +27,7 @@ export interface Draft {
 
 export interface Placement {
   /** Where the evidence came from, for geocode_source / audit. */
-  evidence: "google-places-text-search" | "serper-local-pack" | "serper-organic" | "openstreetmap";
+  evidence: "google-places-text-search" | "serper-local-pack" | "serper-organic" | "openstreetmap" | "hospital-roster";
   query: string;
   facilityName: string;
   /** Street-level address when known; otherwise the locality/city text the source gave. */
