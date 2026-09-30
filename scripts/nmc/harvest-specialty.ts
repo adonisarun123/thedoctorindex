@@ -93,6 +93,35 @@ const SPECIALTY_ALIASES: Record<string, string> = {
   "otorhinology & cochlear implant": "ent",
   "fertility services": "gynaecology",
   "orbit and oculoplasty for": "ophthalmology",
+  // schema.org medicalSpecialty values, which the generic tier-2 adapter passes through.
+  cardiovascular: "cardiology",
+  renal: "nephrology",
+  radiography: "radiology",
+  musculoskeletal: "orthopaedics",
+  pulmonary: "pulmonology",
+  optometric: "ophthalmology",
+  "laboratory science": "pathology",
+  gastroenterologic: "gastroenterology",
+  otolaryngologic: "ent",
+  oncologic: "medical-oncology",
+  dermatologic: "dermatology",
+  pediatric: "paediatrics",
+  psychiatric: "psychiatry",
+  neurologic: "neurology",
+  obstetric: "gynaecology",
+  gynecologic: "gynaecology",
+  urologic: "urology",
+  anesthesia: "anaesthesiology",
+  endocrine: "endocrinology",
+  hematologic: "haematology",
+  rheumatologic: "rheumatology",
+  geriatric: "geriatrics",
+  surgical: "general-surgery",
+  "primary care": "general-practice",
+  "pain management": "anaesthesiology",
+  "infertility & ivf": "gynaecology",
+  "emergency & trauma": "emergency-medicine",
+  "liver transplant & hpb surgery": "gi-surgery",
 };
 
 /** Departments that name no single speciality. The doctor's degrees decide instead. */
@@ -159,7 +188,7 @@ export const resolveSpecialty = (r: RosterRecord): string | null => {
   return key;
 };
 export function resolveSpecialtyRaw(r: RosterRecord): string | null {
-  const raw = (r.specialty ?? "").trim().toLowerCase();
+  const raw = (r.specialty ?? "").replace(/&amp;/gi, "&").trim().toLowerCase();
   if (raw && !AMBIGUOUS.has(raw)) {
     const alias = SPECIALTY_ALIASES[raw];
     if (alias) return alias;
