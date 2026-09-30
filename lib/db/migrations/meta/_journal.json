@@ -92,6 +92,13 @@
       "when": 1790688154087,
       "tag": "0012_tribe",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790756091458,
+      "tag": "0013_nmc_register",
+      "breakpoints": true
     }
   ]
 }
