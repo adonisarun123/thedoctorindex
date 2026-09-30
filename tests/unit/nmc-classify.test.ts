@@ -10,6 +10,10 @@ test("cleanName tidies register spellings without reordering tokens", () => {
   assert.equal(cleanName("G. Mc. Subbe Gowda"), "G. Mc. Subbe Gowda");
   assert.equal(cleanName("K.P.Bhaskara Menon"), "K.P. Bhaskara Menon");
   assert.equal(cleanName("Dr. Anita Sharma"), "Anita Sharma");
+  assert.equal(cleanName("nath barun"), "Nath Barun");
+  assert.equal(cleanName("Gupta Sahshi Miss"), "Gupta Sahshi");
+  assert.equal(cleanName("KM. NEENA AGRAWAL"), "Neena Agrawal");
+  assert.equal(cleanName("sathya shanker varmudy"), "Sathya Shanker Varmudy");
   assert.equal(cleanName("Kaur (Ku) Harjeet Now Bansal (Smt.) Harjeet Kaur"), "Kaur Harjeet Now Bansal Harjeet Kaur");
 });
 
@@ -62,6 +66,7 @@ const cases: Array<[string, string | null, number]> = [
   ["M.CH.(NEURO SURGERY)", "neurosurgery", 3],
   ["DM (NEUROLOGY)", "neurology", 3],
   ["M.CH. (CARDIO THORACIC SURGERY)", "cardiothoracic-surgery", 3],
+  ["M.Ch (Car.Thora.Vas.Surg.)", "cardiothoracic-surgery", 3],
   ["M.CH (UROLOGY)", "urology", 3],
   ["DM (NEPHROLOGY)", "nephrology", 3],
   ["DM (GASTROENTEROLOGY)", "gastroenterology", 3],

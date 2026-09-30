@@ -3,6 +3,7 @@ import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { hasDate, registrationState } from "@/lib/verification";
 import type { DoctorView } from "@/lib/types";
 import { displayName } from "@/lib/display-name";
+import { readDegree } from "@/lib/nmc/classify";
 
 /**
  * Profile page content assembled from verified facts only.
@@ -133,7 +134,9 @@ function specialtyAnswer(d: DoctorView): string {
   const sp = SPECIALTIES[d.specialty];
   const subs = d.subspecialties.filter(isStated);
   const services = d.services.filter(isStated).slice(0, 6);
-  return `${displayName(d)} is listed under ${sp.name.toLowerCase()}${subs.length ? ` (${subs.join(", ")})` : ""}.${services.length ? ` Services on record: ${services.join(", ")}.` : ""}${sp.guide ? ` See the guide to when to consult ${sp.aOne} for what this speciality covers.` : ""}`;
+  // A profile built from a council register carries nothing the doctor said about themselves: the speciality is the site's reading of the recorded postgraduate degree, and the page says so.
+  const basis = !subs.length && !services.length ? d.qualifications.find((q) => q.state === "verified" && readDegree(q.degree).key === d.specialty) : undefined;
+  return `${displayName(d)} is listed under ${sp.name.toLowerCase()}${subs.length ? ` (${subs.join(", ")})` : ""}.${basis ? ` The speciality is read from the postgraduate degree on the council's record, ${basis.degree}; the doctor has not confirmed it.` : ""}${services.length ? ` Services on record: ${services.join(", ")}.` : ""}${sp.guide ? ` See the guide to when to consult ${sp.aOne} for what this speciality covers.` : ""}`;
 }
 
 function languagesAnswer(d: DoctorView): string {

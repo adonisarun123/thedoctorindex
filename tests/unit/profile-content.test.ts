@@ -57,3 +57,13 @@ test("supply sentence uses measured counts and stays silent when there are none"
   const placeless = supplySentence({ ...d, practices: [] }, { locality: 5, city: 5, cityAllSpecialties: 5 });
   assert.equal(placeless, null);
 });
+
+test("a register-built profile says its speciality is read from the recorded degree", async () => {
+  const [first] = await seedSource.getListing("cardiology", {}, 1);
+  const d = (await seedSource.getDoctorBySlug(first.slug))!;
+  const fromRegister: typeof d = { ...d, subspecialties: [], services: [], qualifications: [{ ...d.qualifications[0], degree: "DM (Cardiology)", state: "verified" }] };
+  const by = (v: typeof d) => buildFaq(v).find((f) => f.q.includes(" treat?"))!.a;
+  assert.match(by(fromRegister), /read from the postgraduate degree on the council's record, DM \(Cardiology\); the doctor has not confirmed it/);
+  assert.doesNotMatch(by({ ...fromRegister, services: ["ECG", "Echo", "Angioplasty"] }), /read from the postgraduate degree/);
+  assert.doesNotMatch(by({ ...fromRegister, qualifications: [{ ...fromRegister.qualifications[0], state: "submitted" }] }), /read from the postgraduate degree/);
+});

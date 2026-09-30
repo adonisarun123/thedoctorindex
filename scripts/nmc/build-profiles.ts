@@ -60,7 +60,7 @@ async function main() {
              exists (select 1 from medical_registrations m where m.council_normalized = r.council_normalized and m.number_normalized = r.number_normalized) as on_file,
              first_value(r.source_record_id) over (partition by r.name_sorted, r.qualification_year order by (r.council_code = 'MCI'), r.source_record_id) as keep
       from nmc_register r
-      where r.category = any(${PROFILE_CATEGORIES})
+      where r.category in (${raw.join(PROFILE_CATEGORIES.map((c) => raw`${c}`), raw`, `)})
         and r.doctor_id is null and r.match_kind is null and not r.removed
         and r.specialty_key is not null and r.name_clean is not null
         ${STATE ? raw`and r.state_slug = ${STATE}` : raw``}
@@ -71,6 +71,11 @@ async function main() {
     from c
     order by source_record_id`)) as unknown as Array<Entry & { dup_of: number | null; on_file: boolean }>;
 
+  // bigint comes back from the driver as a string; keep every id as a number from here on.
+  for (const r of rows) {
+    r.sourceRecordId = Number(r.sourceRecordId);
+    if (r.dup_of !== null) r.dup_of = Number(r.dup_of);
+  }
   const dups = rows.filter((r) => r.dup_of !== null);
   const onFile = rows.filter((r) => r.dup_of === null && r.on_file);
   // Two register entries can share a (council, number) — a transcription slip at the source; the second would trip the unique index and fail its whole chunk.
@@ -158,6 +163,7 @@ async function main() {
           )
           .returning({ id: s.doctors.id, sourceRef: s.doctors.sourceRef });
         const idByRef = new Map(docs.map((d) => [Number(d.sourceRef), d.id]));
+        if (chunk.some((r) => !idByRef.has(r.sourceRecordId))) throw new Error("returned doctor ids do not cover the chunk");
         const regs = await tx
           .insert(s.medicalRegistrations)
           .values(chunk.map((r) => ({ doctorId: idByRef.get(r.sourceRecordId)!, number: r.number.trim(), numberNormalized: r.numberNormalized, council: r.council, councilNormalized: r.council.toUpperCase().replace(/[^A-Z0-9]/g, ""), registeredYear: null, status: "active", checkedOn: today, source: REG_SOURCE, isPrimary: true })))

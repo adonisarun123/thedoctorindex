@@ -76,11 +76,12 @@ export function cleanName(raw: string): string | null {
   // Drop honorific tokens anywhere ("Kaur (Ku) Harjeet" already lost the bracket; "SMT. NEENA" keeps SMT).
   s = s
     .split(" ")
-    .filter((t) => !/^(dr|prof|late|smt|shri|sri|mr|mrs|ms|kumari|ku|sr|jr)\.?$/i.test(t))
+    .filter((t) => !/^(dr|prof|late|smt|shri|sri|mr|mrs|miss|ms|kumari|ku|km|kum|sr|jr)\.?$/i.test(t))
     .join(" ");
   s = s.replace(/\s+\.\s*/g, " ").replace(/\.{2,}/g, ".").replace(/\s+/g, " ").trim();
   if (!s) return null;
-  if (!/[a-z]/.test(s)) s = titleCase(s);
+  // All caps or all lower-case: the council typed it that way; mixed case is left as written ("G. Mc. Subbe Gowda").
+  if (!/[a-z]/.test(s) || !/[A-Z]/.test(s)) s = titleCase(s);
   // "K.P.Bhaskara" → "K.P. Bhaskara": a dot followed by a run of ≥3 letters needs a space.
   s = s.replace(/\.(?=[A-Za-z]{3,})/g, ". ");
   if (!/^[\p{L}][\p{L} .'-]{1,79}$/u.test(s)) return null;
@@ -129,7 +130,7 @@ const PRIMARY_EQUIVALENT = /\b(M\.? ?B\.? ?B\.? ?S|BACHELOR OF MEDICINE|M\.?D\.?
 const RULES: Array<[RegExp, string]> = [
   // Super-specialities and surgical branches first: "DM (Cardiology)" also contains "cardio", "MCh Neurosurgery" contains "neuro".
   [/NEURO ?SURG/, "neurosurgery"],
-  [/CARDIO ?THORAC|CARDIAC ?SURG|CARDIO ?VASC\w* ?(AND |&)? ?THORAC|\bC ?T ?V ?S\b|\bCVTS\b|THORACIC ?SURG|VASCULAR ?SURG|CARDIAC ?VASCULAR/, "cardiothoracic-surgery"],
+  [/CARDIO ?THORAC|CAR\.? ?THORA|THORA\w*\.? ?(VAS|SURG)|CARDIAC ?SURG|CARDIO ?VASC\w* ?(AND |&)? ?THORAC|\bC ?T ?V ?S\b|\bCVTS\b|THORACIC ?SURG|VASCULAR ?SURG|CARDIAC ?VASCULAR/, "cardiothoracic-surgery"],
   [/PAED\w* ?SURG|PEDIA\w* ?SURG|CHILD\w* ?SURG/, "paediatric-surgery"],
   [/PLASTIC|RECONSTRUCT|\bBURNS?\b/, "plastic-surgery"],
   [/SURG\w* ?ONCO|ONCO\w* ?SURG|CANCER ?SURG/, "surgical-oncology"],

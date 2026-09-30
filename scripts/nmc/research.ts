@@ -46,6 +46,8 @@ const DAILY_CAP = Number(arg("--daily-cap", process.env.GOOGLE_PLACES_DAILY_CAP 
 const STATE = arg("--state", "");
 const SLUG = arg("--slug", "");
 const DRY = args.includes("--dry");
+/** Anatomy, pharmacology, community medicine…: rarely a clinic in the doctor's name, so not worth a search unless asked. */
+const NON_CLINICAL = args.includes("--include-non-clinical") ? "" : "non-clinical-medicine";
 const SOURCE = "import:nmc-register (nmc.org.in IMR export 2026-09-29)";
 const EVIDENCE = "google-places-text-search";
 
@@ -78,7 +80,7 @@ async function main() {
     join nmc_register r on r.doctor_id = d.id
     join specialties sp on sp.key = d.specialty_key
     left join doctor_enrichment e on e.doctor_id = d.id
-    where d.source = ${SOURCE} and d.status = 'draft' and r.state_slug is not null
+    where d.source = ${SOURCE} and d.status = 'draft' and r.state_slug is not null and d.specialty_key <> ${NON_CLINICAL}
       and coalesce(e.google_status, 'pending') = 'pending' and coalesce(e.attempts, 0) < 3
       ${STATE ? raw`and r.state_slug = ${STATE}` : raw``}
       ${SLUG ? raw`and d.slug = ${SLUG}` : raw``}
