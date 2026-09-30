@@ -17,6 +17,11 @@ test("listing must name the doctor", () => {
   assert.equal(listingNamesDoctor("Apollo Hospitals Bannerghatta", "Ramesh Kumar"), false);
   assert.equal(listingNamesDoctor("Dr Kumar Ramesh Prasad", "Prasad Ramesh Kumar"), true);
   assert.equal(listingNamesDoctor("Dr Ramesh Kumar", "Prasad Ramesh Kumar Singh"), false);
+  assert.equal(listingNamesDoctor("Dr. P.S. Mohamed Ameer Ali", "Navas Ali Ameer K P"), false);
+  assert.equal(listingNamesDoctor("Dr Ramesh Kumar Prasad Singh Clinic", "Prasad Ramesh Kumar Singh"), true);
+  assert.equal(listingNamesDoctor("VENKATESHWARA CHILDREN'S CLINIC ( DR. SADANAND REDDY)", "Venkateshwara Reddy Y"), false);
+  assert.equal(listingNamesDoctor("Dr (Air Cmde) Vikas Kulshrestha", "Kulshrestha Vikas"), true);
+  assert.equal(listingNamesDoctor("Ramesh Babu Dr K", "K. Ramesh Babu"), true);
   assert.equal(listingNamesDoctor("Dr Ramesh", "Ramesh"), false);
 });
 
@@ -43,4 +48,13 @@ test("parseIndianAddress finds city, area and pincode", () => {
   assert.equal(parseIndianAddress("Cuttack Rd, Bhubaneswar, Odisha, India", "Odisha").city, "Bhubaneswar");
   assert.equal(parseIndianAddress("Cuttack Rd, Bhubaneswar, Orissa, India", "Odisha").city, "Bhubaneswar");
   assert.equal(parseIndianAddress("Sector 5, Panchkula, Haryana 134109, India", "Haryana").area, null);
+});
+
+test("cleanListingName drops a listing's marketing tail", async () => {
+  const { cleanListingName } = await import("../../scripts/nmc/publish-listing");
+  assert.equal(cleanListingName("Dr. Srinivasa Yadav Kandula - Free Consultation for Piles, Circumcision, Hernia | Best General Surgeon in Bangalore"), "Dr. Srinivasa Yadav Kandula");
+  assert.equal(cleanListingName("Dr. Leo Francis Tauro, Consultant General and Laparoscopic Surgeon"), "Dr. Leo Francis Tauro");
+  assert.equal(cleanListingName("Dr. Catherine Samraj I Plastic , Reconstructive & Aesthetic Surgeon"), "Dr. Catherine Samraj");
+  assert.equal(cleanListingName("Dr (Air Cmde) Vikas Kulshrestha"), "Dr (Air Cmde) Vikas Kulshrestha");
+  assert.equal(cleanListingName("Manipal Hospital, Old Airport Road"), "Manipal Hospital, Old Airport Road");
 });

@@ -47,7 +47,8 @@
     "nmc:load": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/load-register.ts",
     "nmc:match": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/match-existing.ts",
     "nmc:build": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/build-profiles.ts",
-    "nmc:research": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/research.ts"
+    "nmc:research": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/research.ts",
+    "nmc:research:osm": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/research-osm.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

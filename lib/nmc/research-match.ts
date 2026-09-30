@@ -1,4 +1,4 @@
-import { coreTokens } from "@/lib/enrich/names";
+import { coreTokens, nameTokens } from "@/lib/enrich/names";
 import type { PlaceHit } from "@/lib/enrich/google";
 
 /**
@@ -41,14 +41,34 @@ export function buildRegisterQuery(d: RegisterDoctor): string {
   return `Dr ${d.name} ${d.specialtyName}, ${d.stateName}, India`.replace(/\s+/g, " ").trim();
 }
 
-/** Does the listing name carry the doctor's name? */
+const TITLES = new Set(["air", "cmde", "col", "brig", "maj", "gen", "lt", "capt", "cdr", "wg", "sqn", "ldr", "retd", "prof", "surg", "vsm", "avsm", "pvsm", "sm", "mrs", "smt", "late", "kumari", "ms", "mr"]);
+
+/** "Venkateshwara Children's Clinic (Dr. Sadanand Reddy)" names a doctor who is not Venkateshwara Reddy. */
+export function anotherDoctorNamed(listingName: string, doctorName: string): boolean {
+  const doc = new Set(nameTokens(doctorName));
+  const toks = listingName.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ");
+  for (let i = 0; i < toks.length; i++) {
+    if (toks[i] !== "dr" && toks[i] !== "drs") continue;
+    for (let j = i + 1; j < Math.min(i + 5, toks.length); j++) {
+      const t = toks[j];
+      if (TITLES.has(t) || t.length <= 2) continue;
+      if (!doc.has(t)) return true;
+      break;
+    }
+  }
+  return false;
+}
+
+/** Does the listing name carry the doctor's name, and nobody else's? */
 export function listingNamesDoctor(listingName: string, doctorName: string): boolean {
   const core = coreTokens(doctorName);
   if (core.length < 2) return false;
+  if (anotherDoctorNamed(listingName, doctorName)) return false;
   const ln = ` ${listingName.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `;
   const present = core.filter((t) => ln.includes(` ${t} `));
-  if (core.length === 2) return present.length === 2;
-  return present.length >= 2 && present.length >= core.length - 1;
+  // Every token for names of up to three tokens; a four-token register name may drop one (a middle name on the signboard).
+  if (core.length <= 3) return present.length === core.length;
+  return present.length >= core.length - 1;
 }
 
 export function inState(address: string, stateName: string): boolean {
