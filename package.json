@@ -2,7 +2,7 @@
   "name": "thedoctorindex",
   "version": "0.1.0",
   "private": true,
-  "description": "The Doctor Index — verified doctor directory for India. Front-end application.",
+  "description": "The Doctor Index \u2014 verified doctor directory for India. Front-end application.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -43,7 +43,11 @@
     "db:enrich": "NODE_EXTRA_CA_CERTS=lib/enrich/certs/ssl-com-tls-issuing-rsa-ca-r1.crt tsx --require ./scripts/server-only-shim.cjs scripts/enrich.ts",
     "db:merge-dupes": "tsx --require ./scripts/server-only-shim.cjs scripts/merge-duplicate-registrations.ts",
     "report:growth": "tsx --require ./scripts/server-only-shim.cjs scripts/report-growth.ts",
-    "outreach:export": "tsx --require ./scripts/server-only-shim.cjs scripts/outreach-export.ts"
+    "outreach:export": "tsx --require ./scripts/server-only-shim.cjs scripts/outreach-export.ts",
+    "nmc:load": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/load-register.ts",
+    "nmc:match": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/match-existing.ts",
+    "nmc:build": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/build-profiles.ts",
+    "nmc:research": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/research.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

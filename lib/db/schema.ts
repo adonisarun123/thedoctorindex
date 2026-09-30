@@ -19,6 +19,8 @@
  */
 import { relations, sql } from "drizzle-orm";
 import {
+  bigint,
+  bigserial,
   boolean,
   char,
   customType,
@@ -882,6 +884,87 @@ export const tribeRewards = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("tribe_rewards_user_level_uq").on(t.userId, t.level), index("tribe_rewards_status_idx").on(t.status, t.holdUntil)],
+);
+
+/* ------------------------------------------------------------------------- */
+/* NMC Indian Medical Register (offline copy)                                */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * One row per entry of the NMC Indian Medical Register, loaded from the
+ * 29 Sep 2026 export (scripts/nmc/load-register.ts). The register columns are
+ * stored exactly as the register carries them; the derived columns (clean
+ * name, category, speciality, era) are the site's reading of the entry and
+ * are recomputed by the loader. `doctor_id` links an entry to the profile it
+ * verifies or created. Never rendered directly — profiles are.
+ */
+export const nmcRegister = pgTable(
+  "nmc_register",
+  {
+    sourceRecordId: bigint("source_record_id", { mode: "number" }).primaryKey(),
+    name: text("name").notNull(),
+    council: text("council").notNull(),
+    councilCode: text("council_code"),
+    number: text("number").notNull(),
+    numberNormalized: text("number_normalized").notNull(),
+    councilNormalized: text("council_normalized").notNull(),
+    /** As exported. Unreliable for several councils (renewal dates, placeholders) — never shown. */
+    registrationDate: date("registration_date"),
+    yearOfInformation: integer("year_of_information"),
+    qualification: text("qualification"),
+    qualificationYear: integer("qualification_year"),
+    university: text("university"),
+    uprn: text("uprn"),
+    additionalCount: integer("additional_count").notNull().default(0),
+    removed: boolean("removed").notNull().default(false),
+    dataNotes: text("data_notes"),
+    sourceUrl: text("source_url"),
+    retrievedAt: timestamp("retrieved_at", { withTimezone: true }),
+    /* derived */
+    nameClean: text("name_clean"),
+    nameTokens: text("name_tokens").array().notNull().default(sql`'{}'::text[]`),
+    nameSorted: text("name_sorted"),
+    stateSlug: text("state_slug"),
+    /** Latest plausible qualification year; the registration date is ignored. */
+    eraYear: integer("era_year"),
+    /** superspecialist | specialist | diploma-specialist | pg-unspecified | mbbs-only | pre-1980 | struck-off | name-unusable | no-number */
+    category: text("category").notNull(),
+    specialtyKey: text("specialty_key").references(() => specialties.key),
+    /** The degree string that decided the speciality. */
+    specialtyBasis: text("specialty_basis"),
+    specialtyRank: integer("specialty_rank").notNull().default(0),
+    doctorId: uuid("doctor_id").references(() => doctors.id, { onDelete: "set null" }),
+    /** existing:number | existing:name | created | duplicate:<record id> */
+    matchKind: text("match_kind"),
+    /** pending | matched | no_match | ambiguous | skipped | error */
+    researchStatus: text("research_status"),
+    researchNote: text("research_note"),
+    researchPlaceId: text("research_place_id"),
+    researchedAt: timestamp("researched_at", { withTimezone: true }),
+    loadedAt: timestamp("loaded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("nmc_register_council_number_idx").on(t.councilNormalized, t.numberNormalized),
+    index("nmc_register_number_idx").on(t.numberNormalized),
+    index("nmc_register_category_idx").on(t.category, t.councilCode, t.eraYear),
+    index("nmc_register_doctor_idx").on(t.doctorId),
+    index("nmc_register_research_idx").on(t.researchStatus),
+    index("nmc_register_name_sorted_idx").on(t.nameSorted),
+    index("nmc_register_name_tokens_idx").using("gin", t.nameTokens),
+  ],
+);
+
+export const nmcRegisterQualifications = pgTable(
+  "nmc_register_qualifications",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    sourceRecordId: bigint("source_record_id", { mode: "number" }).notNull(),
+    seq: integer("seq"),
+    degree: text("degree").notNull(),
+    year: integer("year"),
+    university: text("university"),
+  },
+  (t) => [index("nmc_register_quals_record_idx").on(t.sourceRecordId)],
 );
 
 /* ------------------------------------------------------------------------- */
