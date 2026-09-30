@@ -24,6 +24,9 @@ test("cleanName rejects what is not a personal name", () => {
   assert.equal(cleanName("Name missing 123"), null);
   assert.equal(cleanName("NOT AVAILABLE"), null);
   assert.equal(cleanName("x".repeat(90)), null);
+  assert.equal(cleanName("AIIMS New Delhi"), null);
+  assert.equal(cleanName("U. Maha. Health Sciences Nashik"), null);
+  assert.equal(cleanName("Br Ambedkar University"), null);
 });
 
 test("nameSortedKey is order-free", () => {

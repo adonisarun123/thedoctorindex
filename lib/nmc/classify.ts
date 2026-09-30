@@ -57,6 +57,7 @@ export const ACTIVE_ERA_FROM = 1980;
 /* ------------------------------------------------------------------------ */
 
 const SMALL = new Set(["de", "da", "van", "von", "bin", "al"]);
+const INSTITUTION = /\b(aiims|jipmer|pgimer|nimhans|hospitals?|institute|college|clinic|medical|nursing|centre|center|ltd|pvt|trust|society|dept|department|govt|government|university|school|corporation|foundation|laboratory|lab|pharma|sciences|health|services|academy)\b/i;
 
 /**
  * "JAISWAL KAMDNAYA RAMCTION ." → "Jaiswal Kamdnaya Ramction";
@@ -88,6 +89,8 @@ export function cleanName(raw: string): string | null {
   const tokens = nameTokens(s);
   if (tokens.length === 0 || !tokens.some((t) => t.length >= 3)) return null;
   if (/\b(unknown|nil|null|test|error|not available)\b/i.test(s)) return null;
+  // A few entries carry an institution in the name field (a source-side column slip): not a person.
+  if (INSTITUTION.test(s)) return null;
   return s;
 }
 
