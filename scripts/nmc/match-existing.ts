@@ -161,11 +161,30 @@ async function main() {
           await recomputeQuality(r.doctorId);
           continue;
         }
-        bump(r.checkedOn ? "confirmed (was already checked)" : "confirmed");
+        if (r.checkedOn) {
+          // Already confirmed by the live worker against the same register: link the entry, add nothing.
+          bump("confirmed earlier by the live worker (linked)");
+          if (!DRY) await db.update(s.nmcRegister).set({ doctorId: r.doctorId, matchKind: "existing:number" }).where(eq(s.nmcRegister.sourceRecordId, e.sourceRecordId));
+          continue;
+        }
+        // Naming the council on a "Council not stated" row can collide with another profile that already holds the number: two profiles, one doctor — a merge job, not a verification.
+        const councilNorm = e.council.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        const [holder] = await db.select({ id: s.medicalRegistrations.id, doctorId: s.medicalRegistrations.doctorId }).from(s.medicalRegistrations).where(and(eq(s.medicalRegistrations.councilNormalized, councilNorm), inArray(s.medicalRegistrations.numberNormalized, [e.numberNormalized, r.numberNormalized]), raw`${s.medicalRegistrations.id} <> ${r.id}`)).limit(1);
+        if (holder) {
+          if (holder.doctorId === r.doctorId) {
+            bump("second row for the same number on the profile (left; the named row is confirmed)");
+          } else {
+            bump("same number on another profile (merge candidate)");
+            console.log(`  ⧉ ${e.council} ${e.number}: "${r.name}" and another profile — run db:merge-dupes`);
+          }
+          continue;
+        }
+        bump("confirmed");
         if (DRY) continue;
         await qualsFor([e.sourceRecordId]);
+        try {
         await db.transaction(async (tx) => {
-          await tx.update(s.medicalRegistrations).set({ checkedOn: today, source: SOURCE, status: "active", council: e.council, councilNormalized: e.council.toUpperCase().replace(/[^A-Z0-9]/g, "") }).where(eq(s.medicalRegistrations.id, r.id));
+          await tx.update(s.medicalRegistrations).set({ checkedOn: today, source: SOURCE, status: "active", council: e.council, councilNormalized: councilNorm }).where(eq(s.medicalRegistrations.id, r.id));
           await tx.insert(s.verificationChecks).values({ doctorId: r.doctorId, kind: "registration", subjectId: r.id, result: "verified", source: SOURCE, note: `${e.council} · ${e.number} · ${e.name}${e.qualification ? ` · ${e.qualification}${e.university ? `, ${e.university}` : ""}` : ""} (register entry ${e.sourceRecordId})` });
           await verifyDegrees(tx, r.doctorId, e);
           await upsertEnrichment(tx, r.doctorId, "confirmed");
@@ -174,6 +193,10 @@ async function main() {
           await tx.update(s.doctors).set({ lastVerifiedOn: today, updatedAt: new Date() }).where(eq(s.doctors.id, r.doctorId));
         });
         await recomputeQuality(r.doctorId);
+        } catch (err) {
+          bump("write failed");
+          console.log(`  ✗ ${r.council} ${r.number} "${r.name}": ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
+        }
       }
       console.log(`  … ${Math.min(i + 500, regs.length)} / ${regs.length}`);
     }
@@ -217,7 +240,7 @@ async function main() {
       const cands = await db
         .select({ sourceRecordId: s.nmcRegister.sourceRecordId, name: s.nmcRegister.name, nameClean: s.nmcRegister.nameClean, council: s.nmcRegister.council, councilCode: s.nmcRegister.councilCode, number: s.nmcRegister.number, qualification: s.nmcRegister.qualification, qualificationYear: s.nmcRegister.qualificationYear, university: s.nmcRegister.university, removed: s.nmcRegister.removed, category: s.nmcRegister.category, doctorId: s.nmcRegister.doctorId, eraYear: s.nmcRegister.eraYear })
         .from(s.nmcRegister)
-        .where(and(raw`${s.nmcRegister.nameTokens} @> ${raw.raw(`'{${core.map((t) => `"${t}"`).join(",")}}'::text[]`)}`, inArray(s.nmcRegister.councilCode, [...codes, "MCI"]), raw`${s.nmcRegister.category} not in ('no-number','name-unusable')`, raw`${s.nmcRegister.doctorId} is null`))
+        .where(and(raw`${s.nmcRegister.nameTokens} @> ${raw.raw(`'{${core.map((t) => `"${t}"`).join(",")}}'::text[]`)}`, inArray(s.nmcRegister.councilCode, [...codes, "MCI"]), raw`${s.nmcRegister.category} not in ('no-number','name-unusable')`, raw`coalesce(${s.nmcRegister.eraYear}, 2000) >= 1965`, raw`${s.nmcRegister.doctorId} is null`))
         .limit(25);
       const tight = cands.filter((c) => nameTight(c.nameClean ?? c.name, d.name));
       // The same person often holds a state number and an MCI number: one person, not two candidates.
