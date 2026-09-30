@@ -94,7 +94,7 @@ async function main() {
       if (NON_MEDICAL.has(specialtyKey)) { bump("non-medical role (not on the medical register)"); continue; }
       // "SAKET MITTAL" → "Saket Mittal"; an institution string in the name field is not a doctor.
       const displayName = cleanName(r.name);
-      if (!displayName) { bump("name unusable"); continue; }
+      if (!displayName || /\b(doctors?|best|top|our|refer|awards?|filter|specialists?|team|department|clinic|centre|center|hospital|patient|book|appointment)\b/i.test(displayName)) { bump("name unusable"); continue; }
       r.name = displayName;
       const core = coreTokens(r.name);
       if (core.length < 2) { bump("name too short"); unmatched.push({ ...r, reason: "name too short" }); continue; }
