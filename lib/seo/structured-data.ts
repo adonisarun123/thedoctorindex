@@ -3,7 +3,7 @@ import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 import type { DoctorView, Practice, Specialty, SpecialtyKey } from "@/lib/types";
 import { registrationState } from "@/lib/verification";
-import { displayName, honorific } from "@/lib/display-name";
+import { displayName, honorific, isPhysician, postnominal } from "@/lib/display-name";
 
 /**
  * Structured data (project plan §11.6).
@@ -250,12 +250,13 @@ export function doctorLd(d: DoctorView): Json {
   // read the name, credentials and languages.
   const physician: Json = {
     // A physiotherapist or psychologist is not a physician; say only "Person".
-    "@type": honorific(d.specialty) ? ["Person", "IndividualPhysician"] : "Person",
+    "@type": isPhysician(d.specialty) ? ["Person", "IndividualPhysician"] : "Person",
     "@id": `${url}#physician`,
     name: displayName(d),
     givenName: first,
     ...(last ? { familyName: last } : {}),
     ...(honorific(d.specialty) ? { honorificPrefix: "Dr" } : {}),
+    ...(postnominal(d.specialty) ? { honorificSuffix: postnominal(d.specialty) } : {}),
     ...(d.gender ? { gender: d.gender === "F" ? "Female" : "Male" } : {}),
     jobTitle: specialty.one,
     url,
