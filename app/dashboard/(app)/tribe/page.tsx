@@ -85,9 +85,9 @@ export default async function TribePage() {
                   <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>{g.facility}</div>
                   <div className="checklist">
                     {g.doctors.map((d) => (
-                      <div className="check" key={d.slug} style={{ alignItems: "center" }}>
-                        <div><div className="t"><Link href={paths.doctor(d.slug)} target="_blank">{displayName(d)}</Link></div></div>
-                        <div style={{ marginLeft: "auto" }}><TribeShare code={summary.code} origin={SITE.origin} inviterName={me} colleague={{ slug: d.slug, name: d.name }} compact /></div>
+                      <div key={d.slug} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "8px 16px", padding: "10px 14px", borderBottom: "1px solid var(--hair)" }}>
+                        <div style={{ flex: "1 1 180px", fontSize: 15.5, fontWeight: 600 }}><Link href={paths.doctor(d.slug)} target="_blank">{displayName(d)}</Link></div>
+                        <div style={{ flex: "0 0 auto" }}><TribeShare code={summary.code} origin={SITE.origin} inviterName={me} colleague={{ slug: d.slug, name: d.name }} compact /></div>
                       </div>
                     ))}
                   </div>
@@ -96,28 +96,6 @@ export default async function TribePage() {
             </div>
           ) : null}
 
-          <div>
-            <div className="chart-head"><span className="t">Your tribe</span><span className="m">{summary.members.length} invited</span></div>
-            {summary.members.length ? (
-              <div className="tablewrap">
-                <table className="table">
-                  <thead><tr><th>Colleague</th><th>How</th><th>Started</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {summary.members.map((m) => (
-                      <tr key={m.id}>
-                        <td>{m.doctorName ? (m.doctorSlug ? <Link href={paths.doctor(m.doctorSlug)}>{m.doctorName}</Link> : m.doctorName) : <span style={{ color: "var(--muted)" }}>New profile, awaiting review</span>}</td>
-                        <td className="mono">{m.kind === "claim" ? "claimed" : "created"}{m.channel ? ` · ${m.channel}` : ""}</td>
-                        <td className="mono">{toDisplay(m.createdAt)}</td>
-                        <td><span className={`pill ${STATUS[m.status]?.cls ?? "neut"}`}>{STATUS[m.status]?.label ?? m.status}</span>{m.status === "pending" && m.reason ? <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 3 }}>{m.reason}</div> : null}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="panel pad" style={{ color: "var(--muted)", fontSize: 15 }}>Nobody yet. The first ten are the hardest; start with the colleagues listed above.</div>
-            )}
-          </div>
         </div>
 
         <div className="stack">
@@ -174,6 +152,29 @@ export default async function TribePage() {
             </ul>
           </div>
         </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <div className="chart-head"><span className="t">Your tribe</span><span className="m">{summary.members.length} invited</span></div>
+        {summary.members.length ? (
+          <div className="tablewrap">
+            <table className="table">
+              <thead><tr><th>Colleague</th><th>How</th><th>Started</th><th>Status</th></tr></thead>
+              <tbody>
+                {summary.members.map((m) => (
+                  <tr key={m.id}>
+                    <td>{m.doctorName ? (m.doctorSlug ? <Link href={paths.doctor(m.doctorSlug)}>{m.doctorName}</Link> : m.doctorName) : <span style={{ color: "var(--muted)" }}>New profile, awaiting review</span>}</td>
+                    <td className="mono">{m.kind === "claim" ? "claimed" : "created"}{m.channel ? ` · ${m.channel}` : ""}</td>
+                    <td className="mono">{toDisplay(m.createdAt)}</td>
+                    <td><span className={`pill ${STATUS[m.status]?.cls ?? "neut"}`}>{STATUS[m.status]?.label ?? m.status}</span>{m.status === "pending" && m.reason ? <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 3 }}>{m.reason}</div> : null}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="panel pad" style={{ color: "var(--muted)", fontSize: 15 }}>Nobody yet. The first ten are the hardest; start with the colleagues listed above.</div>
+        )}
       </div>
     </>
   );
