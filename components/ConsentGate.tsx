@@ -115,8 +115,8 @@ export function ConsentGate({
       ) : null}
 
       {open ? (
-        <section className="consent" role="region" aria-labelledby="consent-h">
-          <div className="consent-in">
+        <section className="cookie-consent" role="region" aria-labelledby="consent-h">
+          <div className="cookie-consent-in">
             <h2 id="consent-h" ref={headingRef} tabIndex={-1}>
               {adsId ? "Analytics and ad measurement cookies" : "Analytics cookies"}
             </h2>
@@ -129,7 +129,7 @@ export function ConsentGate({
               <em>Cookie settings</em> at the foot of every page.{" "}
               <a href={privacyHref}>Privacy policy</a>
             </p>
-            <div className="consent-acts">
+            <div className="cookie-consent-acts">
               <button type="button" className="btn solid" onClick={() => decide("granted")}>
                 {adsId ? "Allow" : "Allow analytics"}
               </button>
