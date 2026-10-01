@@ -12,6 +12,7 @@ const ITEMS: Array<{ href: string; label: string; countKey?: string }> = [
   { href: "/dashboard/practices", label: "Practices & fees" },
   { href: "/dashboard/enquiries", label: "Appointment enquiries", countKey: "enquiries" },
   { href: "/dashboard/reviews", label: "Reviews & replies", countKey: "reviews" },
+  { href: "/dashboard/articles", label: "Articles" },
   { href: "/dashboard/analytics", label: "How patients find you" },
   { href: "/dashboard/verification", label: "Verification & changes", countKey: "changes" },
   { href: "/dashboard/team", label: "Team access" },
@@ -30,7 +31,7 @@ export function DashboardNav({ name, id, registration, counts }: { name: string;
         </div>
       </div>
       {ITEMS.map((it) => {
-        const active = pathname === it.href;
+        const active = it.href === "/dashboard" ? pathname === it.href : pathname === it.href || pathname.startsWith(`${it.href}/`);
         const count = it.countKey ? counts[it.countKey] : undefined;
         return (
           <Link key={it.href} href={it.href} aria-current={active ? "page" : undefined}>

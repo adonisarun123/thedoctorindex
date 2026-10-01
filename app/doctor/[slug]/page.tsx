@@ -7,6 +7,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/Avatar";
+import { DoctorArticles } from "@/components/DoctorArticles";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { CallButton, DirectionsButton, ViewBeacon } from "@/components/ContactActions";
 import { JsonLd } from "@/components/JsonLd";
@@ -437,6 +438,8 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
             ) : null}
 
             <Credentials doctor={doctor} />
+
+            <DoctorArticles doctorDbId={doctor.dbId} name={displayName(doctor)} />
 
             <section className="block" aria-labelledby="faq-h">
               <h2 id="faq-h">Questions people ask</h2>

@@ -11,6 +11,7 @@ import { countsByCity, countsByCitySpecialty, countsByLocalityAll, countsBySpeci
 import { getGeo } from "@/lib/data/geo";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { applyOverride, overrideMap } from "@/lib/seo/override";
+import { listIndexableArticles } from "@/lib/services/articles";
 import { listingGate, type GateResult } from "@/lib/seo/gates";
 import { absoluteUrl, paths } from "@/lib/site";
 import { DOCTORS_PER_FILE, doctorFileCount, doctorFilePath, latestLastmod, toIsoDate, type SitemapEntry } from "@/lib/seo/sitemap-xml";
@@ -54,7 +55,22 @@ export async function indexEntries(): Promise<SitemapEntry[]> {
   entries.push({ loc: absoluteUrl("/sitemaps/editorial.xml"), lastmod: latestLastmod(editorialEntries()) });
   const conditionUrls = conditionEntries();
   if (conditionUrls.length) entries.push({ loc: absoluteUrl("/sitemaps/conditions.xml"), lastmod: latestLastmod(conditionUrls) });
+  const articleUrls = await articleEntries();
+  if (articleUrls.length) entries.push({ loc: absoluteUrl("/sitemaps/articles.xml"), lastmod: latestLastmod(articleUrls) });
   return entries;
+}
+
+/**
+ * Doctor articles: approved, the doctor's profile live, and first published
+ * here. Republished pieces canonicalise to their original and are left out.
+ */
+export async function articleEntries(): Promise<SitemapEntry[]> {
+  if (!process.env.DATABASE_URL) return [];
+  const rows = await listIndexableArticles();
+  if (!rows.length) return [];
+  const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined);
+  const entries = rows.map((r) => ({ loc: absoluteUrl(paths.article(r.slug)), lastmod: iso(r.decidedAt ?? r.publishedAt) }));
+  return [{ loc: absoluteUrl(paths.articles()), lastmod: latestLastmod(entries) }, ...entries];
 }
 
 /**

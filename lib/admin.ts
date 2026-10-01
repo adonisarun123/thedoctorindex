@@ -14,6 +14,7 @@ export async function queueCounts(): Promise<Record<string, number>> {
       (select count(*) from reviews where status = 'pending')::int + (select count(*) from doctor_responses where status = 'pending')::int + (select count(*) from review_reports where status = 'open')::int as reviews,
       (select count(*) from profile_reports where status = 'open')::int + (select count(*) from corrections where status = 'open')::int as reports,
       (select count(*) from enquiries where status = 'new')::int as enquiries,
+      (select count(*) from doctor_articles where status = 'submitted' or revision_submitted_at is not null)::int as articles,
       (select count(*) from doctors where status = 'published')::int as published,
       (select count(*) from doctors where status = 'draft')::int as drafts,
       (select count(*) from doctors where status = 'published' and quality_score < ${Number(process.env.GATE_PROFILE_QUALITY ?? 70)})::int as below_gate,

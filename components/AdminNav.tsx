@@ -12,6 +12,7 @@ const ITEMS: Array<{ href: string; label: string; countKey?: string }> = [
   { href: "/admin/signups", label: "Stalled signups" },
   { href: "/admin/changes", label: "Change requests", countKey: "changes" },
   { href: "/admin/reviews", label: "Review moderation", countKey: "reviews" },
+  { href: "/admin/articles", label: "Doctor articles", countKey: "articles" },
   { href: "/admin/reports", label: "Reports & corrections", countKey: "reports" },
   { href: "/admin/enquiries", label: "Enquiries", countKey: "enquiries" },
   { href: "/admin/doctors", label: "Doctors" },

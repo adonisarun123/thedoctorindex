@@ -15,6 +15,7 @@ import { moderateResponse, moderateReview, resolveReviewReport, validateEvidence
 import { recomputeSeoRoutes, setSeoOverride } from "@/lib/services/seo";
 import { decideChange, decideClaim, decideSubmission } from "@/lib/services/workflow";
 import { cancelReward, issueReward, rejectReferral, settleReferralsForDoctor } from "@/lib/services/tribe";
+import { decideArticle } from "@/lib/services/articles";
 import { localityFromForm } from "@/lib/services/places";
 import { revalidateDoctors } from "@/lib/data/revalidate";
 
@@ -64,6 +65,21 @@ export async function decideChangeAction(_p: AdminState, f: FormData): Promise<A
     const u = await requireStaff("verification_officer");
     await decideChange(str(f, "id"), str(f, "decision") as "published" | "rejected", u.id, str(f, "note") || undefined);
     return done("Change decided.", ["/admin/changes"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* Doctor articles */
+export async function decideArticleAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("content_editor");
+    const decision = str(f, "decision") === "rejected" ? "rejected" : "published";
+    const row = await decideArticle(str(f, "id"), decision, u.id, str(f, "note") || undefined);
+    const [d] = await getDb().select({ slug: s.doctors.slug }).from(s.doctors).where(eq(s.doctors.id, row.doctorId)).limit(1);
+    const paths = ["/admin/articles", "/articles", `/articles/${row.slug}`, "/sitemaps/articles.xml", "/sitemap.xml"];
+    if (d) paths.push(`/doctor/${d.slug}`);
+    return done(decision === "published" ? "Approved and published." : "Returned to the doctor with your note.", paths);
   } catch (e) {
     return fail(e);
   }
