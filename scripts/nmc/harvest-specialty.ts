@@ -181,7 +181,9 @@ export const resolveSpecialty = (r: RosterRecord): string | null => {
     // hospital's own page, the record is not labelled a physician.
     const q = (r.qualifications ?? []).join(" ");
     if (/\b(BPT|MPT)\b/i.test(q) && !/\bMBBS\b/i.test(q)) return "physiotherapy";
-    if (!/\bMBBS\b|\bM\.?\s?D\b|\bDNB\b|\bD\.?M\b|\bFRCS|\bMRCP|\bIDCCM|\bEDIC|\bFNB\b/i.test(q)) return null;
+    // A page that prints no degrees at all (Kauvery, KIMS) proves nothing either way; the register
+    // match that follows is the guard, since a physiotherapist is not on the medical register.
+    if (q && !/\bMBBS\b|\bM\.?\s?D\b|\bDNB\b|\bD\.?M\b|\bFRCS|\bMRCP|\bIDCCM|\bEDIC|\bFNB\b/i.test(q)) return null;
     if (/p(a)?ed|\bDCH\b|neonat/i.test(q)) return "paediatrics";
     if (key === "physical-medicine-rehabilitation" && /an(a)?esth/i.test(q) && !/physical med|rehab/i.test(q)) return "anaesthesiology";
   }
