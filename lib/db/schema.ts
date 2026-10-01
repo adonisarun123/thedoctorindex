@@ -128,6 +128,9 @@ export const users = pgTable(
     remindersOptOutAt: timestamp("reminders_opt_out_at", { withTimezone: true }),
     /** Set by the unsubscribe link in the monthly doctor digest; no further digests. */
     digestOptOutAt: timestamp("digest_opt_out_at", { withTimezone: true }),
+    /** Doctor's WhatsApp number (E.164) for enquiry alerts; used only while whatsappOptInAt is set. */
+    whatsappNumber: text("whatsapp_number"),
+    whatsappOptInAt: timestamp("whatsapp_opt_in_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
     disabledAt: timestamp("disabled_at", { withTimezone: true }),

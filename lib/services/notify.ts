@@ -6,6 +6,7 @@ import { sendEmail } from "@/lib/auth/mailer";
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { absoluteUrl, SITE } from "@/lib/site";
+import { sendEnquiryWhatsapp } from "@/lib/whatsapp";
 
 /**
  * Transactional notifications to the person a decision concerns. Plain text,
@@ -97,8 +98,19 @@ export async function notifyUser(userId: string | null | undefined, n: Kind): Pr
   }
 }
 
-/** The doctor who owns a profile, when it is claimed. */
+/** The doctor who owns a profile, when it is claimed. Enquiries also go to WhatsApp when the doctor opted in. */
 export async function notifyDoctorOwner(doctorId: string, n: Kind): Promise<void> {
   const [d] = await getDb().select({ owner: s.doctors.claimedByUserId }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
   await notifyUser(d?.owner, n);
+  if (n.kind === "enquiry_received" && d?.owner) {
+    try {
+      const [u] = await getDb().select({ wa: s.users.whatsappNumber, optIn: s.users.whatsappOptInAt, disabledAt: s.users.disabledAt }).from(s.users).where(eq(s.users.id, d.owner)).limit(1);
+      if (u?.wa && u.optIn && !u.disabledAt) {
+        const r = await sendEnquiryWhatsapp(u.wa, n.doctorName, n.preferredDay, absoluteUrl("/dashboard/enquiries"));
+        if (!r.delivered && r.provider !== "none") console.error("[notify] whatsapp failed", r.error);
+      }
+    } catch (e) {
+      console.error("[notify] whatsapp failed", e instanceof Error ? e.message : e);
+    }
+  }
 }
