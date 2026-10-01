@@ -393,6 +393,34 @@ export const doctorQualifications = pgTable("doctor_qualifications", {
 });
 
 /**
+ * A certificate the doctor uploaded for one qualification, course or
+ * fellowship. The file itself lives in `files` (bucket = 'private') and is
+ * only ever served to staff through /admin/files/[id]. One qualification can
+ * collect several uploads over time (a rejected scan, then a clearer one);
+ * the newest decides what the admin queue shows.
+ *
+ *  supplied — waiting in the admin Qualifications queue
+ *  checked  — staff looked at it and verified the qualification
+ *  rejected — staff could not accept it; `note` tells the doctor why
+ */
+export const qualificationEvidence = pgTable(
+  "qualification_evidence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    qualificationId: uuid("qualification_id").notNull().references(() => doctorQualifications.id, { onDelete: "cascade" }),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id").notNull().references(() => files.id),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id),
+    status: evidenceStatus("status").notNull().default("supplied"),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+  },
+  (t) => [index("qualification_evidence_status_idx").on(t.status, t.createdAt), index("qualification_evidence_qual_idx").on(t.qualificationId)],
+);
+
+/**
  * Awards, professional memberships and publications.
  *
  * Every row here is a claim the doctor made about themselves — no import

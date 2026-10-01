@@ -33,7 +33,7 @@ async function many<T = Row>(query: ReturnType<typeof sql>): Promise<T[]> {
 /* Work inbox                                                                */
 /* ------------------------------------------------------------------------ */
 
-export type InboxKind = "claim" | "submission" | "change" | "review" | "response" | "review_report" | "profile_report" | "correction" | "enquiry" | "register";
+export type InboxKind = "claim" | "submission" | "change" | "review" | "response" | "review_report" | "profile_report" | "correction" | "enquiry" | "register" | "qualification";
 
 export interface InboxItem {
   kind: InboxKind;
@@ -63,6 +63,7 @@ export const SLA_HOURS: Record<InboxKind, number> = {
   correction: 120,
   enquiry: 24,
   register: 168,
+  qualification: 48,
 };
 
 export const KIND_LABEL: Record<InboxKind, string> = {
@@ -76,6 +77,7 @@ export const KIND_LABEL: Record<InboxKind, string> = {
   correction: "Correction",
   enquiry: "Enquiry",
   register: "Register match",
+  qualification: "Certificate",
 };
 
 const QUEUE_HREF: Record<InboxKind, string> = {
@@ -89,11 +91,14 @@ const QUEUE_HREF: Record<InboxKind, string> = {
   correction: "/admin/reports",
   enquiry: "/admin/enquiries",
   register: "/admin/enrichment",
+  qualification: "/admin/qualifications",
 };
 
 const PRIORITY: Record<string, number> = { safety: 0, high: 1, normal: 2, low: 3 };
 
-export async function inboxItems(limit = 400): Promise<InboxItem[]> {
+// The register backlog alone runs past 1,000 rows; a smaller window let it crowd
+// newer claims and certificates out of the overview entirely.
+export async function inboxItems(limit = 2000): Promise<InboxItem[]> {
   const rows = await many<{ kind: InboxKind; id: string; subject: string | null; detail: string | null; created_at: Date | string; priority: string | null }>(sql`
     select * from (
       select 'claim' as kind, c.id::text as id, d.name as subject, c.method::text as detail, c.created_at, 'normal' as priority
@@ -122,6 +127,9 @@ export async function inboxItems(limit = 400): Promise<InboxItem[]> {
       union all
       select 'enquiry', e.id::text, d.name, coalesce(e.preferred_day, ''), e.created_at, 'normal'
         from enquiries e join doctors d on d.id = e.doctor_id where e.status = 'new'
+      union all
+      select 'qualification', qe.id::text, d.name, q.degree, qe.created_at, 'normal'
+        from qualification_evidence qe join doctor_qualifications q on q.id = qe.qualification_id join doctors d on d.id = qe.doctor_id where qe.status = 'supplied'
       union all
       select 'register', en.doctor_id::text, d.name, en.nmc_status, coalesce(en.nmc_checked_at, en.updated_at), 'low'
         from doctor_enrichment en join doctors d on d.id = en.doctor_id where en.nmc_status in ('ambiguous','number_mismatch','removed')

@@ -78,9 +78,16 @@ export default async function DashboardVerification() {
       <div className="panel pad" style={{ marginTop: "22px" }}>
         <div className="chart-head"><span className="t">Something wrong you cannot edit?</span></div>
         <p style={{ fontSize: "13.5px", color: "var(--ink-2)" }}>
-          A registration number, a council, a degree that failed to match, a qualification to add. Use the correction form on your public profile and tick “I am the doctor” — it opens a verification case with a 2-business-day target and you can attach a document.
+          <b>Qualification not verified, or one to add?</b> Upload its certificate under{" "}
+          <Link href="/dashboard/profile">Profile &amp; credentials → Qualifications</Link>. Our team checks it within 2 business days and emails you the outcome.
         </p>
-        <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/correct`} style={{ display: "inline-block", marginTop: "10px" }}>Open a verification case</Link>
+        <p style={{ fontSize: "13.5px", color: "var(--ink-2)" }}>
+          A wrong registration number or council: use the correction form on your public profile and tick “I am the doctor”. It opens a verification case with a 2-business-day target.
+        </p>
+        <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+          <Link className="btn" href="/dashboard/profile">Upload certificates</Link>
+          <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/correct`}>Open a verification case</Link>
+        </div>
       </div>
     </>
   );

@@ -14,6 +14,7 @@ import { toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { getDoctorAdmin, recomputeQuality } from "@/lib/services/doctors";
 import { doctorAnalytics } from "@/lib/services/events";
+import { certificatesForDoctor } from "@/lib/services/qualification-evidence";
 import { GATES } from "@/lib/seo/gates";
 import { requireStaff } from "@/lib/auth/session";
 
@@ -31,12 +32,13 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
   const sp = await searchParams;
   const d = await getDoctorAdmin(id);
   if (!d) notFound();
-  const [quality, analytics, audit, mergedInto, publicView] = await Promise.all([
+  const [quality, analytics, audit, mergedInto, publicView, certs] = await Promise.all([
     recomputeQuality(d.id),
     doctorAnalytics(d.id),
     getDb().query.auditLogs.findMany({ where: eq(s.auditLogs.entityId, d.id), orderBy: [desc(s.auditLogs.createdAt)], limit: 40 }),
     d.mergedIntoId ? getDb().query.doctors.findFirst({ where: eq(s.doctors.id, d.mergedIntoId), columns: { id: true, name: true } }) : Promise.resolve(null),
     getDoctorBySlug(d.slug).catch(() => null),
+    certificatesForDoctor(d.id),
   ]);
   const reg = d.registrations.find((r) => r.isPrimary) ?? d.registrations[0];
   const activePractices = d.practices.filter((p) => p.active);
@@ -203,7 +205,7 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
             ))}
             <ActionForm action={markAllVerifiedAction} submitLabel="Mark all as verified" variant="outline" className="pad" style={{ borderTop: "1px solid var(--hair)" }} confirm="Record a verified check on every pending registration, qualification and active practice? This does not claim the profile or set an HPR match.">
               <input type="hidden" name="id" value={d.id} />
-              <div className="field" style={{ marginBottom: 0 }}><label>Note</label><input type="text" name="note" placeholder="Checked against source records" /></div>
+              <div className="field" style={{ marginBottom: 0 }}><label>What you checked (required, recorded on every check)</label><input type="text" name="note" required minLength={10} placeholder="NMC register entry + MBBS/MD certificates seen on 2 Oct" /></div>
             </ActionForm>
           </section>
 
@@ -270,7 +272,18 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
               <ActionForm key={q.id} action={qualificationStateAction} submitLabel="Set" variant="quiet" inline style={{ borderTop: "1px solid var(--hair)", paddingTop: "8px", marginTop: "8px" }}>
                 <input type="hidden" name="id" value={q.id} />
                 <input type="hidden" name="doctorId" value={d.id} />
-                <div style={{ fontSize: "13.5px", flex: 1 }}><b>{q.degree}</b> · {q.institution}{q.year ? ` · ${q.year}` : ""} <span className={`pill ${pill(q.state)}`} style={{ marginLeft: "6px" }}>{q.state}</span></div>
+                <div style={{ fontSize: "13.5px", flex: 1 }}>
+                  <b>{q.degree}</b> · {q.institution}{q.year ? ` · ${q.year}` : ""} <span className={`pill ${pill(q.state)}`} style={{ marginLeft: "6px" }}>{q.state}</span>
+                  {certs.filter((c) => c.qualificationId === q.id).map((c) => (
+                    <div key={c.id} style={{ fontSize: "12.5px", marginTop: "3px" }}>
+                      <Link href={`/admin/files/${c.fileId}`} target="_blank">certificate ↗</Link>{" "}
+                      <span className={`pill ${c.status === "checked" ? "ok" : c.status === "rejected" ? "warn" : "wait"}`}>{c.status === "supplied" ? "waiting" : c.status}</span>{" "}
+                      <span style={{ color: "var(--muted)" }}>{toDisplay(c.createdAt)}{c.note ? ` · ${c.note}` : ""}</span>
+                      {c.status === "supplied" ? <> · <Link href={`/admin/qualifications#${c.id}`}>review</Link></> : null}
+                    </div>
+                  ))}
+                  {!certs.some((c) => c.qualificationId === q.id) && q.state !== "verified" ? <div style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "3px" }}>no certificate uploaded</div> : null}
+                </div>
                 <select name="state" defaultValue={q.state} style={{ width: "auto" }}><option value="verified">verified</option><option value="submitted">submitted</option><option value="rejected">rejected</option></select>
               </ActionForm>
             ))}

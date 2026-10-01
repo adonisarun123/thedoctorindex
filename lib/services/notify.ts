@@ -25,6 +25,7 @@ type Kind =
   | { kind: "manager_invite"; doctorName: string; invitedBy: string }
   | { kind: "review_received"; doctorName: string; authorLabel: string }
   | { kind: "enquiry_received"; doctorName: string; preferredDay: string | null }
+  | { kind: "qualification"; decision: "verified" | "rejected"; degree: string; doctorName: string; note?: string | null }
   | { kind: "tribe_level"; level: number; verified: number; rewardKind: "voucher" | "recognition"; amountInr: number; holdDays: number }
   | { kind: "tribe_reward_issued"; level: number; rewardKind: "voucher" | "recognition"; amountInr: number; voucherCode: string | null };
 
@@ -68,6 +69,10 @@ function body(n: Kind): { subject: string; text: string } {
       return { subject: `A new review of ${n.doctorName} is in moderation`, text: `${n.authorLabel} has written a review. It is being moderated and will appear on the profile if it meets the policy. You can reply once it is published: ${absoluteUrl("/dashboard/reviews")}.` + sign };
     case "enquiry_received":
       return { subject: `New appointment enquiry — ${n.doctorName}`, text: `A patient has asked for an appointment${n.preferredDay ? ` (${n.preferredDay})` : ""}. Their contact details are in your dashboard, never in email: ${absoluteUrl("/dashboard/enquiries")}.` + sign };
+    case "qualification":
+      return n.decision === "verified"
+        ? { subject: `${n.degree} verified — ${n.doctorName}`, text: `We checked the certificate you uploaded for ${n.degree}. It now shows as verified on your public profile.` + sign }
+        : { subject: `${n.degree} not yet verified — ${n.doctorName}`, text: `We could not verify ${n.degree} from the certificate you uploaded.${n.note ? `\n\nReason: ${n.note}` : ""}\n\nUpload a clearer or complete copy from ${absoluteUrl("/dashboard/profile")}. The certificate is seen only by our verification team and is never published.` + sign };
     case "tribe_level":
       return {
         subject: `Your tribe reached Level ${n.level}`,

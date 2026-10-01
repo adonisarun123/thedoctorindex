@@ -9,6 +9,7 @@ const ITEMS: Array<{ href: string; label: string; countKey?: string }> = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/submissions", label: "New profiles", countKey: "submissions" },
   { href: "/admin/claims", label: "Claims", countKey: "claims" },
+  { href: "/admin/qualifications", label: "Qualification certificates", countKey: "qualifications" },
   { href: "/admin/signups", label: "Stalled signups" },
   { href: "/admin/changes", label: "Change requests", countKey: "changes" },
   { href: "/admin/reviews", label: "Review moderation", countKey: "reviews" },

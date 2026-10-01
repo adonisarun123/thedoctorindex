@@ -59,7 +59,17 @@ export default async function AdminSubmissions({ searchParams }: { searchParams:
               <dt>Subspecialities</dt><dd>{p.subspecialties?.join(", ") || "—"}</dd>
               <dt>Practice start</dt><dd>{p.practiceStartYear ?? "—"}</dd>
               <dt>Languages / modes</dt><dd>{p.languages?.join(", ") || "—"} · {p.modes?.join(", ") || "—"}</dd>
-              <dt>Qualifications</dt><dd>{p.qualifications?.length ? p.qualifications.map((q) => `${q.degree} · ${q.institution}${q.year ? ` · ${q.year}` : ""}`).join("; ") : "—"}</dd>
+              <dt>Qualifications</dt><dd>
+                {p.qualifications?.length
+                  ? p.qualifications.map((q, i) => (
+                      <div key={i}>
+                        {q.degree} · {q.institution}{q.year ? ` · ${q.year}` : ""}
+                        {q.certificateFileId ? <> · <Link href={`/admin/files/${q.certificateFileId}`} target="_blank">certificate ↗</Link></> : <span style={{ color: "var(--muted)" }}> · no certificate</span>}
+                      </div>
+                    ))
+                  : "—"}
+                {p.qualifications?.some((q) => q.certificateFileId) ? <div className="hint">Certificates go to the Qualification certificates queue when this profile is approved.</div> : null}
+              </dd>
               <dt>Practice</dt><dd>{p.practice ? `${p.practice.facilityName}, ${localityNames[p.practice.localityKey] ?? p.practice.localityKey} · ${p.practice.address} · ${p.practice.days} ${p.practice.hours} · ₹${p.practice.feeInr ?? "—"} · ${p.practice.phone}` : "—"}</dd>
               <dt>Services</dt><dd>{p.services?.join(", ") || "—"}</dd>
               <dt>Introduction</dt><dd className="qb">{p.about || "—"}</dd>
