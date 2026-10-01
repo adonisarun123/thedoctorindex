@@ -48,6 +48,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     path: paths.article(a.slug),
     index: !a.sourceUrl,
     type: "article",
+    image: "segment",
     article: {
       publishedTime: a.publishedAt?.toISOString(),
       modifiedTime: (a.decidedAt ?? a.publishedAt)?.toISOString(),

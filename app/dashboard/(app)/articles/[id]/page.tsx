@@ -5,11 +5,13 @@ import { deleteArticleAction, withdrawArticleAction } from "@/app/dashboard/arti
 import { ActionForm } from "@/components/ActionForm";
 import { ArticleEditor, type ArticleDraft } from "@/components/ArticleEditor";
 import { ArticleStatusPill } from "@/components/ArticleStatusPill";
+import { ShareArticle } from "@/components/ShareArticle";
 import { registrationLine } from "@/lib/articles/format";
 import { getDashboardContext } from "@/lib/dashboard";
 import { toDisplay } from "@/lib/db/dates";
+import { displayName } from "@/lib/display-name";
 import { authorEligibility, getArticleForDoctor, type ArticleRevision } from "@/lib/services/articles";
-import { SITE, paths } from "@/lib/site";
+import { SITE, absoluteUrl, paths } from "@/lib/site";
 
 export const metadata = { title: "Edit article" };
 
@@ -52,6 +54,15 @@ export default async function DashboardArticle({ params, searchParams }: { param
         <div className="notice" style={{ marginBottom: "14px" }}>
           Live at <Link href={paths.article(row.slug)} target="_blank">/articles/{row.slug}</Link>. Changes you submit are reviewed first; the live version stays up until they are approved.
         </div>
+      ) : null}
+
+      {row?.status === "published" ? (
+        <ShareArticle
+          url={absoluteUrl(paths.article(row.slug))}
+          slug={row.slug}
+          title={row.title}
+          caption={`New article: ${row.title}\n\n${row.description}\n\nWritten by ${displayName(doctor)}${registrationLine(row.registrationCouncil, row.registrationNumber) ? ` (Reg. ${registrationLine(row.registrationCouncil, row.registrationNumber)})` : ""} on The Doctor Index.`}
+        />
       ) : null}
 
       {gate.ok ? (
