@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { registrationNoun } from "@/lib/data/councils";
 import { addCredentialAction, photoAction, removeCredentialAction, saveProfileAction } from "@/app/dashboard/actions";
 import { ActionForm } from "@/components/ActionForm";
@@ -170,6 +171,9 @@ function CredentialsEditor({ credentials }: { credentials: DoctorCredential[] })
         These publish straight away, marked <b>as supplied by you</b>. We confirm them with the awarding body, society or journal when we can, and the
         mark changes then. They do not count towards your verification checks or your profile&rsquo;s quality score, and an unconfirmed entry is not
         published to search engines as a credential.
+      </p>
+      <p style={{ margin: "0 0 14px" }}>
+        <Link className="btn" href="/dashboard/publications">Find my papers on PubMed or ORCID</Link>
       </p>
 
       {credentials.length ? (
