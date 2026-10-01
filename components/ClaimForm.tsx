@@ -16,7 +16,7 @@ export interface ClaimTarget {
   council: string;
 }
 
-export function ClaimForm({ initialRegistration, profile, source = null }: { initialRegistration: string; profile: ClaimTarget | null; source?: string | null }) {
+export function ClaimForm({ initialRegistration, initialCouncil = "", profile, source = null }: { initialRegistration: string; initialCouncil?: string; profile: ClaimTarget | null; source?: string | null }) {
   const [state, act, pending] = useActionState<ClaimState, FormData>(claimAction, {});
   const [method, setMethod] = useState("practice_otp");
   const reported = useRef(false);
@@ -59,7 +59,7 @@ export function ClaimForm({ initialRegistration, profile, source = null }: { ini
       ) : null}
       <div className="field">
         <label htmlFor="council">Council or registering body</label>
-        <CouncilSelect id="council" name="council" defaultValue={profile?.council || undefined} />
+        <CouncilSelect id="council" name="council" defaultValue={profile?.council || initialCouncil || undefined} />
       </div>
       <div className="field">
         <label htmlFor="reg">Registration number</label>

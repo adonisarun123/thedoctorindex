@@ -31,6 +31,8 @@ export type FunnelEvent =
   | "claim_submit_attempt" //                                  {method}
   | "claim_error" //                                           {error_code, method}
   | "register_check" // add-profile step 1                     {match: found|none}
+  | "register_search" // /claim-profile/find, one search       {match: found|none}
+  | "register_result_click" // a result's action button       {cta_location: claim-published|claim-draft|create|claimed|…}
   | "add_profile_submit_attempt"
   | "add_profile_error" //                                     {error_code}
   | "contact_click"; // patient contact action                 {contact_type, signed_in}

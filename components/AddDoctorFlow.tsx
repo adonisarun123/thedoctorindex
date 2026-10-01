@@ -21,10 +21,10 @@ import { trackEvent } from "@/lib/funnel";
  * claim flow instead of creating a duplicate. Step 3 writes a submission that
  * staff approve in the admin panel.
  */
-export function AddDoctorFlow({ lookup, source = null }: { lookup: (registrationNumber: string, council: string) => Promise<DoctorView | null>; source?: string | null }) {
+export function AddDoctorFlow({ lookup, source = null, initialRegistration = "", initialCouncil = "" }: { lookup: (registrationNumber: string, council: string) => Promise<DoctorView | null>; source?: string | null; initialRegistration?: string; initialCouncil?: string }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [registration, setRegistration] = useState("");
-  const [council, setCouncil] = useState(COUNCIL_NAMES[0]);
+  const [registration, setRegistration] = useState(initialRegistration);
+  const [council, setCouncil] = useState(initialCouncil || COUNCIL_NAMES[0]);
   const [match, setMatch] = useState<DoctorView | null>(null);
   const [checking, setChecking] = useState(false);
   const [state, act, pending] = useActionState<SubmitState, FormData>(submitProfileAction, {});

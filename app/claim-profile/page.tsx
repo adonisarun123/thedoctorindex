@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -24,6 +25,7 @@ export const dynamic = "force-dynamic";
 export default async function ClaimProfilePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const initial = typeof sp.registration === "string" ? sp.registration : "";
+  const initialCouncil = typeof sp.council === "string" ? sp.council.slice(0, 120) : "";
   const profileSlug = typeof sp.profile === "string" ? sp.profile : "";
   const src = claimSource(sp.src);
   const doctor = profileSlug ? await getDoctorBySlug(profileSlug) : null;
@@ -39,7 +41,7 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
             : "",
       }
     : null;
-  const nextQuery = profile ? `?profile=${encodeURIComponent(profile.slug)}${src ? `&src=${src}` : ""}` : initial ? `?registration=${encodeURIComponent(initial)}` : "";
+  const nextQuery = profile ? `?profile=${encodeURIComponent(profile.slug)}${src ? `&src=${src}` : ""}` : initial ? `?registration=${encodeURIComponent(initial)}${initialCouncil ? `&council=${encodeURIComponent(initialCouncil)}` : ""}${src ? `&src=${src}` : ""}` : "";
   const user = await getSessionUser();
   if (user && !user.profileComplete) redirect(setupPath(`/claim-profile${nextQuery}`));
   // Count the open once per visit that arrives with a tag; untagged opens are the
@@ -66,7 +68,14 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
           </p>
           <FunnelStep event="claim_page_view" params={{ step: user ? "form" : "sign_in", has_profile: Boolean(profile), src }} />
           {user ? (
-            <ClaimForm initialRegistration={initial} profile={profile} source={src} />
+            <>
+              <ClaimForm initialRegistration={initial} initialCouncil={initialCouncil} profile={profile} source={src} />
+              {!profile ? (
+                <p style={{ fontSize: "14px", color: "var(--ink-2)", marginTop: "14px" }}>
+                  Not sure how the council spells your name or number? <Link href="/claim-profile/find">Find your registration</Link>.
+                </p>
+              ) : null}
+            </>
           ) : (
             <div className="panel pad">
               <div className="eyebrow" style={{ marginBottom: "10px" }}>Sign in first</div>

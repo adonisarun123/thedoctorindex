@@ -20,8 +20,15 @@ export const dynamic = "force-dynamic";
 export default async function AddDoctorPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   // The channel tag rides along through sign-in and account setup, so a profile
   // created from an ad is counted against that ad (events.query = src:<tag>).
-  const src = claimSource((await searchParams).src);
-  const self = src ? `/add-doctor?src=${src}` : "/add-doctor";
+  const sp = await searchParams;
+  const src = claimSource(sp.src);
+  const initialRegistration = typeof sp.registration === "string" ? sp.registration.slice(0, 40) : "";
+  const initialCouncil = typeof sp.council === "string" ? sp.council.slice(0, 120) : "";
+  const keep = new URLSearchParams();
+  if (initialRegistration) keep.set("registration", initialRegistration);
+  if (initialCouncil) keep.set("council", initialCouncil);
+  if (src) keep.set("src", src);
+  const self = keep.toString() ? `/add-doctor?${keep.toString()}` : "/add-doctor";
   const user = await getSessionUser();
   if (user && !user.profileComplete) redirect(setupPath(self));
   return (
@@ -47,7 +54,7 @@ export default async function AddDoctorPage({ searchParams }: { searchParams: Pr
             <div className="notice" style={{ marginBottom: "16px" }}><b>Read-only build.</b> No database is configured, so submissions cannot be saved here.</div>
           ) : null}
           {user ? (
-            <AddDoctorFlow lookup={lookupRegistration} source={src} />
+            <AddDoctorFlow lookup={lookupRegistration} source={src} initialRegistration={initialRegistration} initialCouncil={initialCouncil} />
           ) : (
             <div className="panel pad">
               <FunnelStep event="add_profile_page_view" params={{ step: "sign_in", src }} />
