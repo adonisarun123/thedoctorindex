@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { articleLinks, articleWordCount } from "../../lib/conditions/article";
+import { articleProblems } from "../../lib/conditions/article-checks";
 import { ARTICLES } from "../../lib/conditions/articles";
 import { LETTERS, letterOf } from "../../lib/conditions/browse";
 import { cleanCondition, sectionBlocks, splitOtherNames, type RawCondition } from "../../lib/conditions/clean";
 import { DEPARTMENTS, departmentByName, departmentSlug } from "../../lib/conditions/departments";
 import { articleIndexable } from "../../lib/conditions/gate";
 import { SPECIALTIES } from "../../lib/data/taxonomy";
-import { DESCRIPTION_MAX } from "../../lib/seo/meta";
 import { conditionLd } from "../../lib/seo/structured-data";
 
 /**
@@ -137,23 +136,9 @@ test("unreviewed article markup carries clinical entities but no review claim", 
 
 // ---- Editorial bar for original articles (Phase B) --------------------------
 
-const MIN_WORDS = 1000;
-const BANNED = [/\b\d+(\.\d+)?\s?mg\b/i, /\bguarantee/i, /\bcure[sd]?\b(?! rate)/i, /\bbest (doctor|hospital)/i, /₹\s?\d/];
-
 for (const a of ARTICLES) {
   test(`article ${a.slug}: editorial bar`, () => {
-    assert.ok(articleWordCount(a) >= MIN_WORDS, `${a.slug}: ${articleWordCount(a)} words`);
-    assert.ok(a.standfirst.length <= DESCRIPTION_MAX, `${a.slug}: standfirst too long`);
-    assert.ok(a.body.filter((b) => b.k === "h2").length >= 5, `${a.slug}: needs ≥5 sections`);
-    assert.ok(a.faqs.length >= 3, `${a.slug}: needs ≥3 questions`);
-    assert.ok(DEPARTMENTS.some((d) => d.slug === a.department), `${a.slug}: unknown department`);
-    assert.ok(SPECIALTIES[a.specialty], `${a.slug}: unknown specialty`);
-    assert.ok(a.sources.length >= 2, `${a.slug}: needs ≥2 sources`);
-    if (a.reviewedOn) assert.ok(a.reviewer, `${a.slug}: review date without a reviewer`);
-    for (const href of articleLinks(a)) if (href.startsWith("/")) assert.match(href, /^\/(conditions|specialties|doctors|health-guides|blog)\//, `${a.slug}: link ${href}`);
-    const text = JSON.stringify(a.body) + JSON.stringify(a.faqs);
-    for (const re of BANNED) assert.ok(!re.test(text), `${a.slug}: banned pattern ${re}`);
-    for (const n of [...a.symptoms, ...a.tests, ...a.treatments]) assert.ok(text.toLowerCase().includes(n.toLowerCase()), `${a.slug}: markup entity "${n}" not on page`);
+    assert.deepEqual(articleProblems(a), []);
   });
 }
 

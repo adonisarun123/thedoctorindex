@@ -64,7 +64,10 @@ export default async function ConditionPage({ params }: { params: Promise<Params
 
   const article = articleBySlug(slug);
   const indexable = articleIndexable(article);
-  const dept = departmentBySlug(draft.departmentSlug);
+  // An article's department overrides the compiler's editorial mapping.
+  const dept = departmentBySlug(article?.department ?? draft.departmentSlug);
+  const deptName = dept?.name ?? draft.department;
+  const deptSlug = dept?.slug ?? draft.departmentSlug;
   const specialtyKey = article?.specialty ?? draft.specialtyKey;
   const specialty = specialtyKey ? SPECIALTIES[specialtyKey] : null;
   const path = cpaths.condition(slug);
@@ -74,14 +77,14 @@ export default async function ConditionPage({ params }: { params: Promise<Params
   const crumbs = [
     { name: "Home", path: paths.home() },
     { name: "Conditions", path: cpaths.hub() },
-    { name: draft.department, path: cpaths.department(draft.departmentSlug) },
+    { name: deptName, path: cpaths.department(deptSlug) },
     { name: draft.name, path },
   ];
 
   // Related: same department, indexable only — a page never points a crawler
   // at a page we decided not to index. The department hub links everything.
   const related = (await listConditions())
-    .filter((c) => c.departmentSlug === draft.departmentSlug && c.slug !== slug && conditionIndexable(c.slug))
+    .filter((c) => c.departmentSlug === deptSlug && c.slug !== slug && conditionIndexable(c.slug))
     .slice(0, 8);
 
   const sourceById = new Map(draft.sources.map((s) => [s.id, s]));
@@ -148,7 +151,7 @@ export default async function ConditionPage({ params }: { params: Promise<Params
       <div className="wrap">
         <article className="doc">
           <span className="eyebrow">
-            {draft.department} · {readingMinutes} min read
+            {deptName} · {readingMinutes} min read
           </span>
           <h1 style={{ marginTop: "10px" }}>{title}</h1>
           <p style={{ fontSize: "17px", color: "var(--ink-2)", marginTop: "10px" }}>{description}</p>
@@ -236,7 +239,7 @@ export default async function ConditionPage({ params }: { params: Promise<Params
               <>
                 <p style={{ marginTop: "8px", marginBottom: "12px" }}>
                   {dept?.basis === "nearest" && !article
-                    ? `${draft.department} is not listed separately on The Doctor Index; the nearest speciality is ${specialty.name.toLowerCase()}.`
+                    ? `${deptName} is not listed separately on The Doctor Index; the nearest speciality is ${specialty.name.toLowerCase()}.`
                     : `This condition is usually assessed by ${specialty.aOne}.`}{" "}
                   Every profile shows the doctor’s registration and what has been checked.
                 </p>
@@ -283,7 +286,7 @@ export default async function ConditionPage({ params }: { params: Promise<Params
             </>
           ) : null}
           <p style={{ marginTop: "14px" }}>
-            <Link href={cpaths.department(draft.departmentSlug)}>All {draft.department.toLowerCase()} conditions →</Link>
+            <Link href={cpaths.department(deptSlug)}>All {deptName.toLowerCase()} conditions →</Link>
           </p>
 
           <h2 id="sources">Sources</h2>
