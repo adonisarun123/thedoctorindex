@@ -9,6 +9,7 @@ import * as s from "../../lib/db/schema";
 import { coreTokens, nameCovers, nameTight } from "../../lib/enrich/names";
 import { COUNCILS_BY_STATE } from "../../lib/enrich/nmc";
 import { cleanName } from "../../lib/nmc/classify";
+import { pickByCredentials } from "../../lib/nmc/disambiguate";
 import { createDoctor, normalizeKey } from "../../lib/services/doctors";
 import { revalidateSite } from "../revalidate-site";
 import { resolveSpecialty } from "./harvest-specialty";
@@ -125,9 +126,27 @@ async function main() {
           entry = group.find((c) => c.councilCode !== "MCI") ?? group[0];
           how = "unique name";
         } else if (people.size > 1) {
-          bump("ambiguous on the register");
-          unmatched.push({ ...r, reason: `${people.size} register entries fit` });
-          continue;
+          // Several people share the name: the hospital's degrees and years may single one out.
+          const groups = [...people.entries()];
+          const ids = groups.flatMap(([, g]) => g.map((c) => c.sourceRecordId));
+          const extra = await db.select({ sourceRecordId: s.nmcRegisterQualifications.sourceRecordId, degree: s.nmcRegisterQualifications.degree, year: s.nmcRegisterQualifications.year }).from(s.nmcRegisterQualifications).where(inArray(s.nmcRegisterQualifications.sourceRecordId, ids));
+          const pick = pickByCredentials(
+            r.qualifications ?? [],
+            groups.map(([key, g]) => ({
+              key,
+              quals: g.flatMap((c) => [{ degree: c.qualification, year: c.qualificationYear }, ...extra.filter((x) => x.sourceRecordId === c.sourceRecordId).map((x) => ({ degree: x.degree, year: x.year }))]),
+            })),
+          );
+          if (pick) {
+            const group = people.get(pick)!;
+            entry = group.find((c) => c.councilCode !== "MCI") ?? group[0];
+            how = "name + degree years";
+            bump("disambiguated by degree years");
+          } else {
+            bump("ambiguous on the register");
+            unmatched.push({ ...r, reason: `${people.size} register entries fit` });
+            continue;
+          }
         } else {
           bump(cands.length ? "no register entry fits (name/speciality)" : "not on the register");
           unmatched.push({ ...r, reason: cands.length ? "no tight name + speciality fit" : "not found" });
