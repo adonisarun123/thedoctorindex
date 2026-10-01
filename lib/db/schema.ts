@@ -115,6 +115,16 @@ export const users = pgTable(
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
     marketingOptIn: boolean("marketing_opt_in").notNull().default(false),
+    /**
+     * The journey the account was created for (lib/funnel.ts flowFromNext:
+     * claim, add_doctor, enquire, review, dashboard, other) and the path it was
+     * heading to. Null for accounts created before this was recorded. Drives
+     * which signup reminder, if any, the account is sent.
+     */
+    signupFlow: text("signup_flow"),
+    signupNext: text("signup_next"),
+    /** Set by the unsubscribe link in a signup reminder; no further reminders. */
+    remindersOptOutAt: timestamp("reminders_opt_out_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
     disabledAt: timestamp("disabled_at", { withTimezone: true }),
@@ -150,6 +160,56 @@ export const otpCodes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("otp_identifier_idx").on(t.identifier, t.createdAt)],
+);
+
+/**
+ * An external sign-in linked to an account (today: LinkedIn via OpenID
+ * Connect). Holds what the provider asserted at the last sign-in — name,
+ * verified email, portrait — so a doctor's profile can be prefilled from it.
+ * The portrait is copied into `files` (private) because the provider's URL
+ * expires; it is shown publicly only if the doctor chooses to use it.
+ */
+export const userIdentities = pgTable(
+  "user_identities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    /** The provider's stable subject id (OIDC `sub`). */
+    subject: text("subject").notNull(),
+    email: text("email"),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    name: text("name"),
+    givenName: text("given_name"),
+    familyName: text("family_name"),
+    photoFileId: uuid("photo_file_id").references(() => files.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("user_identities_provider_subject_uq").on(t.provider, t.subject),
+    index("user_identities_user_idx").on(t.userId),
+  ],
+);
+
+/**
+ * One row per signup reminder email sent. The unique key makes the daily job
+ * idempotent: a re-run on the same day cannot send the same step twice.
+ */
+export const signupReminders = pgTable(
+  "signup_reminders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    /** "setup" (details form not finished) or "doctor_profile" (no claim or profile yet). */
+    stage: text("stage").notNull(),
+    /** 1, 2, 3 — the position in the sequence. */
+    step: smallint("step").notNull(),
+    delivered: boolean("delivered").notNull(),
+    provider: text("provider"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("signup_reminders_user_stage_step_uq").on(t.userId, t.stage, t.step)],
 );
 
 export const sessions = pgTable(

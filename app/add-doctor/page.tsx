@@ -62,7 +62,7 @@ export default async function AddDoctorPage({ searchParams }: { searchParams: Pr
               <p style={{ fontSize: "14.5px", color: "var(--ink-2)", marginBottom: "16px" }}>
                 Your profile is tied to a verified email or mobile number. It is how you get back in to manage it, and it is never shown publicly.
               </p>
-              <OtpSignIn next={self} label="Continue" />
+              <OtpSignIn next={self} label="Continue" linkedin />
             </div>
           )}
         </div>

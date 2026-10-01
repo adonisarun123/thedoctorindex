@@ -79,7 +79,7 @@ export default async function ClaimProfilePage({ searchParams }: { searchParams:
           ) : (
             <div className="panel pad">
               <div className="eyebrow" style={{ marginBottom: "10px" }}>Sign in first</div>
-              <OtpSignIn next={`/claim-profile${nextQuery}`} label="Continue" />
+              <OtpSignIn next={`/claim-profile${nextQuery}`} label="Continue" linkedin />
             </div>
           )}
         </div>

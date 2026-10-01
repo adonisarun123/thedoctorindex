@@ -1,8 +1,12 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { getDb } from "@/lib/db/client";
+import { users } from "@/lib/db/schema";
+import { flowFromNext } from "@/lib/funnel";
 import { requestOtp, verifyOtp } from "@/lib/auth/otp";
 import { createSession, destroySession, getSessionUser } from "@/lib/auth/session";
 import { audit } from "@/lib/services/audit";
@@ -35,11 +39,20 @@ export async function verifyOtpAction(_prev: SignInState, form: FormData): Promi
   const next = safeNext(String(form.get("next") ?? ""));
   const res = await verifyOtp(identifier, code, "sign_in");
   if (!res.ok) return { step: "verify", identifier, error: res.error, next };
+  if (res.created) await recordSignupJourney(res.userId, next);
   await createSession(res.userId);
   await audit({ actorUserId: res.userId, action: res.created ? "user.created_and_signed_in" : "user.signed_in", entityType: "user", entityId: res.userId });
   const dest = next === "/" ? await homeFor(res.userId) : next;
   const me = await getSessionUser();
   redirect(me && !me.profileComplete ? `/account/setup?next=${encodeURIComponent(dest)}` : dest);
+}
+
+/** Which journey a new account was created for, so reminders go only to doctors who stalled. */
+async function recordSignupJourney(userId: string, next: string): Promise<void> {
+  await getDb()
+    .update(users)
+    .set({ signupFlow: flowFromNext(next), signupNext: next.slice(0, 300) })
+    .where(eq(users.id, userId));
 }
 
 /** Where a freshly signed-in account lands when no `next` was requested. */

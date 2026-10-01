@@ -21,6 +21,7 @@ export type FunnelEvent =
   | "add_profile_cta_click" // any link to /add-doctor        {cta_location, page_type, src?}
   | "claim_page_view" // /claim-profile rendered              {step: sign_in|form, has_profile}
   | "add_profile_page_view" // /add-doctor rendered           {step: sign_in|registration|match_found|details}
+  | "linkedin_click" // "Continue with LinkedIn"                {flow}
   | "otp_requested" // code sent                               {flow}
   | "otp_submitted" // code entered and sent for checking      {flow}
   | "otp_error" // request or verify rejected                  {flow, stage}
