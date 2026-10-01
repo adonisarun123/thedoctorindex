@@ -14,6 +14,11 @@ if (mediaCdn) {
 
 const config: NextConfig = {
   reactStrictMode: true,
+  // Draft source files are server-only and must accompany the protected admin routes.
+  outputFileTracingIncludes: {
+    "/admin/condition-drafts": ["./data/condition-drafts/manifest.json.gz"],
+    "/admin/condition-drafts/*": ["./data/condition-drafts/*.json.gz"],
+  },
   images: {
     // Only the media CDN may serve doctor photographs through next/image.
     remotePatterns,

@@ -1,0 +1,8 @@
+HUMAN PHENOTYPE ONTOLOGY — LICENCE PROVENANCE
+Retrieved 1 October 2026. Ontology version: hp/releases/2026-09-01.
+
+This product uses the Human Phenotype Ontology. The repository licence file directs users to https://hpo.jax.org/app/license; that endpoint returned 404 during retrieval. The historical HPO licence explanation remains available at https://human-phenotype-ontology.github.io/license.html .
+
+That explanation permits using the ontology with acknowledgement and citation, version information for publicly displayed files, and preservation of vocabulary content and logical relationships. Products and services must acknowledge their use of HPO. The definitions in this collection are reproduced intact, with their source and version identified. This note summarises the provenance and conditions; consult the linked source for the full licence explanation.
+
+Citation: Köhler S et al. The Human Phenotype Ontology project: linking molecular biology and disease through phenotype data. Nucleic Acids Research 2014;42(D1):D966–D974. doi:10.1093/nar/gkt1026.
