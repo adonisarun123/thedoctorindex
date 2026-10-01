@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+
+import { ARTICLES } from "@/lib/conditions/articles";
+import { paths as conditionPaths } from "@/lib/conditions/browse";
+import { articleIndexable } from "@/lib/conditions/gate";import { notFound } from "next/navigation";
 
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
@@ -47,6 +50,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 export default async function SpecialtyPage({ params }: { params: Promise<Params> }) {
   const specialty = specialtyByKey((await params).specialty);
   if (!specialty) notFound();
+  const conditionLinks = ARTICLES.filter((a) => articleIndexable(a) && (a.specialty === specialty.key || (a.alsoSee ?? []).includes(specialty.key)));
 
   const [count, eligible, cityCounts, eligibleCounts, listedCounts, geo] = await Promise.all([countIndexable(specialty.key), countIndexable(specialty.key, undefined, "eligible"), countsByCity(specialty.key), countsByCity(specialty.key, "eligible"), countsByCity(specialty.key, "published"), getGeo()]);
   // Cities that clear the gate get a crawlable link from this hub, counted the
@@ -193,6 +197,21 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
             </div>
           ) : null}
 
+          {conditionLinks.length ? (
+            <>
+              <h2>Conditions {specialty.plural.toLowerCase()} treat</h2>
+              <div className="quick">
+                {conditionLinks.map((a) => (
+                  <Link key={a.slug} className="chip" href={conditionPaths.condition(a.slug)}>
+                    {a.title}
+                  </Link>
+                ))}
+              </div>
+            </>
+          ) : null}
+          <p style={{ marginTop: "16px" }}>
+            <Link href={conditionPaths.hub()}>Browse health conditions A–Z →</Link>
+          </p>
         </div>
       </div>
     </>

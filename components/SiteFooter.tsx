@@ -127,6 +127,9 @@ export async function SiteFooter() {
             <p className="fh fh-gap">Learn</p>
             <ul>
               <li>
+                <Link href="/conditions">Conditions A–Z</Link>
+              </li>
+              <li>
                 <Link href="/health-guides">Health guides</Link>
               </li>
               <li>

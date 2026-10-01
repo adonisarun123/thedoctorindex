@@ -561,3 +561,97 @@ export function blogLd(input: { description: string; posts: Array<{ slug: string
     })),
   };
 }
+
+/* ------------------------------------------------------------------------- */
+/* Condition library                                                          */
+/* ------------------------------------------------------------------------- */
+
+export interface ConditionLdInput {
+  path: string;
+  name: string;
+  /** H1 / headline. */
+  title: string;
+  description: string;
+  otherNames: string[];
+  specialtyKey: SpecialtyKey | null;
+  orphaCode: string | null;
+  /** Source pages the text is drawn from (isBasedOn / citation). */
+  basedOn: string[];
+  /** Present only for an original article. */
+  article: null | {
+    writtenOn: string;
+    updatedOn: string;
+    wordCount: number;
+    symptoms: string[];
+    tests: string[];
+    treatments: string[];
+    /** Present only when a named clinician signed the article off. */
+    reviewed: null | { name: string; on: string; qualification: string };
+  };
+}
+
+/**
+ * MedicalWebPage about a MedicalCondition.
+ *
+ * Markup describes only what the page shows. Signs, tests and treatments are
+ * emitted only from an original article, which lists them as named entities
+ * it discusses; a compiled draft gets the condition's identity (names, ORPHA
+ * code, speciality) and nothing clinical. `lastReviewed` and `reviewedBy` are
+ * emitted only for a named reviewer — never a role or placeholder, which is
+ * the defect fixed on the health guides on 9 Sep.
+ */
+export function conditionLd(c: ConditionLdInput): Json {
+  const url = absoluteUrl(c.path);
+  const specialty = c.specialtyKey ? MEDICAL_SPECIALTY[c.specialtyKey] : undefined;
+  const a = c.article;
+  const condition: Json = {
+    "@type": "MedicalCondition",
+    "@id": `${url}#condition`,
+    name: c.name,
+    ...(c.otherNames.length ? { alternateName: c.otherNames.slice(0, 10) } : {}),
+    ...(c.orphaCode ? { code: { "@type": "MedicalCode", codeValue: `ORPHA:${c.orphaCode}`, codingSystem: "ORPHA" } } : {}),
+    ...(specialty ? { relevantSpecialty: specialty } : {}),
+    ...(a && a.symptoms.length ? { signOrSymptom: a.symptoms.map((name) => ({ "@type": "MedicalSignOrSymptom", name })) } : {}),
+    ...(a && a.tests.length ? { typicalTest: a.tests.map((name) => ({ "@type": "MedicalTest", name })) } : {}),
+    ...(a && a.treatments.length ? { possibleTreatment: a.treatments.map((name) => ({ "@type": "MedicalTherapy", name })) } : {}),
+  };
+  const reviewed = a?.reviewed
+    ? { lastReviewed: isoDate(a.reviewed.on) ?? a.reviewed.on, reviewedBy: { "@type": "Person", name: a.reviewed.name, hasCredential: { "@type": "EducationalOccupationalCredential", name: a.reviewed.qualification } } }
+    : {};
+  return {
+    "@context": "https://schema.org",
+    "@type": "MedicalWebPage",
+    "@id": url,
+    url,
+    name: c.title,
+    description: c.description,
+    inLanguage: "en-IN",
+    isPartOf: { "@id": SITE_ID() },
+    publisher: { "@id": ORG_ID() },
+    medicalAudience: { "@type": "MedicalAudience", audienceType: "Patient" },
+    ...(specialty ? { specialty } : {}),
+    about: condition,
+    ...(c.basedOn.length ? { isBasedOn: c.basedOn } : {}),
+    ...reviewed,
+    ...(a
+      ? {
+          mainEntity: {
+            "@type": "Article",
+            "@id": `${url}#article`,
+            headline: c.title,
+            description: c.description,
+            datePublished: isoDate(a.writtenOn) ?? a.writtenOn,
+            dateModified: isoDate(a.updatedOn) ?? a.updatedOn,
+            wordCount: a.wordCount,
+            author: { "@type": "Organization", name: SITE.name, url: absoluteUrl("/about") },
+            ...(a.reviewed ? { reviewedBy: { "@type": "Person", name: a.reviewed.name } } : {}),
+            publisher: { "@id": ORG_ID() },
+            mainEntityOfPage: url,
+            about: { "@id": `${url}#condition` },
+            inLanguage: "en-IN",
+            isAccessibleForFree: true,
+          },
+        }
+      : {}),
+  };
+}

@@ -138,6 +138,7 @@ export function SiteHeader() {
           <Link href={paths.addDoctor()}>Add your profile</Link>
 
           <div className="h">Learn</div>
+          <Link href="/conditions">Conditions A–Z</Link>
           <Link href="/health-guides">Health guides</Link>
           <Link href={paths.blog()}>Blog</Link>
           <Link href={paths.registers()}>Registers</Link>

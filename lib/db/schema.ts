@@ -1082,3 +1082,63 @@ export const referralsRelations = relations(referrals, ({ one }) => ({
 export const tribeRewardsRelations = relations(tribeRewards, ({ one }) => ({
   user: one(users, { fields: [tribeRewards.userId], references: [users.id] }),
 }));
+
+/* ------------------------------------------------------------------------- */
+/* Condition library (/conditions)                                           */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Compiled condition drafts (MedlinePlus, Orphanet, HPO), imported by
+ * scripts/import-conditions.ts. These rows are *source drafts*: attributed,
+ * unreviewed, and rendered noindex. A condition becomes indexable only when an
+ * original article for it exists in lib/conditions/articles and a named
+ * clinician has signed that article off — see lib/conditions/gate.ts. Nothing
+ * in this table can make a page indexable on its own.
+ *
+ * `sections` and `sources` are the compiled body as a snapshot (JSON is the
+ * right shape for an editorial body); the department and the speciality it
+ * routes to are relational columns because listings and hubs filter on them.
+ */
+export const conditions = pgTable(
+  "conditions",
+  {
+    slug: text("slug").primaryKey(),
+    /** Compiler id, e.g. TDI-C-0001. Stable across re-imports. */
+    sourceId: text("source_id").notNull().unique(),
+    name: text("name").notNull(),
+    otherNames: text("other_names").array().notNull().default(sql`'{}'::text[]`),
+    department: text("department").notNull(),
+    departmentSlug: text("department_slug").notNull(),
+    /** Nearest speciality on the directory; null where none exists (e.g. clinical genetics). */
+    specialtyKey: text("specialty_key").references(() => specialties.key),
+    clinicianLabel: text("clinician_label").notNull(),
+    additionalDepartments: text("additional_departments"),
+    scope: text("scope").notNull(),
+    sourceCollection: text("source_collection").notNull(),
+    /** Orphanet ORPHA code when the source is Orphanet. */
+    orphaCode: text("orpha_code"),
+    metaDescription: text("meta_description").notNull(),
+    sections: jsonb("sections").notNull(),
+    sources: jsonb("sources").notNull(),
+    attribution: text("attribution").notNull(),
+    hpoCitation: text("hpo_citation"),
+    reviewFlags: text("review_flags").array().notNull().default(sql`'{}'::text[]`),
+    sourceGaps: text("source_gaps").array().notNull().default(sql`'{}'::text[]`),
+    /** Cleanup applied on import (detached lists re-attached, stray lines dropped …). */
+    cleanupNotes: text("cleanup_notes").array().notNull().default(sql`'{}'::text[]`),
+    wordCount: integer("word_count").notNull(),
+    /** Words not shared with 5+ other drafts — the honest measure of page substance. */
+    uniqueWordCount: integer("unique_word_count").notNull(),
+    contentSha256: text("content_sha256").notNull(),
+    compiledOn: date("compiled_on").notNull(),
+    /** Live = served (noindex). False hides the page entirely (404). */
+    live: boolean("live").notNull().default(true),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("conditions_department_idx").on(t.departmentSlug, t.name),
+    index("conditions_specialty_idx").on(t.specialtyKey),
+    index("conditions_name_idx").on(t.name),
+  ],
+);

@@ -1,4 +1,8 @@
 import { POSTS } from "@/lib/blog";
+import { ARTICLES } from "@/lib/conditions/articles";
+import { paths as cpaths } from "@/lib/conditions/browse";
+import { DEPARTMENTS } from "@/lib/conditions/departments";
+import { DEPARTMENT_MIN_INDEXABLE, HUB_MIN_INDEXABLE, articleIndexable } from "@/lib/conditions/gate";
 import { GUIDES } from "@/lib/data/guides";
 import { POLICIES } from "@/lib/data/policies";
 import { QUALIFICATIONS } from "@/lib/qualifications";
@@ -48,6 +52,8 @@ export async function indexEntries(): Promise<SitemapEntry[]> {
   }
   entries.push({ loc: absoluteUrl("/sitemaps/directory.xml") });
   entries.push({ loc: absoluteUrl("/sitemaps/editorial.xml"), lastmod: latestLastmod(editorialEntries()) });
+  const conditionUrls = conditionEntries();
+  if (conditionUrls.length) entries.push({ loc: absoluteUrl("/sitemaps/conditions.xml"), lastmod: latestLastmod(conditionUrls) });
   return entries;
 }
 
@@ -143,4 +149,21 @@ export function editorialEntries(): SitemapEntry[] {
       lastmod: toIsoDate(p.updatedOn),
     })),
   ];
+}
+
+/**
+ * Condition library. Only reviewed original articles, plus the hubs once they
+ * clear their gate (lib/conditions/gate.ts). Compiled drafts are never listed.
+ */
+export function conditionEntries(): SitemapEntry[] {
+  const reviewed = ARTICLES.filter(articleIndexable);
+  if (!reviewed.length) return [];
+  const entries: SitemapEntry[] = reviewed.map((a) => ({ loc: absoluteUrl(cpaths.condition(a.slug)), lastmod: toIsoDate(a.updatedOn) }));
+  if (reviewed.length >= HUB_MIN_INDEXABLE) entries.unshift({ loc: absoluteUrl(cpaths.hub()), lastmod: latestLastmod(entries) });
+  const perDept = new Map<string, number>();
+  for (const a of reviewed) {
+    perDept.set(a.department, (perDept.get(a.department) ?? 0) + 1);
+  }
+  for (const d of DEPARTMENTS) if ((perDept.get(d.slug) ?? 0) >= DEPARTMENT_MIN_INDEXABLE) entries.push({ loc: absoluteUrl(cpaths.department(d.slug)) });
+  return entries;
 }

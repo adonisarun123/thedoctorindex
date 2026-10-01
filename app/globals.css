@@ -1813,3 +1813,22 @@ body:has(.lp-hero) header.site .hsearch { display: none; }
   .lp-lede { order: 3; margin-top: 24px; }
   .lp-ticks { order: 4; }
 }
+
+/* Condition library */
+.termlist { margin: 4px 0 18px; border-top: 1px solid var(--hair); }
+.termlist .term { padding: 10px 0; border-bottom: 1px solid var(--hair); }
+.termlist dt { font-weight: 500; font-size: 16.5px; color: var(--ink); }
+.termlist .freq { font-size: 13px; color: var(--muted); font-weight: 400; }
+.termlist dd { margin: 4px 0 0; color: var(--ink-2); font-size: 16px; }
+.azbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 6px; }
+.azbar a, .azbar span { font-family: var(--font-mono); font-size: 14px; min-width: 34px; text-align: center; padding: 6px 8px; border: 1px solid var(--hair); border-radius: 8px; }
+.azbar span { color: var(--muted); opacity: 0.5; }
+.azbar a[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
+.condlist { columns: 2 260px; column-gap: 28px; list-style: none; padding: 0; margin: 10px 0 24px; }
+.condlist li { break-inside: avoid; padding: 5px 0; border-bottom: 1px solid var(--hair); font-size: 15.5px; }
+.condlist .dept { display: block; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.deptgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin: 14px 0 26px; }
+.deptcard { display: block; padding: 14px 16px; border: 1px solid var(--hair); border-radius: var(--r); background: var(--surface); color: var(--ink); }
+.deptcard:hover { border-color: var(--accent); text-decoration: none; }
+.deptcard .n { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.deptcard p { margin: 6px 0 0; font-size: 14.5px; color: var(--ink-2); }
