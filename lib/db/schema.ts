@@ -126,6 +126,8 @@ export const users = pgTable(
     signupNext: text("signup_next"),
     /** Set by the unsubscribe link in a signup reminder; no further reminders. */
     remindersOptOutAt: timestamp("reminders_opt_out_at", { withTimezone: true }),
+    /** Set by the unsubscribe link in the monthly doctor digest; no further digests. */
+    digestOptOutAt: timestamp("digest_opt_out_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
     disabledAt: timestamp("disabled_at", { withTimezone: true }),
@@ -211,6 +213,26 @@ export const signupReminders = pgTable(
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("signup_reminders_user_stage_step_uq").on(t.userId, t.stage, t.step)],
+);
+
+/**
+ * Monthly "how patients found you" email to claimed doctors
+ * (lib/services/doctor-digest.ts). One row per doctor per period, inserted
+ * before sending, so overlapping cron runs cannot send twice.
+ */
+export const doctorDigests = pgTable(
+  "doctor_digests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    /** YYYY-MM of the run. */
+    period: text("period").notNull(),
+    delivered: boolean("delivered").notNull(),
+    provider: text("provider"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("doctor_digests_doctor_period_uq").on(t.doctorId, t.period)],
 );
 
 export const sessions = pgTable(

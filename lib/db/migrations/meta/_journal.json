@@ -120,6 +120,13 @@
       "when": 1790874282967,
       "tag": "0016_doctor_articles",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790876585770,
+      "tag": "0017_doctor_digest",
+      "breakpoints": true
     }
   ]
 }
