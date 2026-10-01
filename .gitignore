@@ -23,3 +23,8 @@ coverage/
 # Private datasets (never committed)
 data/private/
 .claude-tmp/
+
+# The condition corpus is committed as gzip; raw exports stay in the download package.
+data/condition-drafts/batch-*.json
+data/condition-drafts/manifest.json
+data/condition-drafts/hpo-licence-explanation.html
