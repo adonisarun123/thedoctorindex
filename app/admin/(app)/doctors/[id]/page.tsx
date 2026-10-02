@@ -17,6 +17,7 @@ import { doctorAnalytics } from "@/lib/services/events";
 import { certificatesForDoctor } from "@/lib/services/qualification-evidence";
 import { GATES } from "@/lib/seo/gates";
 import { requireStaff } from "@/lib/auth/session";
+import { InvitePanel } from "./InvitePanel";
 
 export const metadata = { title: "Doctor" };
 
@@ -192,6 +193,9 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
             <div className="field"><label>Reason</label><input type="text" name="reason" placeholder="Required for suspend / retire" /></div>
             <div className="hint" style={{ marginBottom: "8px" }}>Indexable only when published, quality ≥ gate, and a practice was confirmed within the freshness window. Retiring keeps the page with a notice; archiving removes it.</div>
           </ActionForm>
+
+          {/* Invite the doctor to claim (lib/services/doctor-invites.ts) */}
+          <InvitePanel doctorId={d.id} claimed={d.claimed} published={d.status === "published"} hasRegistration={d.registrations.length > 0} />
 
           {/* Quality checklist */}
           <section className="panel" style={{ marginBottom: "18px" }}>
