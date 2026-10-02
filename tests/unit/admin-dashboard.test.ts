@@ -15,5 +15,6 @@ test("summariseInbox counts open and breached per queue and orders breached firs
   assert.equal(claim.breached, 1);
   assert.equal(Math.round(claim.oldestHours), 60);
   assert.equal(s[0].breached, 1);
-  assert.equal(s.filter((q) => q.open === 0).length, 7);
+  // 11 queue kinds, 3 with items (claim, enquiry, register).
+  assert.equal(s.filter((q) => q.open === 0).length, 8);
 });

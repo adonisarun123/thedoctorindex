@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { findByRegistration } from "@/lib/data";
 import { track } from "@/lib/services/events";
 import { createSubmission, type SubmissionPayload } from "@/lib/services/workflow";
+import { ownCertificateIds } from "@/lib/services/qualification-evidence";
 import { recordReferral } from "@/lib/services/tribe";
 import type { DoctorView } from "@/lib/types";
 import { localityFromForm } from "@/lib/services/places";
@@ -26,6 +27,18 @@ export interface SubmitState {
   id?: string;
 }
 
+/** Up to 15 rows of degree / institution / year, each with an optional certificate id the user uploaded. */
+async function qualificationRows(form: FormData, userId: string) {
+  const rows = Array.from({ length: 15 }, (_, i) => ({
+    degree: String(form.get(`q${i}_degree`) ?? "").trim().slice(0, 120),
+    institution: String(form.get(`q${i}_inst`) ?? "").trim().slice(0, 200),
+    year: Number(form.get(`q${i}_year`)) || null,
+    certificateFileId: String(form.get(`q${i}_cert`) ?? "").trim() || null,
+  })).filter((q) => q.degree && q.institution);
+  const owned = await ownCertificateIds(userId, rows.map((q) => q.certificateFileId).filter((x): x is string => Boolean(x)));
+  return rows.map((q) => ({ ...q, certificateFileId: q.certificateFileId && owned.has(q.certificateFileId) ? q.certificateFileId : null }));
+}
+
 export async function submitProfileAction(_prev: SubmitState, form: FormData): Promise<SubmitState> {
   try {
     const user = await getSessionUser();
@@ -42,9 +55,7 @@ export async function submitProfileAction(_prev: SubmitState, form: FormData): P
       modes: [form.get("mode_inperson") ? "In person" : null, form.get("mode_online") ? "Online" : null].filter((x): x is string => Boolean(x)),
       about: String(form.get("about") ?? "").trim(),
       services: list("services"),
-      qualifications: [0, 1, 2]
-        .map((i) => ({ degree: String(form.get(`q${i}_degree`) ?? "").trim(), institution: String(form.get(`q${i}_inst`) ?? "").trim(), year: Number(form.get(`q${i}_year`)) || null }))
-        .filter((q) => q.degree && q.institution),
+      qualifications: await qualificationRows(form, user.id),
       practice: form.get("facility")
         ? {
             facilityName: String(form.get("facility")),

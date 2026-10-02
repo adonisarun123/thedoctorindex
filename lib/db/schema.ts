@@ -96,6 +96,7 @@ export const gender = pgEnum("gender", ["F", "M", "X"]);
 export const referralStatus = pgEnum("referral_status", ["pending", "verified", "rejected", "clawed_back"]);
 export const tribeRewardKind = pgEnum("tribe_reward_kind", ["voucher", "recognition"]);
 export const tribeRewardStatus = pgEnum("tribe_reward_status", ["pending_review", "issued", "cancelled"]);
+export const articleStatus = pgEnum("article_status", ["draft", "submitted", "published", "rejected", "withdrawn"]);
 
 /* ------------------------------------------------------------------------- */
 /* Identity and access                                                       */
@@ -125,6 +126,11 @@ export const users = pgTable(
     signupNext: text("signup_next"),
     /** Set by the unsubscribe link in a signup reminder; no further reminders. */
     remindersOptOutAt: timestamp("reminders_opt_out_at", { withTimezone: true }),
+    /** Set by the unsubscribe link in the monthly doctor digest; no further digests. */
+    digestOptOutAt: timestamp("digest_opt_out_at", { withTimezone: true }),
+    /** Doctor's WhatsApp number (E.164) for enquiry alerts; used only while whatsappOptInAt is set. */
+    whatsappNumber: text("whatsapp_number"),
+    whatsappOptInAt: timestamp("whatsapp_opt_in_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
     disabledAt: timestamp("disabled_at", { withTimezone: true }),
@@ -210,6 +216,26 @@ export const signupReminders = pgTable(
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("signup_reminders_user_stage_step_uq").on(t.userId, t.stage, t.step)],
+);
+
+/**
+ * Monthly "how patients found you" email to claimed doctors
+ * (lib/services/doctor-digest.ts). One row per doctor per period, inserted
+ * before sending, so overlapping cron runs cannot send twice.
+ */
+export const doctorDigests = pgTable(
+  "doctor_digests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    /** YYYY-MM of the run. */
+    period: text("period").notNull(),
+    delivered: boolean("delivered").notNull(),
+    provider: text("provider"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("doctor_digests_doctor_period_uq").on(t.doctorId, t.period)],
 );
 
 export const sessions = pgTable(
@@ -365,6 +391,34 @@ export const doctorQualifications = pgTable("doctor_qualifications", {
   checkedOn: date("checked_on"),
   sort: integer("sort").notNull().default(0),
 });
+
+/**
+ * A certificate the doctor uploaded for one qualification, course or
+ * fellowship. The file itself lives in `files` (bucket = 'private') and is
+ * only ever served to staff through /admin/files/[id]. One qualification can
+ * collect several uploads over time (a rejected scan, then a clearer one);
+ * the newest decides what the admin queue shows.
+ *
+ *  supplied — waiting in the admin Qualifications queue
+ *  checked  — staff looked at it and verified the qualification
+ *  rejected — staff could not accept it; `note` tells the doctor why
+ */
+export const qualificationEvidence = pgTable(
+  "qualification_evidence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    qualificationId: uuid("qualification_id").notNull().references(() => doctorQualifications.id, { onDelete: "cascade" }),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id").notNull().references(() => files.id),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id),
+    status: evidenceStatus("status").notNull().default("supplied"),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+  },
+  (t) => [index("qualification_evidence_status_idx").on(t.status, t.createdAt), index("qualification_evidence_qual_idx").on(t.qualificationId)],
+);
 
 /**
  * Awards, professional memberships and publications.
@@ -1141,6 +1195,62 @@ export const referralsRelations = relations(referrals, ({ one }) => ({
 }));
 export const tribeRewardsRelations = relations(tribeRewards, ({ one }) => ({
   user: one(users, { fields: [tribeRewards.userId], references: [users.id] }),
+}));
+
+/* ------------------------------------------------------------------------- */
+/* Doctor articles (/articles)                                               */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Articles written by a doctor and published under their name after a staff
+ * decision (lib/services/articles.ts). Rules:
+ *  - Only the claiming doctor of a published profile whose primary
+ *    registration has been checked against the register may write. Clinic
+ *    managers cannot.
+ *  - The registration printed on the article is snapshotted from the
+ *    verified profile at approval — never typed by the doctor — so nobody can
+ *    sign an article with someone else's number.
+ *  - Staff approve or reject with a note; they never edit the doctor's text.
+ *  - `sourceUrl` is set when the piece first appeared elsewhere; the page then
+ *    canonicalises to it and stays out of the sitemap.
+ *  - An edit to a published article is held in `revision` while the approved
+ *    version stays live, until staff decide it.
+ */
+export const doctorArticles = pgTable(
+  "doctor_articles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    authorUserId: uuid("author_user_id").notNull().references(() => users.id),
+    /** Public path segment: /articles/<slug>. Unique across the site. */
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    /** Standfirst under the H1 and the meta description. */
+    description: text("description").notNull(),
+    /** Body in the editorial inline syntax (## headings, - lists, **bold**, [links](…)). */
+    body: text("body").notNull(),
+    /** Original publication, when republished here. Becomes the canonical. */
+    sourceUrl: text("source_url"),
+    status: articleStatus("status").notNull().default("draft"),
+    /** Pending edit to a published article: { slug?, title, description, body, sourceUrl }. */
+    revision: jsonb("revision"),
+    revisionSubmittedAt: timestamp("revision_submitted_at", { withTimezone: true }),
+    registrationCouncil: text("registration_council"),
+    registrationNumber: text("registration_number"),
+    reviewerNote: text("reviewer_note"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("articles_doctor_status_idx").on(t.doctorId, t.status), index("articles_status_published_idx").on(t.status, t.publishedAt)],
+);
+
+export const doctorArticlesRelations = relations(doctorArticles, ({ one }) => ({
+  doctor: one(doctors, { fields: [doctorArticles.doctorId], references: [doctors.id] }),
+  author: one(users, { fields: [doctorArticles.authorUserId], references: [users.id] }),
 }));
 
 /* ------------------------------------------------------------------------- */

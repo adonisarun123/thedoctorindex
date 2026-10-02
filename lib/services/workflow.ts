@@ -9,6 +9,7 @@ import { audit } from "@/lib/services/audit";
 import { notifyUser } from "@/lib/services/notify";
 import { SENSITIVE_FIELDS, applyField, createDoctor, normalizeKey, recomputeQuality, snapshotRevision, type NewDoctorInput } from "@/lib/services/doctors";
 import { linkSubmissionDoctor, settleReferralsForDoctor } from "@/lib/services/tribe";
+import { attachCertificate } from "@/lib/services/qualification-evidence";
 import { displayName } from "@/lib/display-name";
 
 /**
@@ -30,7 +31,8 @@ export interface SubmissionPayload {
   modes?: string[];
   about?: string;
   services?: string[];
-  qualifications?: Array<{ degree: string; institution: string; year?: number | null }>;
+  /** `certificateFileId`: a private file the submitter uploaded for this row (see qualification-evidence.ts). */
+  qualifications?: Array<{ degree: string; institution: string; year?: number | null; certificateFileId?: string | null }>;
   practice?: { facilityName: string; localityKey: string; address: string; postalCode?: string; days?: string; hours?: string; feeInr?: number | null; phone?: string };
   consents: { publish: boolean; photo: boolean; phone: boolean; accurate: boolean };
 }
@@ -77,7 +79,7 @@ export async function decideSubmission(id: string, decision: "approved" | "rejec
       about: p.about,
       services: p.services,
       registration: { number: sub.registrationNumber, council: sub.council, verified: verifyRegistration },
-      qualifications: (p.qualifications ?? []).map((q) => ({ ...q, verified: false })),
+      qualifications: (p.qualifications ?? []).map(({ degree, institution, year }) => ({ degree, institution, year, verified: false })),
       practices: p.practice ? [{ ...p.practice, confirmed: false }] : [],
       status: "published",
       source: "self",
@@ -87,6 +89,16 @@ export async function decideSubmission(id: string, decision: "approved" | "rejec
     doctorId = created.id;
     await db.update(s.doctors).set({ photoConsent: Boolean(p.consents?.photo), phoneConsent: Boolean(p.consents?.phone) }).where(eq(s.doctors.id, doctorId));
     await db.update(s.users).set({ role: "doctor" }).where(and(eq(s.users.id, sub.userId), eq(s.users.role, "patient")));
+    // Certificates uploaded at signup join the admin Qualifications queue. createDoctor
+    // writes qualifications with sort = their index in the payload.
+    const withCert = (p.qualifications ?? []).map((q, i) => ({ i, fileId: q.certificateFileId })).filter((x): x is { i: number; fileId: string } => Boolean(x.fileId));
+    if (withCert.length) {
+      const quals = await db.select({ id: s.doctorQualifications.id, sort: s.doctorQualifications.sort }).from(s.doctorQualifications).where(eq(s.doctorQualifications.doctorId, doctorId));
+      for (const c of withCert) {
+        const q = quals.find((x) => x.sort === c.i);
+        if (q) await attachCertificate(q.id, c.fileId, sub.userId);
+      }
+    }
     // Grow Your Tribe: the invitee's pending referral now has a profile to point at.
     await linkSubmissionDoctor(sub.userId, doctorId);
     await settleReferralsForDoctor(doctorId);

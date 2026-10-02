@@ -7,6 +7,7 @@ import { submitProfileAction, type SubmitState } from "@/app/add-doctor/actions"
 import { CouncilSelect } from "@/components/CouncilSelect";
 import { TrustBadges } from "@/components/TrustBadges";
 import { PlacePicker } from "@/components/PlacePicker";
+import { CertificateInput } from "@/components/CertificateInput";
 import { COUNCIL_NAMES } from "@/lib/data/councils";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { paths } from "@/lib/site";
@@ -27,6 +28,7 @@ export function AddDoctorFlow({ lookup, source = null, initialRegistration = "",
   const [council, setCouncil] = useState(initialCouncil || COUNCIL_NAMES[0]);
   const [match, setMatch] = useState<DoctorView | null>(null);
   const [checking, setChecking] = useState(false);
+  const [qualRows, setQualRows] = useState(3);
   const [state, act, pending] = useActionState<SubmitState, FormData>(submitProfileAction, {});
   const reported = useRef(false);
   useEffect(() => {
@@ -197,15 +199,23 @@ export function AddDoctorFlow({ lookup, source = null, initialRegistration = "",
           </div>
 
           <div className="field">
-            <label>Qualifications</label>
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="two" style={{ gridTemplateColumns: "1fr 1.4fr 90px", gap: "8px", marginBottom: "8px" }}>
-                <input name={`q${i}_degree`} type="text" placeholder={i === 0 ? "MBBS" : "Degree"} />
-                <input name={`q${i}_inst`} type="text" placeholder="Institution" />
-                <input name={`q${i}_year`} type="text" inputMode="numeric" placeholder="Year" />
+            <label>Qualifications, fellowships and courses</label>
+            {Array.from({ length: qualRows }, (_, i) => (
+              <div key={i} style={{ marginBottom: "12px", paddingBottom: "10px", borderBottom: "1px solid var(--hair)" }}>
+                <div className="two" style={{ gridTemplateColumns: "1fr 1.4fr 90px", gap: "8px", marginBottom: "6px" }}>
+                  <input name={`q${i}_degree`} type="text" placeholder={i === 0 ? "MBBS" : i === 1 ? "MD / MS / DNB" : "Fellowship or course"} />
+                  <input name={`q${i}_inst`} type="text" placeholder="Institution" />
+                  <input name={`q${i}_year`} type="text" inputMode="numeric" placeholder="Year" />
+                </div>
+                <CertificateInput name={`q${i}_cert`} />
               </div>
             ))}
-            <div className="hint">Matched against the awarding body first; a document is requested only where the register is incomplete.</div>
+            {qualRows < 15 ? (
+              <button type="button" className="btn outline" style={{ marginBottom: "8px" }} onClick={() => setQualRows((n) => Math.min(15, n + 1))}>
+                + Add another qualification or course
+              </button>
+            ) : null}
+            <div className="hint">Upload each certificate if you can. A qualification with a certificate is checked by our team and shown as verified; without one it shows as pending until the awarding body confirms it. Certificates are private and never published.</div>
           </div>
 
           <div className="field">

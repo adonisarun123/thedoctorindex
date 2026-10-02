@@ -561,11 +561,13 @@ export async function addCredential(
   doctorId: string,
   input: { kind: "award" | "membership" | "publication"; title: string; issuer?: string | null; year?: number | null; url?: string | null },
   actorUserId: string | null,
+  /** A paper's own title, as indexed by PubMed/ORCID: kept verbatim, so the superlative rule (meant for self-description) does not apply. */
+  opts: { indexedTitle?: boolean } = {},
 ) {
   const db = getDb();
   const title = String(input.title ?? "").trim();
   if (title.length < 3 || title.length > 160) throw new Error("Give the award, society or paper a title between 3 and 160 characters.");
-  if (SUPERLATIVE.test(title)) throw new Error("Superlatives such as “best” are not allowed here. Name the award, society or paper as the issuer names it.");
+  if (!opts.indexedTitle && SUPERLATIVE.test(title)) throw new Error("Superlatives such as “best” are not allowed here. Name the award, society or paper as the issuer names it.");
   const issuer = input.issuer ? String(input.issuer).trim().slice(0, 160) : null;
   if (issuer && SUPERLATIVE.test(issuer)) throw new Error("Superlatives such as “best” are not allowed here. Name the award, society or paper as the issuer names it.");
   const year = input.year ? Number(input.year) : null;

@@ -78,6 +78,9 @@ export const paths = {
   policy: (slug: string) => `/policies/${slug}`,
   blog: () => "/blog",
   blogPost: (slug: string) => `/blog/${slug}`,
+  /** Articles written by registered doctors, published under their name after review. */
+  articles: () => "/articles",
+  article: (slug: string) => `/articles/${slug}`,
   /** One page per council or registering body: how to check its numbers, and who on this site cites it. */
   registers: () => "/registers",
   register: (slug: string) => `/registers/${slug}`,

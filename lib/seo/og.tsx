@@ -52,9 +52,14 @@ function Logo() {
   );
 }
 
-export function ogCard(card: OgCard): ImageResponse {
+/**
+ * `size` defaults to the 1200x630 Open Graph card. A taller size (e.g. the
+ * 1080x1350 Instagram portrait) stacks the avatar above the title.
+ */
+export function ogCard(card: OgCard, size: { width: number; height: number } = OG_SIZE): ImageResponse {
+  const tall = size.height > size.width;
   const title = card.title.length > 96 ? `${card.title.slice(0, 94).trimEnd()}…` : card.title;
-  const titleSize = title.length > 64 ? 52 : title.length > 40 ? 62 : 72;
+  const titleSize = (title.length > 64 ? 52 : title.length > 40 ? 62 : 72) + (tall ? 8 : 0);
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#f3f6f9", padding: "56px 64px", fontFamily: "sans-serif", position: "relative" }}>
@@ -69,13 +74,13 @@ export function ogCard(card: OgCard): ImageResponse {
           ) : null}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 40, flexGrow: 1, marginTop: 24 }}>
+        <div style={{ display: "flex", flexDirection: tall ? "column" : "row", alignItems: tall ? "flex-start" : "center", justifyContent: tall ? "center" : "flex-start", gap: 40, flexGrow: 1, marginTop: 24 }}>
           {card.initials ? (
             <div style={{ width: 150, height: 150, borderRadius: 150, background: SOFT, border: `4px solid ${HAIR}`, display: "flex", alignItems: "center", justifyContent: "center", color: ACCENT, fontSize: 64, fontWeight: 600, flexShrink: 0 }}>
               {card.initials}
             </div>
           ) : null}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0, width: size.width - 128 - (card.initials && !tall ? 190 : 0) }}>
             {card.eyebrow ? <div style={{ fontSize: 24, color: ACCENT, fontWeight: 600, textTransform: "uppercase", letterSpacing: 2 }}>{card.eyebrow}</div> : null}
             <div style={{ fontSize: titleSize, fontWeight: 700, color: INK, lineHeight: 1.08, letterSpacing: -1.5 }}>{title}</div>
             {card.subtitle ? <div style={{ fontSize: 28, color: MUTED, lineHeight: 1.35, maxWidth: 900 }}>{card.subtitle}</div> : null}
@@ -94,6 +99,6 @@ export function ogCard(card: OgCard): ImageResponse {
         </div>
       </div>
     ),
-    { ...OG_SIZE },
+    { width: size.width, height: size.height },
   );
 }

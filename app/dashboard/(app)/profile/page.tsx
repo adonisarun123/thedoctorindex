@@ -1,4 +1,11 @@
+import { asc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { registrationNoun } from "@/lib/data/councils";
+import { addQualificationAction, uploadQualificationCertificateAction } from "@/app/dashboard/qualification-actions";
+import { CertificateInput } from "@/components/CertificateInput";
+import { getDb } from "@/lib/db/client";
+import * as s from "@/lib/db/schema";
+import { certificatesForDoctor } from "@/lib/services/qualification-evidence";
 import { addCredentialAction, photoAction, removeCredentialAction, saveProfileAction } from "@/app/dashboard/actions";
 import { ActionForm } from "@/components/ActionForm";
 import { Avatar } from "@/components/Avatar";
@@ -15,7 +22,7 @@ export const metadata = { title: "Profile & credentials" };
  * become change requests a verification officer decides.
  */
 export default async function DashboardProfile() {
-  const { doctor, asManager } = await getDashboardContext();
+  const { doctor, doctorId, asManager } = await getDashboardContext();
   const specialty = SPECIALTIES[doctor.specialty];
 
   return (
@@ -93,19 +100,6 @@ export default async function DashboardProfile() {
           </section>
 
           <section className="panel pad">
-            <div className="chart-head"><span className="t">Qualifications</span><span className="m">{doctor.qualifications.filter((q) => q.state === "verified").length} of {doctor.qualifications.length} verified</span></div>
-            <table className="table">
-              <thead><tr><th>Degree</th><th>Institution</th><th>Year</th><th>Status</th></tr></thead>
-              <tbody>
-                {doctor.qualifications.map((q) => (
-                  <tr key={`${q.degree}-${q.year}`}><td>{q.degree}</td><td>{q.institution}</td><td className="mono">{q.year || "—"}</td><td><span className={`pill ${q.state === "verified" ? "ok" : "wait"}`}>{q.state}</span></td></tr>
-                ))}
-              </tbody>
-            </table>
-            <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>To add a qualification, <a href="/dashboard/verification">open a verification case</a> with the degree, institution and year. It is matched against the awarding body before it appears.</p>
-          </section>
-
-          <section className="panel pad">
             <div className="chart-head"><span className="t">Speciality and experience</span></div>
             <div className="two">
               <div className="field">
@@ -147,6 +141,7 @@ export default async function DashboardProfile() {
         </ActionForm>
       )}
 
+      {asManager ? null : <QualificationsEditor doctorId={doctorId} />}
       {asManager ? null : <CredentialsEditor credentials={doctor.credentials} />}
     </>
   );
@@ -170,6 +165,9 @@ function CredentialsEditor({ credentials }: { credentials: DoctorCredential[] })
         These publish straight away, marked <b>as supplied by you</b>. We confirm them with the awarding body, society or journal when we can, and the
         mark changes then. They do not count towards your verification checks or your profile&rsquo;s quality score, and an unconfirmed entry is not
         published to search engines as a credential.
+      </p>
+      <p style={{ margin: "0 0 14px" }}>
+        <Link className="btn" href="/dashboard/publications">Find my papers on PubMed or ORCID</Link>
       </p>
 
       {credentials.length ? (
@@ -223,6 +221,80 @@ function CredentialsEditor({ credentials }: { credentials: DoctorCredential[] })
           <input id="cred-url" name="url" type="url" maxLength={500} placeholder="https://" />
           <div className="hint">A citation or announcement a reader can check. Published with rel=&ldquo;nofollow&rdquo;.</div>
         </div>
+      </ActionForm>
+    </section>
+  );
+}
+
+/**
+ * Qualifications, fellowships and courses, each with its certificate.
+ *
+ * A qualification becomes "verified" only when the awarding body's record
+ * confirms it or our team has checked the certificate. This is where the
+ * doctor supplies that certificate; the admin Qualifications queue is where
+ * it is reviewed.
+ */
+async function QualificationsEditor({ doctorId }: { doctorId: string }) {
+  const [quals, certs] = await Promise.all([
+    getDb().select().from(s.doctorQualifications).where(eq(s.doctorQualifications.doctorId, doctorId)).orderBy(asc(s.doctorQualifications.sort)),
+    certificatesForDoctor(doctorId),
+  ]);
+  const latest = new Map<string, (typeof certs)[number]>();
+  for (const c of certs) if (!latest.has(c.qualificationId)) latest.set(c.qualificationId, c);
+  const verified = quals.filter((q) => q.state === "verified").length;
+  const thisYear = new Date().getFullYear();
+
+  return (
+    <section className="panel pad" style={{ marginTop: "18px" }}>
+      <div className="chart-head"><span className="t">Qualifications, fellowships and courses</span><span className="m">{verified} of {quals.length} verified</span></div>
+      <p className="hint" style={{ marginBottom: "12px" }}>
+        Upload the certificate for anything not yet verified. Our verification team checks it within 2 business days and emails you the outcome.
+        Certificates are stored privately, seen only by that team, and never published.
+      </p>
+      {quals.length ? (
+        <table className="table" style={{ marginBottom: "16px" }}>
+          <thead><tr><th>Qualification</th><th>Institution</th><th>Year</th><th>Status</th><th>Certificate</th></tr></thead>
+          <tbody>
+            {quals.map((q) => {
+              const c = latest.get(q.id);
+              return (
+                <tr key={q.id}>
+                  <td>{q.degree}</td>
+                  <td>{q.institution}</td>
+                  <td className="mono">{q.year || "—"}</td>
+                  <td><span className={`pill ${q.state === "verified" ? "ok" : "wait"}`}>{q.state === "verified" ? "verified" : "pending"}</span></td>
+                  <td style={{ minWidth: "220px" }}>
+                    {q.state === "verified" ? (
+                      <span className="hint">{c?.status === "checked" ? "Checked from your certificate" : "Confirmed from the register"}</span>
+                    ) : c?.status === "supplied" ? (
+                      <span className="hint">Received {c.createdAt.toISOString().slice(0, 10)} · under review</span>
+                    ) : (
+                      <>
+                        {c?.status === "rejected" ? <div style={{ color: "var(--warn)", fontSize: "12.5px", marginBottom: "6px" }}>Not accepted{c.note ? `: ${c.note}` : ""}. Upload a clearer copy.</div> : null}
+                        <ActionForm action={uploadQualificationCertificateAction} submitLabel="Submit certificate" variant="outline">
+                          <input type="hidden" name="qualificationId" value={q.id} />
+                          <CertificateInput name="certificate" required label="Certificate (PDF or photo, under 4 MB)" />
+                        </ActionForm>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : (
+        <p className="hint" style={{ marginBottom: "14px" }}>No qualifications on your profile yet.</p>
+      )}
+
+      <h3 style={{ margin: "0 0 8px" }}>Add a qualification, fellowship or course</h3>
+      <ActionForm action={addQualificationAction} submitLabel="Add with certificate" variant="outline" className="stack">
+        <div className="two" style={{ gridTemplateColumns: "1fr 1.4fr 110px" }}>
+          <div className="field"><label htmlFor="q-degree">Qualification or course</label><input id="q-degree" name="degree" type="text" required maxLength={120} placeholder="MD (General Medicine), FMAS, Fellowship in…" /></div>
+          <div className="field"><label htmlFor="q-inst">Awarding institution</label><input id="q-inst" name="institution" type="text" required maxLength={200} placeholder="Bangalore Medical College / RGUHS" /></div>
+          <div className="field"><label htmlFor="q-year">Year</label><input id="q-year" name="year" type="number" inputMode="numeric" min={1940} max={thisYear} /></div>
+        </div>
+        <CertificateInput name="certificate" required label="Certificate (PDF or photo, under 4 MB)" />
       </ActionForm>
     </section>
   );

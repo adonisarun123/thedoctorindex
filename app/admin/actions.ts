@@ -15,6 +15,8 @@ import { moderateResponse, moderateReview, resolveReviewReport, validateEvidence
 import { recomputeSeoRoutes, setSeoOverride } from "@/lib/services/seo";
 import { decideChange, decideClaim, decideSubmission } from "@/lib/services/workflow";
 import { cancelReward, issueReward, rejectReferral, settleReferralsForDoctor } from "@/lib/services/tribe";
+import { decideArticle } from "@/lib/services/articles";
+import { decideCertificate } from "@/lib/services/qualification-evidence";
 import { localityFromForm } from "@/lib/services/places";
 import { revalidateDoctors } from "@/lib/data/revalidate";
 
@@ -64,6 +66,21 @@ export async function decideChangeAction(_p: AdminState, f: FormData): Promise<A
     const u = await requireStaff("verification_officer");
     await decideChange(str(f, "id"), str(f, "decision") as "published" | "rejected", u.id, str(f, "note") || undefined);
     return done("Change decided.", ["/admin/changes"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* Doctor articles */
+export async function decideArticleAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("content_editor");
+    const decision = str(f, "decision") === "rejected" ? "rejected" : "published";
+    const row = await decideArticle(str(f, "id"), decision, u.id, str(f, "note") || undefined);
+    const [d] = await getDb().select({ slug: s.doctors.slug }).from(s.doctors).where(eq(s.doctors.id, row.doctorId)).limit(1);
+    const paths = ["/admin/articles", "/articles", `/articles/${row.slug}`, "/sitemaps/articles.xml", "/sitemap.xml"];
+    if (d) paths.push(`/doctor/${d.slug}`);
+    return done(decision === "published" ? "Approved and published." : "Returned to the doctor with your note.", paths);
   } catch (e) {
     return fail(e);
   }
@@ -352,11 +369,26 @@ export async function qualificationStateAction(_p: AdminState, f: FormData): Pro
   }
 }
 
+export async function decideCertificateAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const decision = str(f, "decision");
+    if (decision !== "verified" && decision !== "rejected") return { error: "Choose verify or reject." };
+    const r = await decideCertificate(str(f, "id"), decision, u.id, str(f, "note") || undefined);
+    return done(decision === "verified" ? "Qualification verified from the certificate. The doctor has been emailed." : "Certificate rejected. The doctor has been emailed the reason.", ["/admin/qualifications", `/admin/doctors/${r.doctorId}`]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 export async function markAllVerifiedAction(_p: AdminState, f: FormData): Promise<AdminState> {
   try {
     const u = await requireStaff("verification_officer");
     const id = str(f, "id");
-    const r = await markAllVerified(id, u.id, str(f, "note") || "Marked all as verified");
+    const note = str(f, "note");
+    // Every "verified" a patient sees must point to something someone checked.
+    if (note.length < 10) return { error: "Say what you checked (register entry, certificate seen, call to the hospital). It is recorded on every check this creates." };
+    const r = await markAllVerified(id, u.id, note);
     return done(`Marked verified: ${r.registrations} registration(s), ${r.qualifications} qualification(s), ${r.practices} practice(s).`, [`/admin/doctors/${id}`]);
   } catch (e) {
     return fail(e);
