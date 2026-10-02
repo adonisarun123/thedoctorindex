@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
@@ -8,7 +8,7 @@ import { audit } from "@/lib/services/audit";
 import { notifyDoctorOwner, notifyUser } from "@/lib/services/notify";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { displayName } from "@/lib/display-name";
-import { bookingRequirements, formatIst, generateSlots, isUnlocked, istDay, validateRules, type Requirement, type Rule, type Slot } from "@/lib/booking/slots";
+import { bookingRequirements, formatIst, generateSlots, isUnlocked, istDay, istInstant, validateRules, type Requirement, type Rule, type Slot } from "@/lib/booking/slots";
 
 /**
  * Appointment booking. A doctor's calendar unlocks once the profile is
@@ -79,10 +79,35 @@ export async function listBlocks(doctorId: string) {
   return getDb().select().from(s.availabilityBlocks).where(and(eq(s.availabilityBlocks.doctorId, doctorId), gte(s.availabilityBlocks.day, istDay(new Date()).day))).orderBy(asc(s.availabilityBlocks.day));
 }
 
-export async function addBlock(doctorId: string, day: string, note: string | null) {
+/**
+ * Blocks a whole IST day. Any open appointment that day (requested or
+ * confirmed, not yet started) is cancelled and the patient emailed, so no one
+ * turns up to a closed clinic. The private block note is never sent; patients
+ * get a neutral reason.
+ */
+export async function addBlock(doctorId: string, actorUserId: string, day: string, note: string | null): Promise<{ cancelled: number }> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("Choose a date.");
   if (day < istDay(new Date()).day) throw new Error("That date has passed.");
-  await getDb().insert(s.availabilityBlocks).values({ doctorId, day, note }).onConflictDoNothing();
+  const db = getDb();
+  await db.insert(s.availabilityBlocks).values({ doctorId, day, note }).onConflictDoNothing();
+
+  const from = istInstant(day, 0);
+  const to = istInstant(day, 24 * 60);
+  const affected = await db
+    .update(s.appointments)
+    .set({ status: "cancelled", statusNote: "The doctor is unavailable on this day", decidedAt: new Date() })
+    .where(and(eq(s.appointments.doctorId, doctorId), inArray(s.appointments.status, ["requested", "confirmed"]), gte(s.appointments.startsAt, from), lt(s.appointments.startsAt, to), gt(s.appointments.startsAt, new Date())))
+    .returning({ id: s.appointments.id, patientUserId: s.appointments.patientUserId, startsAt: s.appointments.startsAt });
+
+  if (affected.length) {
+    const doctorName = await nameOf(doctorId);
+    const [slug] = await db.select({ slug: s.doctors.slug }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
+    for (const a of affected) {
+      await audit({ actorUserId, actorRole: "doctor", action: "appointment.cancelled", entityType: "appointment", entityId: a.id, after: { reason: "day_blocked", day } });
+      await notifyUser(a.patientUserId, { kind: "appointment_decision", decision: "cancelled", doctorName, when: formatIst(a.startsAt), note: "The doctor is unavailable on this day.", slug: slug?.slug ?? "" });
+    }
+  }
+  return { cancelled: affected.length };
 }
 
 export async function removeBlock(doctorId: string, id: string) {

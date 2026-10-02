@@ -197,7 +197,8 @@ export default async function CalendarPage() {
 
       <section style={{ marginBottom: "22px" }}>
         <div className="chart-head"><span className="t">Days off</span><span className="m">no slots offered on these dates</span></div>
-        <ActionForm action={addBlockAction} submitLabel="Block day" variant="outline" inline resetOnSuccess>
+        <p style={{ fontSize: "13px", color: "var(--muted)", margin: "0 0 8px" }}>Blocking a day cancels any appointments already on it and emails those patients.</p>
+        <ActionForm action={addBlockAction} submitLabel="Block day" variant="outline" inline confirm="Block this day? Any appointments already booked on it will be cancelled and the patients emailed.">
           <input type="date" name="day" min={today} required />
           <input type="text" name="note" placeholder="Leave, conference… (private)" maxLength={80} />
         </ActionForm>

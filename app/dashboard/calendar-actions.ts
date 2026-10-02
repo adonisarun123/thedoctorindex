@@ -62,9 +62,9 @@ export async function toggleBookingAction(_p: DashState, form: FormData): Promis
 export async function addBlockAction(_p: DashState, form: FormData): Promise<DashState> {
   try {
     const ctx = await getDashboardContext();
-    await addBlock(ctx.doctorId, String(form.get("day") ?? ""), String(form.get("note") ?? "").trim() || null);
+    const { cancelled } = await addBlock(ctx.doctorId, ctx.user.id, String(form.get("day") ?? ""), String(form.get("note") ?? "").trim() || null);
     refresh(ctx.doctor.slug);
-    return { ok: true, message: "Day blocked. Existing appointments that day are not cancelled automatically." };
+    return { ok: true, message: cancelled ? `Day blocked. ${cancelled} appointment${cancelled === 1 ? " was" : "s were"} cancelled and the patient${cancelled === 1 ? " has" : "s have"} been emailed.` : "Day blocked. No appointments were booked that day." };
   } catch (e) {
     return fail(e);
   }
