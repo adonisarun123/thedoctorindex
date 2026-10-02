@@ -35,7 +35,9 @@ export function normalizeIdentifier(raw: string): { kind: "email" | "phone"; val
     return { kind: "email", value: email };
   }
   const digits = v.replace(/[^\d+]/g, "");
-  const m = /^(?:\+?91)?([6-9]\d{9})$/.exec(digits);
+  // Accept the formats people actually type: 98450 12345, 098450 12345 (trunk 0),
+  // +91 98450 12345, 91 98450 12345, 0091 98450 12345.
+  const m = /^(?:\+91|0091|91|0)?([6-9]\d{9})$/.exec(digits);
   if (!m) return null;
   return { kind: "phone", value: `+91${m[1]}` };
 }

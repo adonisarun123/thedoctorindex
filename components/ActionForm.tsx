@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState } from "react";
 
 export interface FormState {
   ok?: boolean;
@@ -44,7 +44,14 @@ export function ActionForm({
       className={className}
       style={style}
       onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
+        // Submit through the action ourselves instead of letting <form action>
+        // do it: React resets every uncontrolled field after a form action, so
+        // a validation error would wipe what the person typed. resetOnSuccess
+        // still clears the form, via the key below, when the save succeeds.
+        e.preventDefault();
+        if (confirm && !window.confirm(confirm)) return;
+        const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+        startTransition(() => act(data));
       }}
       key={resetOnSuccess && state.ok ? String(Date.now()) : "form"}
     >

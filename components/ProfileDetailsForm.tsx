@@ -42,7 +42,7 @@ export function ProfileDetailsForm({ user, next, submitLabel, doctor = false }: 
           {user.phone && !user.email ? (
             <input id="phone" type="tel" value={user.phone} readOnly className="mono" aria-describedby="phone-hint" />
           ) : (
-            <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required defaultValue={user.phone ?? ""} placeholder="+91 98765 43210" pattern="(\+?91[ -]?)?[6-9][0-9 -]{9,13}" />
+            <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required defaultValue={user.phone ?? ""} placeholder="+91 98765 43210" />
           )}
           <div className="hint" id="phone-hint">{user.phone && !user.email ? "You signed in with this number." : short ? "Only for a verification officer to reach you. Never shown publicly." : "Practices reach you here. Indian mobile numbers only."}</div>
         </div>
