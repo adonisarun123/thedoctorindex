@@ -108,7 +108,9 @@ test("unsubscribe tokens verify for their own user only", () => {
 
 test("reminder copy carries the link, the unsubscribe link, and says when it is the last one", () => {
   const m1 = composeReminder({ stage: "setup", step: 1, displayName: "Dr Meera Shah", actionUrl: "https://x/a", unsubscribeUrl: "https://x/u" });
-  assert.match(m1.text, /^Hello Meera,/);
+  assert.match(m1.text, /^Hello Dr Meera Shah,/);
+  const m2 = composeReminder({ stage: "doctor_profile", step: 1, displayName: "dr. vaibhav  bhatia", actionUrl: "https://x/a", unsubscribeUrl: "https://x/u" });
+  assert.match(m2.text, /^Hello Dr Vaibhav Bhatia,/);
   assert.ok(m1.text.includes("https://x/a") && m1.text.includes("https://x/u"));
   assert.ok(!m1.text.includes("last reminder"));
   const m3 = composeReminder({ stage: "doctor_profile", step: 3, displayName: null, actionUrl: "https://x/a", unsubscribeUrl: "https://x/u" });
