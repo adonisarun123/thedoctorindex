@@ -6,6 +6,7 @@ import { useActionState } from "react";
 import { correctionAction, enquiryAction, reportAction, submitReviewAction, type ActionState } from "@/app/doctor/[slug]/actions";
 import { paths } from "@/lib/site";
 import { displayName } from "@/lib/display-name";
+import { MIN_CORE_RATED, type ReviewQuestion } from "@/lib/reviews/score";
 
 export type ActionKind = "review" | "report" | "correct" | "enquire";
 
@@ -31,12 +32,15 @@ export function ProfileActionForm({
   initialPractice = 0,
   about,
   signedIn,
+  questions = [],
 }: {
   kind: ActionKind;
   doctor: DoctorSummary;
   initialPractice?: number;
   about?: string;
   signedIn: boolean;
+  /** The review questionnaire for this doctor's speciality (kind="review" only). */
+  questions?: ReviewQuestion[];
 }) {
   const [state, act, pending] = useActionState<ActionState, FormData>(ACTIONS[kind], {});
 
@@ -64,7 +68,7 @@ export function ProfileActionForm({
         </div>
       ) : null}
 
-      {kind === "review" ? <ReviewFields signedIn={signedIn} /> : null}
+      {kind === "review" ? <ReviewFields signedIn={signedIn} questions={questions} /> : null}
       {kind === "report" ? <ReportFields about={about} reviews={doctor.reviews ?? []} /> : null}
       {kind === "correct" ? <CorrectFields /> : null}
       {kind === "enquire" ? <EnquireFields doctor={doctor} initialPractice={initialPractice} signedIn={signedIn} /> : null}
@@ -91,28 +95,58 @@ export function ProfileActionForm({
 
 /* ---------------------------------------------------------------------- */
 
-function Stars({ name }: { name: string }) {
+function Stars({ name, label }: { name: string; label: string }) {
   return (
-    <div className="stars" role="radiogroup" aria-label={name}>
+    <div className="stars" role="radiogroup" aria-label={label}>
       {[5, 4, 3, 2, 1].map((n) => (
         <label key={n} title={`${n} of 5`}>
-          <input type="radio" name={name} value={n} required />★
+          <input type="radio" name={name} value={n} />★
         </label>
       ))}
     </div>
   );
 }
 
-function ReviewFields({ signedIn }: { signedIn: boolean }) {
+/** Last twelve months by name, then a catch-all. Visit month is approximate on purpose. */
+function recentMonths(): string[] {
+  const now = new Date();
+  const out: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push(d.toLocaleString("en-IN", { month: "long", year: "numeric" }));
+  }
+  out.push("More than a year ago");
+  return out;
+}
+
+function QuestionRow({ q }: { q: ReviewQuestion }) {
+  return (
+    <div className="dimrow" style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+        <div className="l">{q.label}</div>
+        {q.help ? <div className="h">{q.help}</div> : null}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: "0 0 auto" }}>
+        <Stars name={`q:${q.key}`} label={q.label} />
+        <label style={{ fontSize: "12px", color: "var(--muted)", display: "inline-flex", gap: "4px", alignItems: "center" }}>
+          <input type="radio" name={`q:${q.key}`} value="na" />
+          N/A
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function ReviewFields({ signedIn, questions }: { signedIn: boolean; questions: ReviewQuestion[] }) {
+  const months = recentMonths();
+  const core = questions.filter((q) => q.specialtyKey === null);
+  const specific = questions.filter((q) => q.specialtyKey !== null);
   return (
     <>
       <div className="eyebrow" style={{ marginBottom: "10px" }}>{signedIn ? "Your experience" : "Sign in first"}</div>
       <div className="notice" style={{ marginBottom: "18px" }}>
-        <b>Every review is checked against a document.</b> Your review goes live only after a moderator has validated your proof of consultation. Reviews without proof are not accepted.
-      </div>
-      <div className="notice" style={{ marginBottom: "18px" }}>
-        <b>Before you write.</b> Do not include a diagnosis, report contents, phone numbers, addresses
-        or anything that identifies another patient. Automated checks flag this and a moderator will redact it.
+        <b>Only patients can review, and every review is checked.</b> Upload the prescription from your visit. A moderator
+        confirms it is from this doctor, then deletes it. Your review goes live after that check.
       </div>
 
       <div className="field">
@@ -132,8 +166,8 @@ function ReviewFields({ signedIn }: { signedIn: boolean }) {
         </div>
         <div className="field">
           <label htmlFor="month">Approximate month of visit</label>
-          <select id="month" name="month" defaultValue="August 2026">
-            {["September 2026", "August 2026", "July 2026", "June 2026", "May 2026", "April 2026", "Earlier in 2026", "2025 or earlier"].map((m) => (
+          <select id="month" name="month" defaultValue={months[0]}>
+            {months.map((m) => (
               <option key={m}>{m}</option>
             ))}
           </select>
@@ -141,36 +175,40 @@ function ReviewFields({ signedIn }: { signedIn: boolean }) {
       </div>
 
       <div className="field">
-        <label>Rate the experience</label>
+        <label>Rate your visit</label>
         <div className="panel" style={{ padding: "4px 14px" }}>
-          {[
-            ["communication", "Communication", "Did the doctor listen and treat you with respect?"],
-            ["explanation", "Explanation", "Did you leave understanding what is going on and what happens next?"],
-            ["wait", "Waiting time", "How long past your appointment time were you seen?"],
-            ["facility", "Facility", "Cleanliness, ease of finding the clinic, front-desk experience."],
-          ].map(([key, label, hint]) => (
-            <div className="dimrow" key={key}>
-              <div>
-                <div className="l">{label}</div>
-                <div className="h">{hint}</div>
-              </div>
-              <Stars name={key} />
-            </div>
+          {core.map((q) => (
+            <QuestionRow key={q.key} q={q} />
           ))}
         </div>
-        <div className="hint">We do not ask you to rate treatment effectiveness. A review cannot measure clinical outcome.</div>
+        <div className="hint">
+          Rate at least {Math.min(MIN_CORE_RATED, core.length)} of these. Choose N/A where a question does not apply, for example hygiene after an online consultation.
+        </div>
+      </div>
+
+      {specific.length ? (
+        <div className="field">
+          <label>For this speciality (optional)</label>
+          <div className="panel" style={{ padding: "4px 14px" }}>
+            {specific.map((q) => (
+              <QuestionRow key={q.key} q={q} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="field">
+        <label htmlFor="text">Anything else? (optional)</label>
+        <textarea id="text" name="text" maxLength={2000} placeholder="A sentence or two about your visit. First-hand only. Please leave out diagnoses, report contents, phone numbers and addresses." />
       </div>
 
       <div className="field">
-        <label htmlFor="text">In your own words</label>
-        <textarea id="text" name="text" required minLength={40} placeholder="What happened, what was good, what could have been better. First-hand only. At least 40 characters." />
-      </div>
-
-      <div className="field">
-        <label htmlFor="evidence">Proof of consultation (required, private)</label>
+        <label htmlFor="evidence">Prescription from this visit (required, private)</label>
         <input id="evidence" name="evidence" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required />
         <div className="hint">
-          A prescription, bill or receipt, appointment confirmation or discharge summary from this doctor or practice, showing the doctor or clinic name and a date. You may cover any diagnosis or test result — we only need to see that the consultation happened. Seen by one moderator, deleted 90 days after moderation, never published. Every published review has been checked this way.
+          A photo or PDF of the prescription showing the doctor&rsquo;s name and the date. You may cover the medicines and any
+          diagnosis. If you did not get a prescription, a bill or appointment confirmation from this doctor works. One moderator
+          sees it; it is deleted as soon as your review is decided and is never published.
         </div>
       </div>
 

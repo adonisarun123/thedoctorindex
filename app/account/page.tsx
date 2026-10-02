@@ -7,6 +7,10 @@ import { signOutAction } from "@/app/sign-in/actions";
 import { ProfileDetailsForm } from "@/components/ProfileDetailsForm";
 import { RouteMeta } from "@/components/RouteMeta";
 import { requireUser } from "@/lib/auth/session";
+import { cancelBookingAction } from "@/app/doctor/[slug]/book/actions";
+import { ActionForm } from "@/components/ActionForm";
+import { formatIst } from "@/lib/booking/slots";
+import { listPatientAppointments } from "@/lib/services/booking";
 import { userPlace } from "@/lib/data/geo";
 import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
@@ -38,6 +42,8 @@ export default async function AccountPage() {
     db.select({ city: s.users.city, marketingOptIn: s.users.marketingOptIn, termsAcceptedAt: s.users.termsAcceptedAt }).from(s.users).where(eq(s.users.id, user.id)).limit(1),
   ]);
   const profileRow = extra[0];
+  const appts = await listPatientAppointments(user.id);
+  const now = new Date();
   const homePlace = await userPlace(user.localityKey, profileRow?.city ?? null);
   const isDoctor = user.role === "doctor" || managed.length > 0;
   const isStaff = user.role === "staff" && user.staffRoles.length > 0;
@@ -94,6 +100,33 @@ export default async function AccountPage() {
             </table>
           )}
         </section>
+
+        {appts.length ? (
+          <section style={{ marginBottom: "22px" }}>
+            <div className="chart-head"><span className="t">My appointments</span><span className="m">{appts.length}</span></div>
+            <table className="table">
+              <thead><tr><th>When (IST)</th><th>Doctor</th><th>Status</th><th /></tr></thead>
+              <tbody>
+                {appts.map((a) => (
+                  <tr key={a.id}>
+                    <td className="mono">{formatIst(a.startsAt)}</td>
+                    <td><Link href={paths.doctor(a.doctor.slug)}>{displayName(a.doctor)}</Link><div style={{ fontSize: "12px", color: "var(--muted)" }}>{a.practice.facility.name}</div></td>
+                    <td><span className={`pill ${a.status === "confirmed" || a.status === "completed" ? "ok" : a.status === "requested" ? "wait" : "neut"}`}>{a.status === "requested" ? "awaiting confirmation" : a.status.replace("_", " ")}</span>{a.statusNote ? <div style={{ fontSize: "12px", color: "var(--muted)" }}>{a.statusNote}</div> : null}</td>
+                    <td>
+                      {(a.status === "requested" || a.status === "confirmed") && a.startsAt > now ? (
+                        <ActionForm action={cancelBookingAction} submitLabel="Cancel" variant="quiet" inline confirm="Cancel this appointment?">
+                          <input type="hidden" name="id" value={a.id} />
+                        </ActionForm>
+                      ) : a.status === "completed" ? (
+                        <Link href={`${paths.doctor(a.doctor.slug)}/review`}>Review</Link>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
 
         {submissions.length || claims.length ? (
           <section style={{ marginBottom: "22px" }}>

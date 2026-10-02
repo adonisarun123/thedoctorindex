@@ -10,6 +10,7 @@ import { getDoctorBySlug } from "@/lib/data";
 import { LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
 import { absoluteUrl, paths } from "@/lib/site";
 import { displayName } from "@/lib/display-name";
+import { questionsForSpecialty } from "@/lib/reviews/questions";
 
 type Params = { slug: string };
 type Search = Record<string, string | string[] | undefined>;
@@ -17,7 +18,7 @@ type Search = Record<string, string | string[] | undefined>;
 const KIND = "review" as const;
 const TITLE = "Write a review";
 const EYEBROW = "Patient reviews";
-const INTRO = "Reviews describe experience — communication, explanation, waiting time, facility — and are moderated before publication.";
+const INTRO = "Only patients with a prescription from this doctor can review. Rate the visit, add a comment if you like, and a moderator checks your prescription before the review appears.";
 const NEEDS_SIGN_IN = true;
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
   const user = await getSessionUser();
   const here = `${paths.doctor(doctor.slug)}/${KIND}${about ? `?about=${about}` : ""}`;
   if (user && !user.profileComplete) redirect(setupPath(here));
+  const questions = doctor.dbId ? await questionsForSpecialty(doctor.specialty) : [];
 
   return (
     <>
@@ -85,7 +87,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
             <div className="panel pad">
               <div className="eyebrow" style={{ marginBottom: "10px" }}>Step 1 of 2 · Sign in</div>
               <p style={{ fontSize: "14.5px", color: "var(--ink-2)", marginBottom: "16px" }}>
-                Reviews are tied to a verified email or mobile number so that one person leaves one review. Your contact details are never shown on the site.
+                Create your patient account with a one-time code. One account, one review per doctor. Your contact details and prescription are never shown on the site.
               </p>
               <OtpSignIn next={here} label="Continue" />
             </div>
@@ -95,6 +97,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
               initialPractice={practice}
               about={about}
               signedIn={Boolean(user)}
+              questions={questions}
               doctor={{
                 slug: doctor.slug,
                 name: doctor.name,

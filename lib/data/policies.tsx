@@ -188,28 +188,32 @@ export const POLICIES: Policy[] = [
     title: "Review policy",
     summary:
       "What patients may write, what doctors may reply, what we refuse to sell, and our internal moderation targets.",
-    updatedOn: "28 Aug 2026",
+    updatedOn: "2 Oct 2026",
     body: (
       <>
         <p>
-          Reviews describe patient experience: communication, explanation, waiting time and the facility.
+          Only patients can review a doctor here, and only after a visit. Reviewers create an account,
+          rate the visit from 1 to 5 stars on set questions — knowledge, explanation, services and care,
+          courtesy of doctor and staff, hygiene, waiting time, plus questions specific to the speciality —
+          and may add an optional comment. Any question that does not apply can be marked N/A.
           We do not ask patients to rate treatment effectiveness, because a review cannot measure clinical
           outcome or causality.
         </p>
         <h2>Rules we hold to</h2>
         <ul>
           <li>No ratings or review text imported from any other platform.</li>
-          <li>No self-reviews by doctors or staff, no competitor reviews, no incentives, no review gating.</li>
+          <li>No self-reviews by doctors or staff, no competitor reviews, no incentives, no review gating. Doctors may share their review link with all of their patients, not a chosen few.</li>
           <li>
-            Every review must be supported by proof of consultation — a prescription, bill or receipt,
-            appointment confirmation or discharge summary. A moderator validates the document before
+            Every review must be supported by the prescription from the visit (or, where none was given, a
+            bill or appointment confirmation from the same doctor). A moderator checks the document before
             anything is published; a review whose proof is not valid is not published. The document is
-            private, seen by one moderator, and deleted 90 days after moderation.
+            private, seen by one moderator, and deleted as soon as the review is decided — in any case within
+            30 days of upload. We keep only the record that the check happened.
           </li>
           <li>Every policy-compliant, evidence-checked review is published, positive or negative.</li>
           <li>No doctor can pay to remove a review or suppress criticism.</li>
           <li>
-            &ldquo;Visit evidence checked&rdquo; therefore appears on every published review; the date of the check
+            &ldquo;Prescription checked&rdquo; therefore appears on every published review; the date of the check
             is recorded.
           </li>
           <li>Doctors may post one reply and must not reveal or confirm any health information in it.</li>
@@ -389,7 +393,7 @@ export const POLICIES: Policy[] = [
             </thead>
             <tbody>
               <tr><td>Doctors</td><td>Name, registration, qualifications, practice details, contact for OTP, identity evidence</td><td>Verifying and publishing a professional profile</td><td>While the profile exists, then 3 years for audit</td></tr>
-              <tr><td>Reviewers</td><td>Name, mobile and email, review content, private proof of consultation (required)</td><td>Publishing first-hand reviews and validating evidence</td><td>Proof deleted 90 days after moderation; review while published</td></tr>
+              <tr><td>Reviewers</td><td>Name, mobile and email, review content, private proof of consultation (required)</td><td>Publishing first-hand reviews and validating evidence</td><td>Proof deleted once the review is decided (at most 30 days after upload); review while published</td></tr>
               <tr><td>Visitors</td><td>Search terms, pages viewed, contact actions taken</td><td>Improving discovery and measuring whether people reach a doctor</td><td>Aggregated after 13 months</td></tr>
             </tbody>
           </table>

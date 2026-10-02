@@ -11,6 +11,8 @@ import { recomputeQuality } from "@/lib/services/doctors";
 import { storeFile } from "@/lib/services/files";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { displayName } from "@/lib/display-name";
+import { questionsForSpecialty } from "@/lib/reviews/questions";
+import { overallScore, validateRatings } from "@/lib/reviews/score";
 
 /**
  * Reviews (plan §10). Submission runs automated checks and lands in a
@@ -22,13 +24,15 @@ export interface ReviewInput {
   forWhom: "self" | "family";
   visitMonth: string;
   mode: "In person" | "Online";
-  communication: number;
-  explanation: number;
-  waitTime: number;
-  facility: number;
+  /** Question key → 1..5, validated against the doctor's questionnaire. */
+  ratings: Record<string, number>;
+  /** Optional comment; empty when the reviewer only rated. */
   text: string;
   attestation: boolean;
 }
+
+/** Hard cap on how long proof can sit unmoderated before the bytes go anyway. */
+const EVIDENCE_MAX_DAYS = () => Number(process.env.RETENTION_REVIEW_EVIDENCE_DAYS ?? 30);
 
 /** Automated pre-moderation (plan §10.1 step 6). Flags, never decides. */
 /** Every review must carry proof of consultation unless REVIEW_EVIDENCE_REQUIRED=0. */
@@ -45,7 +49,8 @@ export function assessRisk(text: string): { score: number; flags: string[] } {
   if (/\b(hba1c|creatinine|biopsy|hiv|hepatitis|tumou?r|cancer|psychiatr|pregnan|abortion|std|sti)\b/i.test(t)) flags.push("health_detail");
   if (/\b(negligen|malpractice|fraud|police|court|fir\b|extort|threat|assault|molest)\b/i.test(t)) flags.push("serious_allegation");
   if (/\b(best|worst|no\.?\s*1|scam)\b/i.test(t)) flags.push("superlative");
-  if (t.length < Number(process.env.REVIEW_MIN_TEXT_CHARS ?? 40)) flags.push("too_short");
+  // The comment is optional; only a non-empty but trivially short one is worth a look.
+  if (t.length > 0 && t.length < Number(process.env.REVIEW_MIN_TEXT_CHARS ?? 15)) flags.push("too_short");
   if (/(.)\1{6,}/.test(t) || /https?:\/\//i.test(t)) flags.push("spam_pattern");
   const weights: Record<string, number> = { phone_number: 30, address_like: 20, health_detail: 25, serious_allegation: 40, superlative: 5, too_short: 10, spam_pattern: 30 };
   const score = Math.min(100, flags.reduce((a, f) => a + (weights[f] ?? 0), 0));
@@ -55,10 +60,12 @@ export function assessRisk(text: string): { score: number; flags: string[] } {
 export async function submitReview(userId: string, doctorId: string, input: ReviewInput, evidence?: { filename: string; mime: string; bytes: Buffer } | null, meta?: { ip?: string | null; deviceHash?: string | null }) {
   const db = getDb();
   if (!input.attestation) throw new Error("The first-hand attestation is required.");
-  if (evidenceRequired() && !evidence) throw new Error("Attach proof of the consultation — a prescription, bill, receipt or appointment confirmation from this doctor or practice. Reviews without it are not accepted.");
-  for (const k of ["communication", "explanation", "waitTime", "facility"] as const) {
-    if (!(input[k] >= 1 && input[k] <= 5)) throw new Error("Rate every dimension from 1 to 5.");
-  }
+  if (evidenceRequired() && !evidence) throw new Error("Upload the prescription from this consultation (a bill or appointment confirmation from this doctor also works). Reviews without it are not accepted.");
+  const [doc] = await db.select({ specialtyKey: s.doctors.specialtyKey }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
+  if (!doc) throw new Error("Doctor not found.");
+  const questions = await questionsForSpecialty(doc.specialtyKey);
+  validateRatings(questions, input.ratings);
+  const score = overallScore(input.ratings);
   const maxChars = Number(process.env.REVIEW_MAX_TEXT_CHARS ?? 2000);
   if (input.text.length > maxChars) throw new Error(`Keep it under ${maxChars} characters.`);
 
@@ -82,7 +89,9 @@ export async function submitReview(userId: string, doctorId: string, input: Revi
     risk.score = Math.min(100, risk.score + 25);
   }
   // Near-duplicate of a recent review on the same doctor.
-  const [dupe] = (await db.execute(sql`select id from reviews where doctor_id = ${doctorId} and similarity(lower(text), ${input.text.toLowerCase()}) > ${Number(process.env.REVIEW_DUPLICATE_SIMILARITY_THRESHOLD ?? 0.85)} limit 1`)) as unknown as Array<{ id: string }>;
+  const [dupe] = input.text.trim()
+    ? ((await db.execute(sql`select id from reviews where doctor_id = ${doctorId} and text <> '' and similarity(lower(text), ${input.text.toLowerCase()}) > ${Number(process.env.REVIEW_DUPLICATE_SIMILARITY_THRESHOLD ?? 0.85)} limit 1`)) as unknown as Array<{ id: string }>)
+    : [];
   if (dupe) {
     risk.flags.push("duplicate_text");
     risk.score = Math.min(100, risk.score + 30);
@@ -100,10 +109,8 @@ export async function submitReview(userId: string, doctorId: string, input: Revi
       forWhom: input.forWhom,
       visitMonth: input.visitMonth,
       mode: input.mode,
-      communication: input.communication,
-      explanation: input.explanation,
-      waitTime: input.waitTime,
-      facility: input.facility,
+      ratings: input.ratings,
+      score,
       text: input.text.trim(),
       status: "pending",
       evidence: evidence ? "supplied" : "none",
@@ -116,7 +123,8 @@ export async function submitReview(userId: string, doctorId: string, input: Revi
 
   if (evidence) {
     const file = await storeFile({ bucket: "private", filename: evidence.filename, mime: evidence.mime, bytes: evidence.bytes, uploadedByUserId: userId });
-    const purge = new Date(Date.now() + Number(process.env.RETENTION_REVIEW_EVIDENCE_DAYS ?? 90) * 86_400_000);
+    // Brought forward to the moderation time once a decision is made (moderateReview).
+    const purge = new Date(Date.now() + EVIDENCE_MAX_DAYS() * 86_400_000);
     await db.insert(s.reviewEvidence).values({ reviewId: review.id, fileId: file.id, purgeAfter: purge });
   }
   await audit({ actorUserId: userId, actorRole: "patient", action: "review.submitted", entityType: "review", entityId: review.id, after: { doctorId, risk } });
@@ -143,6 +151,9 @@ export async function moderateReview(id: string, decision: "published" | "redact
     if (r.evidence !== "checked") throw new Error("Validate the proof of consultation first. A review is published only after its prescription, bill or appointment record has been checked.");
   }
   await db.update(s.reviews).set({ status: decision, publishedText: decision === "redacted" ? opts.publishedText : null, moderatedAt: new Date(), moderatedByUserId: staffUserId, moderationReason: opts.reason ?? null }).where(eq(s.reviews.id, id));
+  // The prescription has done its job once the review is decided: the nightly
+  // maintenance run deletes the bytes; the evidence row stays as the record that a check happened.
+  await db.update(s.reviewEvidence).set({ purgeAfter: new Date() }).where(eq(s.reviewEvidence.reviewId, id));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `review.${decision}`, entityType: "review", entityId: id, before: { status: r.status }, after: { status: decision }, reason: opts.reason });
   await recomputeQuality(r.doctorId);
   const [dn] = await db.select({ name: s.doctors.name, slug: s.doctors.slug, specialtyKey: s.doctors.specialtyKey }).from(s.doctors).where(eq(s.doctors.id, r.doctorId)).limit(1);

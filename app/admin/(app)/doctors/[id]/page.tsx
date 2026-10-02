@@ -160,7 +160,7 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
             {d.reviews.length === 0 ? <div style={{ color: "var(--muted)", fontSize: "13.5px" }}>None yet.</div> : null}
             {d.reviews.map((r) => (
               <div key={r.id} style={{ borderTop: "1px solid var(--hair)", paddingTop: "10px", marginTop: "10px", fontSize: "13.5px" }}>
-                <div className="qm"><span className={`pill ${pill(r.status)}`}>{r.status}</span> {r.authorLabel} · {r.visitMonth} · avg {((r.communication + r.explanation + r.waitTime + r.facility) / 4).toFixed(1)}/5 · evidence {r.evidence} · <Link href={`/admin/reviews?status=${r.status}`}>moderate</Link></div>
+                <div className="qm"><span className={`pill ${pill(r.status)}`}>{r.status}</span> {r.authorLabel} · {r.visitMonth} · avg {r.score !== null ? r.score.toFixed(1) : "—"}/5 · evidence {r.evidence} · <Link href={`/admin/reviews?status=${r.status}`}>moderate</Link></div>
                 <div style={{ marginTop: "4px" }}>“{r.publishedText ?? r.text}”</div>
                 {r.response ? <div className="qm" style={{ marginTop: "4px" }}>Reply ({r.response.status}): “{r.response.text}”</div> : null}
               </div>

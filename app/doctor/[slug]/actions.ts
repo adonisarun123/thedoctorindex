@@ -7,6 +7,8 @@ import { getDoctorBySlug } from "@/lib/data";
 import { createEnquiry, reportProfile, submitCorrection } from "@/lib/services/cases";
 import { track } from "@/lib/services/events";
 import { reportReview, submitReview } from "@/lib/services/reviews";
+import { questionsForSpecialty } from "@/lib/reviews/questions";
+import { parseRatings } from "@/lib/reviews/score";
 
 export interface ActionState {
   ok?: boolean;
@@ -43,10 +45,10 @@ export async function submitReviewAction(_prev: ActionState, form: FormData): Pr
         forWhom: form.get("who") === "family" ? "family" : "self",
         visitMonth: String(form.get("month") ?? ""),
         mode: form.get("mode") === "Online" ? "Online" : "In person",
-        communication: Number(form.get("communication")),
-        explanation: Number(form.get("explanation")),
-        waitTime: Number(form.get("wait")),
-        facility: Number(form.get("facility")),
+        ratings: parseRatings(await questionsForSpecialty(doctor.specialty), (k) => {
+          const v = form.get(`q:${k}`);
+          return typeof v === "string" ? v : null;
+        }),
         text: String(form.get("text") ?? ""),
         attestation: form.get("attest") === "on",
       },

@@ -1,3 +1,5 @@
+import { questionLabels } from "@/lib/reviews/questions";
+import { labelledRatings } from "@/lib/reviews/score";
 import { registrationNoun } from "@/lib/data/councils";
 import { qualificationForDegree } from "@/lib/qualifications";
 import { registerForCouncil } from "@/lib/registers";
@@ -136,7 +138,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
       {
         label: "Review markup",
         text: doctor.rating.count > 0
-          ? "AggregateRating is emitted from the stored rollup, which is a real aggregate. Individual Review objects are not: a review here scores four named dimensions and carries no single overall star, so any per-review rating would be a number no reviewer gave. Google does not show review snippets for a Person regardless."
+          ? "AggregateRating is emitted from the stored rollup, which is a real aggregate. Individual Review objects are not: a review here rates several named questions and carries no single overall star the reviewer chose, so any per-review rating would be a number no reviewer gave. Google does not show review snippets for a Person regardless."
           : "Not emitted — there are no published reviews on this profile. Nothing is emitted until there are, and even then only the aggregate.",
       },
       {
@@ -213,7 +215,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
         <nav className="mobile-actions" aria-label="Contact this practice">
           <CallButton practiceId={primaryPractice.id} variant="solid" />
           <DirectionsButton practiceId={primaryPractice.id} variant="outline" />
-          <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>Enquire</Link>
+          {doctor.bookingEnabled ? <Link className="btn" href={`${paths.doctor(doctor.slug)}/book`}>Book</Link> : <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>Enquire</Link>}
         </nav>
       ) : null}
 
@@ -270,9 +272,15 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 <CallButton practiceId={primaryPractice.id} variant="solid" />
                 <div className="pair">
                   <DirectionsButton practiceId={primaryPractice.id} variant="outline" />
-                  <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>
-                    Enquire
-                  </Link>
+                  {doctor.bookingEnabled ? (
+                    <Link className="btn" href={`${paths.doctor(doctor.slug)}/book`}>
+                      Book appointment
+                    </Link>
+                  ) : (
+                    <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>
+                      Enquire
+                    </Link>
+                  )}
                 </div>
                 <p>Number shown after sign-in, to keep it off scraper lists.</p>
               </div>
@@ -338,8 +346,8 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                         ) : null}
                         <div className="acts">
                           <DirectionsButton practiceId={p.id} variant="outline" />
-                          <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/enquire?practice=${i}`}>
-                            Request appointment
+                          <Link className="btn quiet" href={doctor.bookingEnabled && p.id ? `${paths.doctor(doctor.slug)}/book?practice=${p.id}` : `${paths.doctor(doctor.slug)}/enquire?practice=${i}`}>
+                            {doctor.bookingEnabled ? "Book appointment" : "Request appointment"}
                           </Link>
                         </div>
                       </div>
@@ -583,8 +591,13 @@ function GateBanner({ doctor }: { doctor: DoctorView }) {
   );
 }
 
-function Reviews({ doctor }: { doctor: DoctorView }) {
+async function Reviews({ doctor }: { doctor: DoctorView }) {
   const { rating, reviews } = doctor;
+  // Labels live in review_questions (staff-editable); retired questions keep theirs.
+  const labels = reviews.length && doctor.dbId ? await questionLabels() : new Map<string, { label: string; sort: number }>();
+  for (const [k, label, sort] of [["hospitality", "Courtesy of doctor and staff", 40], ["explanation", "Explanation", 20], ["wait_time", "Waiting time", 60], ["hygiene", "Hygiene and cleanliness", 50]] as const) {
+    if (!labels.has(k)) labels.set(k, { label, sort });
+  }
   if (!rating.count && !reviews.length) {
     return (
       <section className="block">
@@ -634,7 +647,7 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
               <span className="who">
                 {r.author}{" "}
                 <span className={`badge ${r.evidenceChecked ? "ok" : "neut"}`} style={{ marginLeft: "6px" }}>
-                  {r.evidenceChecked ? "Visit evidence checked" : "Evidence not supplied"}
+                  {r.evidenceChecked ? "Prescription checked" : "Not prescription-verified"}
                 </span>
               </span>
               <span className="when">
@@ -642,12 +655,13 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
               </span>
             </div>
             <div className="dims">
-              <span>Communication {r.dimensions.communication}/5</span>
-              <span>Explanation {r.dimensions.explanation}/5</span>
-              <span>Wait time {r.dimensions.waitTime}/5</span>
-              <span>Facility {r.dimensions.facility}/5</span>
+              {labelledRatings(r.ratings, labels).map((x) => (
+                <span key={x.key}>
+                  {x.label} {x.value}/5
+                </span>
+              ))}
             </div>
-            <p className="txt">{r.text}</p>
+            {r.text ? <p className="txt">{r.text}</p> : null}
             {r.reply ? (
               <div className="reply">
                 <div className="who">Reply from {displayName(doctor)}</div>
@@ -659,7 +673,7 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
       ) : (
         <div className="rev">
           <p className="txt" style={{ color: "var(--muted)" }}>
-            No written reviews have been published for this doctor yet. The score above comes from ratings submitted without written feedback.
+            No reviews have been published for this doctor yet.
           </p>
         </div>
       )}
@@ -673,7 +687,7 @@ function Reviews({ doctor }: { doctor: DoctorView }) {
         </Link>
       </div>
       <p className="blocknote">
-        Reviews describe patient experience, not clinical outcome. We do not rate treatment effectiveness. <Link href={paths.policy("reviews")}>Review policy</Link>
+        Only patients with a prescription from this doctor can review, and every review is moderated. Reviews describe the visit, not clinical outcome. <Link href={paths.policy("reviews")}>Review policy</Link>
       </p>
     </section>
   );

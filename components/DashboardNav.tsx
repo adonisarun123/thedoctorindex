@@ -10,6 +10,7 @@ const ITEMS: Array<{ href: string; label: string; countKey?: string }> = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/profile", label: "Profile & credentials" },
   { href: "/dashboard/practices", label: "Practices & fees" },
+  { href: "/dashboard/calendar", label: "Calendar & booking", countKey: "calendar" },
   { href: "/dashboard/enquiries", label: "Appointment enquiries", countKey: "enquiries" },
   { href: "/dashboard/reviews", label: "Reviews & replies", countKey: "reviews" },
   { href: "/dashboard/articles", label: "Articles" },

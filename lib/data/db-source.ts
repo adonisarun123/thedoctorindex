@@ -233,6 +233,7 @@ function toView(row: DoctorRow, locality: (key: string) => Locality | null, roll
     status,
     lastVerifiedOn: toDisplay(row.lastVerifiedOn),
     hprVerified: row.hprVerified,
+    bookingEnabled: Boolean((row as { bookingEnabled?: boolean }).bookingEnabled),
     rating: {
       average: rollup?.average ?? 0,
       count: rollup?.count ?? 0,
@@ -244,7 +245,12 @@ function toView(row: DoctorRow, locality: (key: string) => Locality | null, roll
       visitMonth: r.visitMonth,
       mode: (r.mode === "Online" ? "Online" : "In person") as "In person" | "Online",
       evidenceChecked: r.evidence === "checked",
-      dimensions: { communication: r.communication, explanation: r.explanation, waitTime: r.waitTime, facility: r.facility },
+      ratings:
+        r.ratings && Object.keys(r.ratings).length
+          ? r.ratings
+          : r.communication !== null
+            ? { hospitality: r.communication, explanation: r.explanation ?? 0, wait_time: r.waitTime ?? 0, hygiene: r.facility ?? 0 }
+            : {},
       text: r.status === "redacted" && r.publishedText ? r.publishedText : r.text,
       reply: r.response && r.response.status === "published" ? r.response.text : null,
     })),

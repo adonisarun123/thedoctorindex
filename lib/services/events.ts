@@ -16,7 +16,8 @@ export type EventKind =
   | "doctor_lp_viewed" | "profile_started" | "profile_submitted" | "claim_link_opened" | "claim_started" | "claim_approved"
   | "review_started" | "review_submitted" | "review_published" | "review_reported"
   | "correction_submitted" | "grievance_submitted"
-  | "referral_link_opened" | "referral_recorded" | "referral_verified";
+  | "referral_link_opened" | "referral_recorded" | "referral_verified"
+  | "appointment_requested";
 
 export async function track(kind: EventKind, data: { doctorId?: string | null; practiceId?: string | null; path?: string | null; query?: string | null; localityKey?: string | null; sessionHash?: string | null } = {}) {
   if (!process.env.DATABASE_URL) return;
