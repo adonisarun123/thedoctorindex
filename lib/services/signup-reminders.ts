@@ -7,11 +7,16 @@ import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { audit } from "@/lib/services/audit";
+import { parseQuery, searchRegister } from "@/lib/nmc/claim-search";
 import {
   actionUrl,
   composeReminder,
   dueStep,
   isDoctorJourney,
+  matchUrl,
+  MAX_REMINDER_MATCHES,
+  searchName,
+  type ReminderMatch,
   stageOf,
   unsubscribeUrl,
   type ReminderCandidate,
@@ -138,9 +143,11 @@ export async function runSignupReminders(opts: { now?: Date; send?: boolean } = 
       report.items.push({ ...item, result: "already_sent" });
       continue;
     }
+    const matches = (await registerMatches(c.displayName).catch(() => [])).map((m) => ({ ...m, url: matchUrl(env.siteUrl, m, due.stage, due.step) }));
     const mail = composeReminder({
       stage: due.stage,
       step: due.step,
+      matches,
       displayName: c.displayName,
       actionUrl: actionUrl(env.siteUrl, c, due.stage, due.step),
       unsubscribeUrl: unsubscribeUrl(env.siteUrl, c.userId, secret()),
@@ -156,6 +163,29 @@ export async function runSignupReminders(opts: { now?: Date; send?: boolean } = 
     await audit({ action: "signup_reminders.run", entityType: "system", after: { due: report.due, sent: report.sent, failed: report.failed } });
   }
   return report;
+}
+
+/**
+ * Register entries under the signup's name that they could still claim or
+ * create. Only names of two or more words are searched, and only when the
+ * result is small enough to be a real "is this you?" — a common name that
+ * returns a page of strangers sends the generic search link instead.
+ */
+export async function registerMatches(displayName: string | null): Promise<ReminderMatch[]> {
+  const name = searchName(displayName);
+  if (name.split(" ").length < 2) return [];
+  const parsed = parseQuery(name);
+  if (parsed.kind !== "name") return [];
+  const hits = await searchRegister(parsed);
+  const open = hits.filter((h) => h.action.kind === "claim-published" || h.action.kind === "claim-draft" || h.action.kind === "create");
+  if (open.length === 0 || open.length > MAX_REMINDER_MATCHES) return [];
+  return open.map((h) => ({
+    name: h.name,
+    council: h.council,
+    number: h.number,
+    kind: h.action.kind as ReminderMatch["kind"],
+    slug: h.action.kind === "claim-published" ? h.action.slug : undefined,
+  }));
 }
 
 export async function optOutOfReminders(userId: string): Promise<boolean> {

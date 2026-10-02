@@ -16,6 +16,14 @@ export interface ClaimTarget {
   council: string;
 }
 
+/** Verification options. The default needs nothing from the doctor: an officer calls the practice on file. */
+const METHOD_LABELS: Record<string, { short: string; long: string }> = {
+  practice_otp: { short: "a one-time code to the practice number on file", long: "One-time password to the practice number already on file" },
+  work_email: { short: "an email at your hospital or clinic domain", long: "Email at your hospital or clinic domain" },
+  practice_admin: { short: "confirmation from your practice administrator", long: "Confirmation from the practice administrator" },
+  document: { short: "a document you upload", long: "Upload supporting evidence (registration certificate, hospital ID) — usually fastest" },
+};
+
 export function ClaimForm({ initialRegistration, initialCouncil = "", profile, source = null }: { initialRegistration: string; initialCouncil?: string; profile: ClaimTarget | null; source?: string | null }) {
   const [state, act, pending] = useActionState<ClaimState, FormData>(claimAction, {});
   const [method, setMethod] = useState("practice_otp");
@@ -66,23 +74,22 @@ export function ClaimForm({ initialRegistration, initialCouncil = "", profile, s
         <input id="reg" name="registration" type="text" required defaultValue={initialRegistration} placeholder="KMC-58412" />
         <div className="hint">We match council and number together. The same number can belong to different doctors in different states.</div>
       </div>
-      <div className="field">
-        <label>How should we confirm you control this profile?</label>
-        {[
-          ["practice_otp", "One-time password to the practice number already on file"],
-          ["work_email", "Email at your hospital or clinic domain"],
-          ["practice_admin", "Confirmation from the practice administrator"],
-          ["document", "Upload supporting evidence for manual review"],
-        ].map(([value, label]) => (
-          <label className="fopt" style={{ padding: "5px 0" }} key={value}>
-            <input type="radio" name="method" value={value} checked={method === value} onChange={() => {
-              setMethod(value);
-              trackEvent("claim_method_select", { method: value });
-            }} />
-            {label}
-          </label>
-        ))}
-      </div>
+      <details className="field" open={method !== "practice_otp"} style={{ margin: "6px 0 14px" }}>
+        <summary style={{ cursor: "pointer", fontSize: "14px" }}>
+          <b>How we confirm it&rsquo;s you:</b> {METHOD_LABELS[method]?.short ?? METHOD_LABELS.practice_otp.short} <span style={{ color: "var(--muted)" }}>(change)</span>
+        </summary>
+        <div style={{ marginTop: "8px" }}>
+          {Object.entries(METHOD_LABELS).map(([value, m]) => (
+            <label className="fopt" style={{ padding: "5px 0" }} key={value}>
+              <input type="radio" name="method" value={value} checked={method === value} onChange={() => {
+                setMethod(value);
+                trackEvent("claim_method_select", { method: value });
+              }} />
+              {m.long}
+            </label>
+          ))}
+        </div>
+      </details>
       {method === "document" ? (
         <div className="field">
           <label htmlFor="evidence">Supporting document</label>
@@ -90,11 +97,11 @@ export function ClaimForm({ initialRegistration, initialCouncil = "", profile, s
           <div className="hint">Registration certificate, hospital ID or a letter from the practice. Private; seen only by a verification officer.</div>
         </div>
       ) : null}
-      <div className="notice" style={{ margin: "18px 0" }}>
-        <b>Competing claims go to a person, not an algorithm.</b> If someone else has already claimed this profile we will not show you their contact details, and we will not transfer control without evidence from both sides.
+      <div className="hint" style={{ margin: "0 0 14px" }}>
+        Free. A verification officer approves claims within about 2 business days. If someone else has claimed this profile, a person decides on evidence from both sides.
       </div>
       <button type="submit" className="btn solid" style={{ width: "100%" }} disabled={pending}>
-        {pending ? "Submitting…" : "Submit claim"}
+        {pending ? "Submitting…" : "Claim my profile"}
       </button>
     </form>
   );

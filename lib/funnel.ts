@@ -22,6 +22,7 @@ export type FunnelEvent =
   | "claim_page_view" // /claim-profile rendered              {step: sign_in|form, has_profile}
   | "add_profile_page_view" // /add-doctor rendered           {step: sign_in|registration|match_found|details}
   | "linkedin_click" // "Continue with LinkedIn"                {flow}
+  | "google_click" // "Continue with Google"                    {flow}
   | "otp_requested" // code sent                               {flow}
   | "otp_submitted" // code entered and sent for checking      {flow}
   | "otp_error" // request or verify rejected                  {flow, stage}

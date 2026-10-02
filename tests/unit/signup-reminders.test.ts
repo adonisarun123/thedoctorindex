@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { linkedinDestination, parseUserinfo } from "../../lib/auth/linkedin";
+import { doctorDestination, isDoctorNext } from "../../lib/auth/doctor-journey";
+import { parseGoogleUserinfo } from "../../lib/auth/google";
 import {
   actionUrl,
   composeReminder,
   dueStep,
+  matchUrl,
   searchName,
   unsubscribeToken,
   verifyUnsubscribeToken,
@@ -128,4 +131,48 @@ test("LinkedIn destination: bare doctor journeys go to the register search with 
   assert.equal(linkedinDestination("/add-doctor?registration=123&council=KMC", "Asha Rao"), "/add-doctor?registration=123&council=KMC");
   assert.equal(linkedinDestination("/add-doctor", "Asha"), "/claim-profile/find");
   assert.equal(linkedinDestination("/doctor/x/enquire", "Asha Rao"), "/doctor/x/enquire");
+});
+
+test("Doctor journey: setup is shortened only for claim, create and dashboard destinations", () => {
+  assert.equal(isDoctorNext("/claim-profile?src=gads"), true);
+  assert.equal(isDoctorNext("/claim-profile/find?q=Asha%20Rao"), true);
+  assert.equal(isDoctorNext("/add-doctor"), true);
+  assert.equal(isDoctorNext("/dashboard"), true);
+  assert.equal(isDoctorNext("/doctor/x/enquire"), false);
+  assert.equal(isDoctorNext("/account"), false);
+  // After setup, an OTP signup on a bare claim journey lands on "Is this you?".
+  assert.equal(doctorDestination("/claim-profile", "Radhesh R Menon"), "/claim-profile/find?q=Radhesh%20R%20Menon");
+  assert.equal(doctorDestination("/claim-profile/find?q=X%20Y", "Asha Rao"), "/claim-profile/find?q=X%20Y");
+  assert.equal(doctorDestination("/", "Asha Rao"), "/");
+});
+
+test("Google userinfo: an unverified or missing email never counts as verified", () => {
+  assert.equal(parseGoogleUserinfo({ sub: "a", email: "X@Gmail.com" })?.emailVerified, false);
+  assert.equal(parseGoogleUserinfo({ sub: "a", email: "X@Gmail.com", email_verified: true })?.email, "x@gmail.com");
+  assert.equal(parseGoogleUserinfo({ email: "x@gmail.com" }), null);
+  assert.equal(parseGoogleUserinfo({ sub: "a", given_name: "Divya", family_name: "M" })?.name, "Divya M");
+});
+
+test("Reminder with register matches: leads with the entries and links straight to each", () => {
+  const draft = { name: "Radhesh R Menon", council: "Kerala Medical Council", number: "12345", kind: "claim-draft" as const };
+  const pub = { name: "Radhesh R Menon", council: "Kerala Medical Council", number: "12345", kind: "claim-published" as const, slug: "dr-radhesh-r-menon" };
+  const create = { ...draft, kind: "create" as const };
+  const u1 = new URL(matchUrl("https://thedoctorindex.com/", draft, "doctor_profile", 2));
+  assert.equal(u1.pathname, "/claim-profile");
+  assert.equal(u1.searchParams.get("registration"), "12345");
+  assert.equal(u1.searchParams.get("council"), "Kerala Medical Council");
+  assert.equal(u1.searchParams.get("src"), "email");
+  assert.equal(u1.searchParams.get("utm_campaign"), "signup_doctor_profile_2");
+  assert.equal(new URL(matchUrl("https://x", pub, "setup", 1)).searchParams.get("profile"), "dr-radhesh-r-menon");
+  assert.equal(new URL(matchUrl("https://x", create, "setup", 1)).pathname, "/add-doctor");
+
+  const m = composeReminder({ stage: "doctor_profile", step: 2, displayName: "Radhesh R Menon", actionUrl: "https://x/find", unsubscribeUrl: "https://x/u", matches: [{ ...draft, url: "https://x/claim1" }] });
+  assert.equal(m.subject, "Is this you? Radhesh R Menon, Kerala Medical Council");
+  assert.ok(m.text.includes("We think this is you"));
+  assert.ok(m.text.includes("Claim this profile: https://x/claim1"));
+  assert.ok(m.text.includes("https://x/find") && m.text.includes("https://x/u"));
+
+  const none = composeReminder({ stage: "doctor_profile", step: 2, displayName: "Radhesh R Menon", actionUrl: "https://x/find", unsubscribeUrl: "https://x/u", matches: [] });
+  assert.ok(!none.text.includes("We think this is you"));
+  assert.ok(none.text.includes("Find your registration: https://x/find"));
 });

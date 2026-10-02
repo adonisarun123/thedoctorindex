@@ -20,10 +20,21 @@ const LINKEDIN_ERRORS: Record<string, string> = {
   failed: "Something went wrong talking to LinkedIn. Try again, or use your email below.",
 };
 
+/** Reason codes the Google callback sends back (app/api/auth/google/callback). */
+const GOOGLE_ERRORS: Record<string, string> = {
+  cancelled: "Google sign-in was cancelled. Try again, or use your email below.",
+  denied: "Google did not let us sign you in. Use your email below instead.",
+  expired: "That Google sign-in took too long or was opened in another browser. Try again.",
+  no_email: "Your Google account has no verified email address, so we cannot use it to sign you in. Use your email below.",
+  disabled: "This account is disabled. Write to support if you think that is a mistake.",
+  unavailable: "Google sign-in is not available right now. Use your email below.",
+  failed: "Something went wrong talking to Google. Try again, or use your email below.",
+};
+
 export default async function SignInPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const next = typeof sp.next === "string" ? sp.next : "/";
-  const liError = typeof sp.li === "string" ? LINKEDIN_ERRORS[sp.li] ?? LINKEDIN_ERRORS.failed : null;
+  const liError = typeof sp.li === "string" ? LINKEDIN_ERRORS[sp.li] ?? LINKEDIN_ERRORS.failed : typeof sp.g === "string" ? GOOGLE_ERRORS[sp.g] ?? GOOGLE_ERRORS.failed : null;
   const user = await getSessionUser();
   if (user) {
     const dest = next === "/" ? (user.role === "staff" && user.staffRoles.length ? "/admin" : user.role === "doctor" ? "/dashboard" : "/account") : next;
