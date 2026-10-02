@@ -5,6 +5,7 @@ import { ActionForm } from "@/components/ActionForm";
 import { toDisplay } from "@/lib/db/dates";
 import { listResponseQueue, listReviewQueue, listReviewReports } from "@/lib/services/reviews";
 import { requireStaff } from "@/lib/auth/session";
+import { questionLabels } from "@/lib/reviews/questions";
 
 export const metadata = { title: "Review moderation" };
 
@@ -12,14 +13,14 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
   await requireStaff();
   const sp = await searchParams;
   const status = (typeof sp.status === "string" ? sp.status : "pending") as "pending" | "published" | "redacted" | "rejected" | "removed";
-  const [reviews, responses, reports] = await Promise.all([listReviewQueue(status), listResponseQueue(), listReviewReports(true)]);
+  const [reviews, responses, reports, labels] = await Promise.all([listReviewQueue(status), listResponseQueue(), listReviewReports(true), questionLabels()]);
 
   return (
     <>
       <div className="dash-head">
         <div>
           <h1>Review moderation</h1>
-          <div className="sub">Highest risk first. Automated checks flag; a person decides. <b>Step 1:</b> open the proof of consultation and record whether it is valid (doctor or practice name and a date that fits the stated visit month). <b>Step 2:</b> publish, redact or reject the text. Publishing is blocked until the proof is validated; a rejected proof rejects the review automatically.</div>
+          <div className="sub">Highest risk first. Automated checks flag; a person decides. <Link href="/admin/reviews/questions">Edit review questions →</Link> <b>Step 1:</b> open the prescription and record whether it is valid (doctor or practice name and a date that fits the stated visit month). <b>Step 2:</b> publish, redact or reject the text. Publishing is blocked until the proof is validated; a rejected proof rejects the review automatically. The document is deleted overnight once the review is decided.</div>
         </div>
         <div className="quick" style={{ marginTop: 0 }}>
           {(["pending", "published", "redacted", "rejected", "removed"] as const).map((st) => (
@@ -81,7 +82,8 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
             <div className="qh">
               <div>
                 <div className="qt">{r.authorLabel} on <Link href={`/admin/doctors/${r.doctorId}`}>Dr {r.doctor.name}</Link></div>
-                <div className="qm">{r.visitMonth} · {r.mode} · for {r.forWhom} · submitted {toDisplay(r.submittedAt)} · comm {r.communication} / expl {r.explanation} / wait {r.waitTime} / fac {r.facility}</div>
+                <div className="qm">{r.visitMonth} · {r.mode} · for {r.forWhom} · submitted {toDisplay(r.submittedAt)} · score {r.score ?? "—"}</div>
+                <div className="qm">{Object.entries(r.ratings ?? {}).map(([k, v]) => `${labels.get(k)?.label ?? k} ${v}/5`).join(" · ") || "no ratings"}</div>
               </div>
               <div className="risk">
                 <span className={`pill ${r.riskScore >= 40 ? "warn" : r.riskScore >= 15 ? "wait" : "ok"}`}>risk {r.riskScore}</span>
@@ -89,7 +91,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
                 <span className={`pill ${r.evidence === "checked" ? "ok" : r.evidence === "supplied" ? "wait" : "neut"}`}>evidence {r.evidence}</span>
               </div>
             </div>
-            <div className="qb">“{r.text}”</div>
+            {r.text ? <div className="qb">“{r.text}”</div> : <div className="qm">No comment — ratings only.</div>}
             {r.status === "redacted" && r.publishedText ? <div className="qb" style={{ marginTop: "6px" }}><b>Published as:</b> “{r.publishedText}”</div> : null}
             {r.moderationReason ? <div className="qm" style={{ marginTop: "6px" }}>reason: {r.moderationReason}</div> : null}
 

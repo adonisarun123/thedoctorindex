@@ -4,7 +4,8 @@
   "private": true,
   "description": "The Doctor Index \u2014 verified doctor directory for India. Front-end application.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
+    "dev:webpack": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

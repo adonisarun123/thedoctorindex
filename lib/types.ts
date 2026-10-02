@@ -150,12 +150,6 @@ export interface Practice {
   geoSource?: "facility" | "locality";
 }
 
-export interface ReviewDimensions {
-  communication: number;
-  explanation: number;
-  waitTime: number;
-  facility: number;
-}
 
 export interface Review {
   id: string;
@@ -166,7 +160,8 @@ export interface Review {
   mode: "In person" | "Online";
   /** True only where private proof of consultation was supplied AND validated. */
   evidenceChecked: boolean;
-  dimensions: ReviewDimensions;
+  /** Question key → 1..5 stars. Labels come from review_questions at render time. */
+  ratings: Record<string, number>;
   text: string;
   /** At most one privacy-safe reply from the doctor. */
   reply: string | null;
@@ -212,6 +207,8 @@ export interface Doctor {
   lastVerifiedOn: string;
   /** Matching entry in the Healthcare Professionals Registry (secondary signal). */
   hprVerified: boolean;
+  /** Patients can request slots from the calendar (doctor opted in and the profile is complete). */
+  bookingEnabled?: boolean;
   rating: RatingRollup;
   reviews: Review[];
 }

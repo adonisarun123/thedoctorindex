@@ -180,9 +180,15 @@ export function composeReminder(input: {
   matches?: Array<ReminderMatch & { url: string }>;
 }): { subject: string; text: string } {
   const { stage, step } = input;
-  const first = searchName(input.displayName).split(" ")[0];
-  // No "Dr": allied-health professionals sign up too, and a patient may get this.
-  const hi = first ? `Hello ${first},` : "Hello,";
+  // "Hello Dr <full name>," — same form as the backend-profile invite email.
+  // searchName strips any "Dr"/"Dr." they typed, so it never doubles up. Full
+  // name, not surname: Indian name order and initials make "the surname" unreliable.
+  const raw = searchName(input.displayName);
+  // "vaibhav bhatia" / "VAIBHAV BHATIA" → "Vaibhav Bhatia"; mixed case is left as typed.
+  const name = raw === raw.toLowerCase() || raw === raw.toUpperCase()
+    ? raw.toLowerCase().replace(/(^|[\s.'-])(\p{L})/gu, (_, p: string, c: string) => p + c.toUpperCase())
+    : raw;
+  const hi = name ? `Hello Dr ${name},` : "Hello,";
   const last = step >= REMINDER_DAYS.length;
 
   const body =

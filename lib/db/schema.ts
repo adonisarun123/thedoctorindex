@@ -31,6 +31,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  real,
   smallint,
   text,
   timestamp,
@@ -99,6 +100,7 @@ export const referralStatus = pgEnum("referral_status", ["pending", "verified", 
 export const tribeRewardKind = pgEnum("tribe_reward_kind", ["voucher", "recognition"]);
 export const tribeRewardStatus = pgEnum("tribe_reward_status", ["pending_review", "issued", "cancelled"]);
 export const articleStatus = pgEnum("article_status", ["draft", "submitted", "published", "rejected", "withdrawn"]);
+export const appointmentStatus = pgEnum("appointment_status", ["requested", "confirmed", "declined", "cancelled", "completed", "no_show"]);
 
 /* ------------------------------------------------------------------------- */
 /* Identity and access                                                       */
@@ -385,6 +387,8 @@ export const doctors = pgTable(
     photoFileId: uuid("photo_file_id"),
     photoConsent: boolean("photo_consent").notNull().default(false),
     phoneConsent: boolean("phone_consent").notNull().default(true),
+    /** Patients can request slots from the doctor's calendar. Only settable once the profile meets the booking unlock (lib/booking.ts). */
+    bookingEnabled: boolean("booking_enabled").notNull().default(false),
     /** Where the record came from: self | staff | import | claim */
     source: text("source").notNull().default("self"),
     /** Stable id within the source dataset (import de-duplication). */
@@ -621,11 +625,17 @@ export const reviews = pgTable(
     forWhom: text("for_whom").notNull().default("self"),
     visitMonth: text("visit_month").notNull(),
     mode: text("mode").notNull(),
-    communication: smallint("communication").notNull(),
-    explanation: smallint("explanation").notNull(),
-    waitTime: smallint("wait_time").notNull(),
-    facility: smallint("facility").notNull(),
-    text: text("text").notNull(),
+    /** Legacy fixed dimensions (pre question bank). Null on reviews written against review_questions. */
+    communication: smallint("communication"),
+    explanation: smallint("explanation"),
+    waitTime: smallint("wait_time"),
+    facility: smallint("facility"),
+    /** Question key → 1..5 stars, keys from review_questions as shown to the reviewer. */
+    ratings: jsonb("ratings").$type<Record<string, number>>().notNull().default(sql`'{}'::jsonb`),
+    /** Mean of the ratings (or of the legacy dimensions). Drives the rollup view. */
+    score: real("score"),
+    /** Optional comment. Empty string when the reviewer only rated. */
+    text: text("text").notNull().default(""),
     /** Redacted text shown publicly when status = redacted. */
     publishedText: text("published_text"),
     status: reviewStatus("status").notNull().default("pending"),
@@ -653,9 +663,93 @@ export const reviewEvidence = pgTable("review_evidence", {
   validatedByUserId: uuid("validated_by_user_id").references(() => users.id),
   validatedAt: timestamp("validated_at", { withTimezone: true }),
   outcome: evidenceStatus("outcome").notNull().default("supplied"),
-  /** Proof is deleted 90 days after moderation (plan §16.2). */
+  /** Set to the moderation time once the review is decided; the nightly maintenance run deletes the file bytes after that. */
   purgeAfter: timestamp("purge_after", { withTimezone: true }),
 });
+
+/**
+ * The questionnaire a reviewer answers. Core questions (specialtyKey null) are
+ * asked of every doctor; speciality questions are added for doctors of that
+ * speciality. Staff edit these in /admin/reviews/questions. A key is never
+ * reused for a different question: retire it (active=false) and add a new one,
+ * so published ratings keep their meaning.
+ */
+export const reviewQuestions = pgTable(
+  "review_questions",
+  {
+    key: text("key").primaryKey(),
+    label: text("label").notNull(),
+    help: text("help").notNull().default(""),
+    specialtyKey: text("specialty_key").references(() => specialties.key),
+    active: boolean("active").notNull().default(true),
+    sort: integer("sort").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("review_questions_specialty_idx").on(t.specialtyKey, t.active)],
+);
+
+/* ------------------------------------------------------------------------- */
+/* Appointment booking                                                       */
+/* ------------------------------------------------------------------------- */
+
+/** Weekly consulting hours that generate bookable slots. Times are wall-clock Asia/Kolkata. */
+export const availabilityRules = pgTable(
+  "availability_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    practiceId: uuid("practice_id").notNull().references(() => doctorPractices.id, { onDelete: "cascade" }),
+    /** 0 = Sunday … 6 = Saturday. */
+    weekday: smallint("weekday").notNull(),
+    /** "HH:MM", 24-hour. */
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    slotMinutes: smallint("slot_minutes").notNull().default(15),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("availability_rules_doctor_idx").on(t.doctorId)],
+);
+
+/** Dates the doctor is not taking bookings (leave, conferences). Whole days. */
+export const availabilityBlocks = pgTable(
+  "availability_blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    note: text("note"),
+  },
+  (t) => [uniqueIndex("availability_blocks_doctor_day_uq").on(t.doctorId, t.day)],
+);
+
+export const appointments = pgTable(
+  "appointments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    practiceId: uuid("practice_id").notNull().references(() => doctorPractices.id),
+    patientUserId: uuid("patient_user_id").notNull().references(() => users.id),
+    /** Name and mobile shared with the practice at booking time (consented). */
+    patientName: text("patient_name").notNull(),
+    patientPhone: text("patient_phone").notNull(),
+    forWhom: text("for_whom").notNull().default("self"),
+    /** One line, optional. Never a diagnosis; the form says so. */
+    reason: text("reason"),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    status: appointmentStatus("status").notNull().default("requested"),
+    /** Why the doctor declined or either side cancelled. */
+    statusNote: text("status_note"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("appointments_doctor_start_idx").on(t.doctorId, t.startsAt),
+    index("appointments_patient_idx").on(t.patientUserId, t.startsAt),
+    // A slot holds at most one live booking. Declined/cancelled rows free it.
+    uniqueIndex("appointments_live_slot_uq").on(t.doctorId, t.startsAt).where(sql`status in ('requested','confirmed')`),
+  ],
+);
 
 export const doctorResponses = pgTable("doctor_responses", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1189,6 +1283,14 @@ export const profileReportsRelations = relations(profileReports, ({ one }) => ({
 }));
 export const correctionsRelations = relations(corrections, ({ one }) => ({
   doctor: one(doctors, { fields: [corrections.doctorId], references: [doctors.id] }),
+}));
+export const appointmentsRelations = relations(appointments, ({ one }) => ({
+  doctor: one(doctors, { fields: [appointments.doctorId], references: [doctors.id] }),
+  practice: one(doctorPractices, { fields: [appointments.practiceId], references: [doctorPractices.id] }),
+  patient: one(users, { fields: [appointments.patientUserId], references: [users.id] }),
+}));
+export const availabilityRulesRelations = relations(availabilityRules, ({ one }) => ({
+  practice: one(doctorPractices, { fields: [availabilityRules.practiceId], references: [doctorPractices.id] }),
 }));
 export const enquiriesRelations = relations(enquiries, ({ one }) => ({
   doctor: one(doctors, { fields: [enquiries.doctorId], references: [doctors.id] }),

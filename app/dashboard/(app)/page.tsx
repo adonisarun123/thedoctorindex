@@ -11,6 +11,8 @@ import { verifiedCount } from "@/lib/services/tribe";
 import { progressFor, TRIBE } from "@/lib/tribe";
 import { QrShare } from "@/components/QrShare";
 import { EmbedBadge } from "@/components/EmbedBadge";
+import { ProfileLinks } from "@/components/ProfileLinks";
+import { bookingRequirementsFor } from "@/lib/services/booking";
 import { badgeSnippet } from "@/lib/tdi/badge";
 import { registrationState } from "@/lib/verification";
 import { paths, SITE } from "@/lib/site";
@@ -25,14 +27,16 @@ function pct(now: number, prev: number): string {
 export default async function DashboardOverview() {
   const ctx = await getDashboardContext();
   const { doctor } = ctx;
-  const [{ score, checklist }, analytics, changes, schedule, enquiries, tribeVerified] = await Promise.all([
+  const [{ score, checklist }, analytics, changes, schedule, enquiries, tribeVerified, booking] = await Promise.all([
     recomputeQuality(ctx.doctorId),
     doctorAnalytics(ctx.doctorId),
     listChangesForDoctor(ctx.doctorId),
     reconfirmSchedule(ctx.doctorId),
     listEnquiries({ doctorId: ctx.doctorId, status: "new" }),
     ctx.asManager ? Promise.resolve(0) : verifiedCount(ctx.user.id),
+    bookingRequirementsFor(ctx.doctorId),
   ]);
+  const bookingDone = booking.requirements.filter((r) => r.done).length;
   const tribe = progressFor(tribeVerified);
   const actions = Object.values(analytics.actions).reduce((a, b) => a + b, 0);
   const prevActions = Object.values(analytics.actionsPrev).reduce((a, b) => a + b, 0);
@@ -73,6 +77,22 @@ export default async function DashboardOverview() {
           </div>
         </div>
       ) : null}
+
+      {live ? (
+        booking.unlocked ? (
+          booking.enabled ? null : (
+            <div className="notice good" style={{ marginBottom: "16px" }}>
+              <b>Your calendar is unlocked.</b> Set your weekly hours and turn on online booking so patients can book from your profile and Google. <Link href="/dashboard/calendar">Open calendar →</Link>
+            </div>
+          )
+        ) : (
+          <div className="notice" style={{ marginBottom: "16px" }}>
+            <b>Complete your profile to unlock the calendar</b> — online appointment booking, and the tools that follow. {bookingDone} of {booking.requirements.length} done. <Link href="/dashboard/calendar">See what&rsquo;s left →</Link>
+          </div>
+        )
+      ) : null}
+
+      {live ? <ProfileLinks slug={doctor.slug} origin={SITE.origin} name={displayName(doctor)} bookingEnabled={booking.enabled} /> : null}
 
       {!doctor.indexable && live ? (
         <div className="notice" style={{ marginBottom: "16px" }}>

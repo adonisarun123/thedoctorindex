@@ -3,6 +3,7 @@ import { RouteMeta } from "@/components/RouteMeta";
 import { getDashboardContext } from "@/lib/dashboard";
 import { listEnquiries } from "@/lib/services/cases";
 import { listChangesForDoctor } from "@/lib/services/workflow";
+import { pendingRequestCount } from "@/lib/services/booking";
 import { absoluteUrl } from "@/lib/site";
 import { displayName } from "@/lib/display-name";
 
@@ -18,6 +19,7 @@ export default async function DashboardShell({ children }: { children: React.Rea
   const unreplied = ctx.doctor.reviews.filter((r) => !r.reply).length;
   const pendingChanges = (await listChangesForDoctor(ctx.doctorId)).filter((c) => c.status === "pending").length;
   const newEnquiries = (await listEnquiries({ doctorId: ctx.doctorId, status: "new" })).length;
+  const bookingRequests = await pendingRequestCount(ctx.doctorId);
 
   return (
     <>
@@ -38,7 +40,7 @@ export default async function DashboardShell({ children }: { children: React.Rea
           </div>
         ) : null}
         <div className="dash">
-          <DashboardNav name={displayName(ctx.doctor)} id={ctx.doctor.id} registration={ctx.doctor.registration.number} counts={{ reviews: unreplied, changes: pendingChanges, enquiries: newEnquiries }} />
+          <DashboardNav name={displayName(ctx.doctor)} id={ctx.doctor.id} registration={ctx.doctor.registration.number} counts={{ reviews: unreplied, changes: pendingChanges, enquiries: newEnquiries, calendar: bookingRequests }} />
           <div>{children}</div>
         </div>
       </div>

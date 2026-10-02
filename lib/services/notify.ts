@@ -27,7 +27,10 @@ type Kind =
   | { kind: "enquiry_received"; doctorName: string; preferredDay: string | null }
   | { kind: "qualification"; decision: "verified" | "rejected"; degree: string; doctorName: string; note?: string | null }
   | { kind: "tribe_level"; level: number; verified: number; rewardKind: "voucher" | "recognition"; amountInr: number; holdDays: number }
-  | { kind: "tribe_reward_issued"; level: number; rewardKind: "voucher" | "recognition"; amountInr: number; voucherCode: string | null };
+  | { kind: "tribe_reward_issued"; level: number; rewardKind: "voucher" | "recognition"; amountInr: number; voucherCode: string | null }
+  | { kind: "appointment_requested"; doctorName: string; when: string }
+  | { kind: "appointment_cancelled"; doctorName: string; when: string }
+  | { kind: "appointment_decision"; decision: "confirmed" | "declined" | "cancelled"; doctorName: string; when: string; note: string | null; slug: string };
 
 function body(n: Kind): { subject: string; text: string } {
   const sign = `\n\n— ${SITE.name}\n${absoluteUrl("/")}\nThis is a transactional message about an action on your account; it is not marketing.`;
@@ -84,6 +87,19 @@ function body(n: Kind): { subject: string; text: string } {
           `\n\nKeep going: ${absoluteUrl("/dashboard/tribe")}` +
           sign,
       };
+    case "appointment_requested":
+      return { subject: `New appointment request — ${n.when}`, text: `A patient has asked to see ${n.doctorName} on ${n.when} (IST). Confirm or decline it in your calendar; the patient is told either way. Their name and mobile are in the dashboard, never in email: ${absoluteUrl("/dashboard/calendar")}.` + sign };
+    case "appointment_cancelled":
+      return { subject: `Appointment cancelled — ${n.when}`, text: `A patient cancelled their appointment with ${n.doctorName} on ${n.when} (IST). The slot is open for booking again: ${absoluteUrl("/dashboard/calendar")}.` + sign };
+    case "appointment_decision": {
+      const profile = absoluteUrl(`/doctor/${n.slug}`);
+      const map = {
+        confirmed: [`Appointment confirmed — ${n.doctorName}, ${n.when}`, `Your appointment with ${n.doctorName} on ${n.when} (IST) is confirmed by the practice. The address and phone number are on the profile: ${profile}.\n\nCan't make it? Cancel from ${absoluteUrl("/account")} so someone else can have the slot.`],
+        declined: [`Appointment not available — ${n.doctorName}`, `The practice could not take your request for ${n.when} (IST).${n.note ? `\n\nTheir note: ${n.note}` : ""}\n\nPick another time at ${profile}/book.`],
+        cancelled: [`Appointment cancelled by the practice — ${n.doctorName}`, `Your appointment on ${n.when} (IST) was cancelled by the practice.${n.note ? `\n\nTheir note: ${n.note}` : ""}\n\nPick another time at ${profile}/book.`],
+      } as const;
+      return { subject: map[n.decision][0], text: map[n.decision][1] + sign };
+    }
     case "tribe_reward_issued":
       return n.rewardKind === "voucher" && n.voucherCode
         ? { subject: `Your Level ${n.level} gift voucher — ${SITE.name}`, text: `Thank you for growing the index. Here is your ₹${n.amountInr.toLocaleString("en-IN")} Amazon gift voucher for reaching Level ${n.level}:\n\n${n.voucherCode}\n\nRedeem it at amazon.in under Gift Cards → Redeem. The code is also on your tribe page: ${absoluteUrl("/dashboard/tribe")}.` + sign }
