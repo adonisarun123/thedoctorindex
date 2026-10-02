@@ -4,6 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { doctorDestination, isDoctorNext } from "@/lib/auth/doctor-journey";
 import { normalizeIdentifier } from "@/lib/auth/hash";
 import { getSessionUser } from "@/lib/auth/session";
 import { getGeo } from "@/lib/data/geo";
@@ -50,10 +51,14 @@ export async function saveProfileDetailsAction(_prev: ProfileState, form: FormDa
 
   const localityKey = await localityFromForm(form).catch(() => null);
   const cityTyped = str("placeCity") || str("city");
-  if (!localityKey && !cityTyped) return { error: "Tell us where you are — choose your state and city." };
+  // A doctor's first run skips the home locality: the practice location comes
+  // from the register entry they claim (lib/auth/doctor-journey.ts).
+  const first = !user.profileComplete;
+  const doctorFirstRun = first && isDoctorNext(next);
+  // Later edits keep whatever the person chose; a doctor who skipped it is not forced back.
+  if (!localityKey && !cityTyped && first && !doctorFirstRun) return { error: "Tell us where you are — choose your state and city." };
   const place = localityKey ? (await getGeo()).locality(localityKey) : null;
 
-  const first = !user.profileComplete;
   if (first && form.get("terms") !== "on") return { error: "You need to accept the terms of use and privacy notice to continue." };
 
   const db = getDb();
@@ -72,8 +77,8 @@ export async function saveProfileDetailsAction(_prev: ProfileState, form: FormDa
         displayName: fullName,
         phone: phone.value,
         email: email.value,
-        localityKey: localityKey ?? null,
-        city: place?.city ?? cityTyped ?? null,
+        // An empty picker on a later edit leaves the stored place alone.
+        ...(localityKey || cityTyped || first ? { localityKey: localityKey ?? null, city: place?.city ?? (cityTyped || null) } : {}),
         marketingOptIn: form.get("marketing") === "on",
         ...(first ? { termsAcceptedAt: new Date(), profileCompletedAt: new Date() } : {}),
       })
@@ -83,6 +88,7 @@ export async function saveProfileDetailsAction(_prev: ProfileState, form: FormDa
   }
   await audit({ actorUserId: user.id, actorRole: user.role, action: first ? "user.registered" : "user.profile_updated", entityType: "user", entityId: user.id, after: { locality: localityKey || cityTyped, termsAccepted: first || undefined } });
   revalidatePath("/account");
-  if (first) redirect(next);
+  // A bare claim / create journey lands on "Is this you?" with the name just typed.
+  if (first) redirect(doctorFirstRun ? doctorDestination(next, fullName) : next);
   return { ok: true, message: "Details saved." };
 }

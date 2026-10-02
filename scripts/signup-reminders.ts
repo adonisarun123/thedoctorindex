@@ -11,8 +11,8 @@ config();
  *   npm run reminders:signup -- --send    # actually send (uses EMAIL_PROVIDER)
  */
 async function main() {
-  const { runSignupReminders, stalledSignups, reminderSecret } = await import("../lib/services/signup-reminders");
-  const { actionUrl, composeReminder, dueStep, unsubscribeUrl } = await import("../lib/signup-reminders");
+  const { runSignupReminders, stalledSignups, reminderSecret, registerMatches } = await import("../lib/services/signup-reminders");
+  const { actionUrl, composeReminder, dueStep, matchUrl, unsubscribeUrl } = await import("../lib/signup-reminders");
   const { env } = await import("../lib/env");
   const send = process.argv.includes("--send");
   const preview = process.argv.includes("--preview");
@@ -26,7 +26,8 @@ async function main() {
     for (const c of await stalledSignups()) {
       const due = dueStep(c, now);
       if (!due) continue;
-      const m = composeReminder({ ...due, displayName: c.displayName, actionUrl: actionUrl(env.siteUrl, c, due.stage, due.step), unsubscribeUrl: unsubscribeUrl(env.siteUrl, c.userId, reminderSecret()) });
+      const matches = (await registerMatches(c.displayName).catch(() => [])).map((x) => ({ ...x, url: matchUrl(env.siteUrl, x, due.stage, due.step) }));
+      const m = composeReminder({ ...due, matches, displayName: c.displayName, actionUrl: actionUrl(env.siteUrl, c, due.stage, due.step), unsubscribeUrl: unsubscribeUrl(env.siteUrl, c.userId, reminderSecret()) });
       console.log(`\n────────── to ${c.email}\nSubject: ${m.subject}\n\n${m.text}`);
     }
   }

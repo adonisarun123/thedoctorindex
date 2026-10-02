@@ -18,6 +18,9 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
+/** This search covers the NMC / state medical registers only. */
+const NON_NMC_NOTE = "Dentists, AYUSH practitioners and physiotherapists are on other registers that are not searchable here — create your profile with your council and number and staff check it.";
+
 const qs = (o: Record<string, string>) => new URLSearchParams(o).toString();
 
 function actionFor(hit: RegisterHit) {
@@ -57,25 +60,7 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
     else limited = true;
   }
 
-  return (
-    <>
-      <RouteMeta
-        data={{
-          route: "Authenticated flow",
-          title: "Find your registration | The Doctor Index",
-          canonical: absoluteUrl("/claim-profile/find"),
-          index: false,
-          structuredData: "None",
-          notes: [{ label: "Why noindex, nofollow", text: "A search over the council registers is a tool for the doctor, not a page for Google. Result pages built from arbitrary names would be thin, unbounded and a way to enumerate people." }],
-        }}
-      />
-      <div className="wrap">
-        <div className="flow">
-          <span className="eyebrow">For doctors</span>
-          <h1 style={{ margin: "10px 0 6px" }}>Find your registration</h1>
-          <p style={{ color: "var(--ink-2)", fontSize: "15px", marginBottom: "22px", maxWidth: "58ch" }}>
-            Search the medical council registers by your name as the council records it, or by your registration number. Then claim the profile we hold for you, or create it.
-          </p>
+  const searchForm = (
           <form className="panel pad" method="get" action="/claim-profile/find" style={{ marginBottom: "18px" }}>
             <div className="field">
               <label htmlFor="q">Your name or registration number</label>
@@ -92,6 +77,30 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
             </div>
             <button type="submit" className="btn solid" style={{ width: "100%" }}>Search the register</button>
           </form>
+  );
+
+  return (
+    <>
+      <RouteMeta
+        data={{
+          route: "Authenticated flow",
+          title: "Find your registration | The Doctor Index",
+          canonical: absoluteUrl("/claim-profile/find"),
+          index: false,
+          structuredData: "None",
+          notes: [{ label: "Why noindex, nofollow", text: "A search over the council registers is a tool for the doctor, not a page for Google. Result pages built from arbitrary names would be thin, unbounded and a way to enumerate people." }],
+        }}
+      />
+      <div className="wrap">
+        <div className="flow">
+          <span className="eyebrow">For doctors</span>
+          <h1 style={{ margin: "10px 0 6px" }}>{hits.length ? "Is this you?" : "Find your registration"}</h1>
+          <p style={{ color: "var(--ink-2)", fontSize: "15px", marginBottom: "22px", maxWidth: "58ch" }}>
+            {hits.length
+              ? "These entries in the medical council register match your name. Pick yours to claim the profile we hold for it — or create it, if we don't have one yet."
+              : "Search the medical council registers by your name as the council records it, or by your registration number. Then claim the profile we hold for you, or create it."}
+          </p>
+          {hits.length ? null : searchForm}
 
           {parsed?.kind === "invalid" ? <div className="notice alert">{parsed.reason}</div> : null}
           {limited ? <div className="notice alert">Too many searches from this connection. Please wait a few minutes and try again.</div> : null}
@@ -115,13 +124,18 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
                 );
               })}
               {hits.length >= 10 ? <div className="hint">Showing the first 10. Add your state or use your registration number to narrow it down.</div> : null}
+              <div className="notice">
+                <b>None of these is you?</b> Search again above with your registration number, or{" "}
+                <Link href="/add-doctor?src=find">create your profile</Link>. {NON_NMC_NOTE}
+              </div>
             </div>
           ) : parsed && parsed.kind !== "invalid" && !limited ? (
             <div className="notice">
               <b>No entry found.</b> The register spells some names differently from how you write them (initials, a surname first). Try your registration number, or{" "}
-              <Link href="/add-doctor?src=find">create a profile with your registration</Link>; a verification officer checks it against the register.
+              <Link href="/add-doctor?src=find">create a profile with your registration</Link>; a verification officer checks it against the register. {NON_NMC_NOTE}
             </div>
           ) : null}
+          {hits.length ? <div style={{ marginTop: "18px" }}>{searchForm}</div> : null}
         </div>
       </div>
     </>

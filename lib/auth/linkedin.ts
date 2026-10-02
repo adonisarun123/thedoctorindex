@@ -98,20 +98,5 @@ export async function fetchProfile(accessToken: string): Promise<LinkedInProfile
   return parseUserinfo(await res.json().catch(() => null));
 }
 
-/**
- * Where a doctor goes after LinkedIn. A bare doctor journey (claim or create
- * with nothing chosen yet) goes straight to the register search with their
- * LinkedIn name filled in, so the next screen is "is this you?". A journey
- * that already names a profile or a registration keeps its destination.
- */
-export function linkedinDestination(next: string, name: string | null): string {
-  const path = next.split("?")[0];
-  const query = new URLSearchParams(next.includes("?") ? next.slice(next.indexOf("?") + 1) : "");
-  const bareDoctorJourney =
-    (path === "/claim-profile" || path === "/add-doctor") && !query.get("profile") && !query.get("registration");
-  const words = (name ?? "").replace(/^\s*dr\.?\s+/i, "").trim().split(/\s+/).filter(Boolean);
-  if (bareDoctorJourney || (path === "/claim-profile/find" && !query.get("q"))) {
-    return words.length >= 2 ? `/claim-profile/find?q=${encodeURIComponent(words.join(" "))}` : "/claim-profile/find";
-  }
-  return next;
-}
+/** Where a doctor lands after LinkedIn — shared with every sign-in route (lib/auth/doctor-journey.ts). */
+export { doctorDestination as linkedinDestination } from "@/lib/auth/doctor-journey";

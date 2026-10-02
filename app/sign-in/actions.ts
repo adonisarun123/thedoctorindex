@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { flowFromNext } from "@/lib/funnel";
+import { doctorDestination } from "@/lib/auth/doctor-journey";
 import { requestOtp, verifyOtp } from "@/lib/auth/otp";
 import { createSession, destroySession, getSessionUser } from "@/lib/auth/session";
 import { audit } from "@/lib/services/audit";
@@ -44,7 +45,8 @@ export async function verifyOtpAction(_prev: SignInState, form: FormData): Promi
   await audit({ actorUserId: res.userId, action: res.created ? "user.created_and_signed_in" : "user.signed_in", entityType: "user", entityId: res.userId });
   const dest = next === "/" ? await homeFor(res.userId) : next;
   const me = await getSessionUser();
-  redirect(me && !me.profileComplete ? `/account/setup?next=${encodeURIComponent(dest)}` : dest);
+  // A returning, set-up doctor on a bare claim journey goes straight to "Is this you?".
+  redirect(me && !me.profileComplete ? `/account/setup?next=${encodeURIComponent(dest)}` : doctorDestination(dest, me?.displayName ?? null));
 }
 
 /** Which journey a new account was created for, so reminders go only to doctors who stalled. */

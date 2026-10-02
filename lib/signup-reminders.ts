@@ -103,6 +103,38 @@ export function actionUrl(siteUrl: string, c: Pick<ReminderCandidate, "signupNex
   return withUtm(`${base}${find}`, stage, step);
 }
 
+/** A register entry that probably belongs to the reminded doctor, with where its button goes. */
+export interface ReminderMatch {
+  name: string;
+  council: string;
+  number: string;
+  /** What the link does: claim a published profile, claim a private draft, or create one. */
+  kind: "claim-published" | "claim-draft" | "create";
+  slug?: string;
+}
+
+export const MAX_REMINDER_MATCHES = 3;
+
+/**
+ * The one-click link for a matched register entry. Signed-out visitors see the
+ * sign-in box on that same page, and land back on it, so the link works for
+ * either stage.
+ */
+export function matchUrl(siteUrl: string, m: ReminderMatch, stage: ReminderStage, step: number): string {
+  const base = siteUrl.replace(/\/$/, "");
+  const q = new URLSearchParams({ src: "email" });
+  let path: string;
+  if (m.kind === "claim-published" && m.slug) {
+    q.set("profile", m.slug);
+    path = "/claim-profile";
+  } else {
+    q.set("registration", m.number);
+    q.set("council", m.council);
+    path = m.kind === "create" ? "/add-doctor" : "/claim-profile";
+  }
+  return withUtm(`${base}${path}?${q.toString()}`, stage, step);
+}
+
 /* ------------------------------------------------------------------------- */
 /* Unsubscribe token                                                         */
 /* ------------------------------------------------------------------------- */
@@ -144,6 +176,8 @@ export function composeReminder(input: {
   displayName: string | null;
   actionUrl: string;
   unsubscribeUrl: string;
+  /** Register entries that match the doctor's name, each with its own link (lib/services/signup-reminders.ts). */
+  matches?: Array<ReminderMatch & { url: string }>;
 }): { subject: string; text: string } {
   const { stage, step } = input;
   const first = searchName(input.displayName).split(" ")[0];
@@ -168,11 +202,27 @@ export function composeReminder(input: {
           "If you signed up as a patient rather than a doctor, ignore this email.",
         ];
 
+  // When the register has entries under their name, the email leads with them:
+  // one click on the right entry is the whole job.
+  const matches = (input.matches ?? []).slice(0, MAX_REMINDER_MATCHES);
+  const matchBlock = matches.length
+    ? [
+        matches.length === 1 ? "We think this is you in the medical council register:" : "These entries in the medical council register match your name. Is one of them you?",
+        "",
+        ...matches.flatMap((m) => [
+          `  ${m.name} — ${m.council} · ${m.number}`,
+          `  ${m.kind === "create" ? "Create this profile" : "Claim this profile"}: ${m.url}`,
+          "",
+        ]),
+        "Not you? Search by your registration number instead:",
+      ]
+    : [];
+
   const text = [
     hi,
     "",
-    ...body.flatMap((p) => [p, ""]),
-    stage === "setup" ? `Finish your profile: ${input.actionUrl}` : `Find your registration: ${input.actionUrl}`,
+    ...(matches.length ? [body[0], "", ...matchBlock] : body.flatMap((p) => [p, ""])),
+    matches.length ? input.actionUrl : stage === "setup" ? `Finish your profile: ${input.actionUrl}` : `Find your registration: ${input.actionUrl}`,
     "",
     last ? "This is the last reminder we will send about this." : "We will send at most one or two more reminders, then stop.",
     "",
@@ -181,5 +231,6 @@ export function composeReminder(input: {
     `Stop these reminders: ${input.unsubscribeUrl}`,
   ].join("\n");
 
-  return { subject: SUBJECTS[stage][Math.min(step, 3) - 1], text };
+  const subject = matches.length === 1 ? `Is this you? ${matches[0].name}, ${matches[0].council}` : SUBJECTS[stage][Math.min(step, 3) - 1];
+  return { subject, text };
 }
