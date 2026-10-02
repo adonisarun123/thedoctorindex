@@ -80,7 +80,9 @@ export const correctionStatus = pgEnum("correction_status", ["open", "applied", 
 export const enquiryStatus = pgEnum("enquiry_status", ["new", "sent", "contacted", "closed"]);
 export const submissionStatus = pgEnum("submission_status", ["submitted", "in_review", "needs_info", "approved", "rejected"]);
 export const claimStatus = pgEnum("claim_status", ["pending", "approved", "rejected"]);
-export const claimMethod = pgEnum("claim_method", ["practice_otp", "work_email", "practice_admin", "document"]);
+export const claimMethod = pgEnum("claim_method", ["practice_otp", "work_email", "practice_admin", "document", "staff_invite"]);
+/** Staff-sent "your profile is ready, claim it" emails (lib/services/doctor-invites.ts). */
+export const inviteStatus = pgEnum("invite_status", ["queued", "sent", "claimed", "opted_out", "cancelled"]);
 export const changeStatus = pgEnum("change_status", ["pending", "published", "rejected"]);
 export const checkKind = pgEnum("check_kind", ["registration", "qualification", "practice", "hpr", "claim", "identity", "disciplinary"]);
 export const checkResult = pgEnum("check_result", ["verified", "failed", "pending", "not_found"]);
@@ -216,6 +218,48 @@ export const signupReminders = pgTable(
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("signup_reminders_user_stage_step_uq").on(t.userId, t.stage, t.step)],
+);
+
+/**
+ * Staff invitations to claim a profile staff built (lib/services/doctor-invites.ts).
+ * The email is supplied by staff with its source; the link signs the recipient
+ * in, and the profile is claimed only once they confirm the registration number
+ * already on file. The raw token never touches the database, only its hash.
+ * At most one open (queued or sent) invite per profile.
+ */
+export const doctorInvites = pgTable(
+  "doctor_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    /** Where staff got the address: "doctor supplied", "clinic website", … Required. */
+    emailSource: text("email_source").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    status: inviteStatus("status").notNull().default("queued"),
+    /** 1 = the invite, 2 and 3 = the day-3 and day-10 reminders. */
+    sends: smallint("sends").notNull().default(0),
+    lastDelivered: boolean("last_delivered"),
+    firstSentAt: timestamp("first_sent_at", { withTimezone: true }),
+    lastSentAt: timestamp("last_sent_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedUserId: uuid("accepted_user_id").references(() => users.id),
+    /** Wrong registration numbers entered on the confirm step; locked at 5. */
+    confirmAttempts: smallint("confirm_attempts").notNull().default(0),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    optedOutAt: timestamp("opted_out_at", { withTimezone: true }),
+    /** "not_me" or "not_interested". */
+    optOutReason: text("opt_out_reason"),
+    createdByUserId: uuid("created_by_user_id").notNull().references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("doctor_invites_token_uq").on(t.tokenHash),
+    uniqueIndex("doctor_invites_open_uq").on(t.doctorId).where(sql`status in ('queued', 'sent')`),
+    index("doctor_invites_status_idx").on(t.status, t.createdAt),
+    index("doctor_invites_email_idx").on(sql`lower(${t.email})`),
+  ],
 );
 
 /**

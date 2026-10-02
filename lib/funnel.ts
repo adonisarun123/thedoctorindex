@@ -58,7 +58,7 @@ export function trackEvent(name: FunnelEvent, params: FunnelParams = {}): void {
 /** Which journey a sign-in / account step serves, from its `next` path. */
 export function flowFromNext(next: string | null | undefined): string {
   const n = decodeURIComponent(next ?? "");
-  if (n.includes("/claim-profile")) return "claim";
+  if (n.includes("/claim-profile") || n.startsWith("/invite/")) return "claim";
   if (n.includes("/add-doctor")) return "add_doctor";
   if (n.includes("/enquire")) return "enquire";
   if (n.includes("/review")) return "review";

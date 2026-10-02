@@ -17,6 +17,7 @@ import { decideChange, decideClaim, decideSubmission } from "@/lib/services/work
 import { cancelReward, issueReward, rejectReferral, settleReferralsForDoctor } from "@/lib/services/tribe";
 import { decideArticle } from "@/lib/services/articles";
 import { decideCertificate } from "@/lib/services/qualification-evidence";
+import { cancelInvite, queueInvite, sendInvite, sendQueued } from "@/lib/services/doctor-invites";
 import { localityFromForm } from "@/lib/services/places";
 import { revalidateDoctors } from "@/lib/data/revalidate";
 
@@ -604,6 +605,51 @@ export async function rejectReferralAction(_p: AdminState, f: FormData): Promise
     if (!note) throw new Error("Give a reason; it is written to the audit log.");
     await rejectReferral(str(f, "id"), u.id, note);
     return done("Referral reversed and the referrer's levels recomputed.", ["/admin/tribe"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* Doctor invites (lib/services/doctor-invites.ts) */
+export async function inviteDoctorAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const doctorId = str(f, "id");
+    const inv = await queueInvite({ doctorId, email: str(f, "email"), emailSource: str(f, "source"), staffUserId: u.id });
+    if (str(f, "mode") === "queue") return done("Invite queued. Send it from Doctor invites.", [`/admin/doctors/${doctorId}`, "/admin/invites"]);
+    const r = await sendInvite(inv.id, u.id);
+    return done(r.delivered ? `Invite sent to ${inv.email}.` : `Invite recorded, but the email provider (${r.provider}) did not accept it.`, [`/admin/doctors/${doctorId}`, "/admin/invites"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function sendInviteAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const r = await sendInvite(str(f, "inviteId"), u.id);
+    return done(r.delivered ? "Invite sent." : `The email provider (${r.provider}) did not accept it.`, ["/admin/invites", `/admin/doctors/${str(f, "doctorId")}`]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function sendQueuedInvitesAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const n = Math.max(1, Math.min(50, Number(str(f, "limit")) || 20));
+    const r = await sendQueued(u.id, n);
+    return done(`Sent ${r.sent}${r.failed ? `, ${r.failed} failed` : ""}. ${r.left} still queued.`, ["/admin/invites"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function cancelInviteAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    await cancelInvite(str(f, "inviteId"), u.id);
+    return done("Invite cancelled; its link no longer works.", ["/admin/invites", `/admin/doctors/${str(f, "doctorId")}`]);
   } catch (e) {
     return fail(e);
   }
