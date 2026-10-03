@@ -25,7 +25,7 @@ async function main() {
   const oi = process.argv.indexOf("--only");
   const only = oi >= 0 ? process.argv[oi + 1] : null;
   (globalThis as unknown as { React?: unknown }).React = (await import("react")).default;
-  const { directoryEntries, doctorEntries, editorialEntries } = await import("../lib/seo/sitemap");
+  const { conditionEntries, directoryEntries, doctorEntries, editorialEntries } = await import("../lib/seo/sitemap");
   const { indexNowKey, KEY_PATH, submitToIndexNow } = await import("../lib/seo/indexnow");
   const { absoluteUrl } = await import("../lib/site");
 
@@ -35,14 +35,15 @@ async function main() {
   const live = await fetch(keyUrl).then((r) => (r.ok ? r.text() : `HTTP ${r.status}`)).catch((e: Error) => `unreachable: ${e.message}`);
   if (live.trim() !== key) throw new Error(`${keyUrl} does not serve INDEXNOW_KEY (got "${live.trim().slice(0, 40)}"). Check NEXT_PUBLIC_SITE_URL.`);
 
-  const [doctors, directory, editorial] = await Promise.all([
+  const [doctors, directory, editorial, conditions] = await Promise.all([
     !only || only === "doctors" ? doctorEntries() : Promise.resolve([]),
     !only || only === "directory" ? directoryEntries() : Promise.resolve([]),
     !only || only === "editorial" ? Promise.resolve(editorialEntries()) : Promise.resolve([]),
+    !only || only === "conditions" ? Promise.resolve(conditionEntries()) : Promise.resolve([]),
   ]);
-  const urls = [...new Set([...doctors, ...directory, ...editorial].map((e) => e.loc))];
+  const urls = [...new Set([...doctors, ...directory, ...editorial, ...conditions].map((e) => e.loc))];
   console.log(`key verified at ${keyUrl}`);
-  console.log(`profiles ${doctors.length} · directory ${directory.length} · editorial ${editorial.length} · unique ${urls.length}`);
+  console.log(`profiles ${doctors.length} · directory ${directory.length} · editorial ${editorial.length} · conditions ${conditions.length} · unique ${urls.length}`);
   if (dry) return console.log("dry run: nothing submitted");
   const res = await submitToIndexNow(urls);
   console.log(`submitted ${res.submitted} in ${res.batches} batch(es), HTTP ${res.status.join(", ") || "—"}${res.skipped ? ` (skipped: ${res.skipped})` : ""}`);
