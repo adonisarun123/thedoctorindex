@@ -6,7 +6,7 @@ import { ARTICLES } from "../../lib/conditions/articles";
 import { LETTERS, letterOf } from "../../lib/conditions/browse";
 import { cleanCondition, sectionBlocks, splitOtherNames, type RawCondition } from "../../lib/conditions/clean";
 import { DEPARTMENTS, departmentByName, departmentSlug } from "../../lib/conditions/departments";
-import { articleIndexable } from "../../lib/conditions/gate";
+import { INDEX_UNREVIEWED_ARTICLES, articleIndexable, articleReviewed } from "../../lib/conditions/gate";
 import { SPECIALTIES } from "../../lib/data/taxonomy";
 import { conditionLd } from "../../lib/seo/structured-data";
 
@@ -111,11 +111,17 @@ const base = {
   sources: [],
 };
 
-test("no reviewer, no index — a date alone or a role alone is not a review", () => {
+test("review is strict: a date alone or a role alone is not a review", () => {
+  assert.equal(articleReviewed(null), false);
+  assert.equal(articleReviewed({ ...base, reviewer: null, reviewedOn: "01 Oct 2026" }), false);
+  assert.equal(articleReviewed({ ...base, reviewer: { name: "Dr A", qualification: "MD", council: "KMC", registration: "" }, reviewedOn: "01 Oct 2026" }), false);
+  assert.equal(articleReviewed({ ...base, reviewer: { name: "Dr A", qualification: "MD", council: "KMC", registration: "12345" }, reviewedOn: "" }), false);
+  assert.equal(articleReviewed({ ...base, reviewer: { name: "Dr A", qualification: "MD", council: "KMC", registration: "12345" }, reviewedOn: "01 Oct 2026" }), true);
+});
+
+test("indexing: articles index (unreviewed only under the 3 Oct policy), drafts never", () => {
   assert.equal(articleIndexable(null), false);
-  assert.equal(articleIndexable({ ...base, reviewer: null, reviewedOn: "01 Oct 2026" }), false);
-  assert.equal(articleIndexable({ ...base, reviewer: { name: "Dr A", qualification: "MD", council: "KMC", registration: "" }, reviewedOn: "01 Oct 2026" }), false);
-  assert.equal(articleIndexable({ ...base, reviewer: { name: "Dr A", qualification: "MD", council: "KMC", registration: "12345" }, reviewedOn: "" }), false);
+  assert.equal(articleIndexable({ ...base, reviewer: null, reviewedOn: "" }), INDEX_UNREVIEWED_ARTICLES);
   assert.equal(articleIndexable({ ...base, reviewer: { name: "Dr A", qualification: "MD", council: "KMC", registration: "12345" }, reviewedOn: "01 Oct 2026" }), true);
 });
 

@@ -68,7 +68,7 @@ export default async function DepartmentPage({ params }: { params: Promise<Param
           canonical: absoluteUrl(path),
           index: indexable,
           structuredData: "CollectionPage › ItemList, BreadcrumbList",
-          notes: [{ label: "Gate", text: `Indexable at ${DEPARTMENT_MIN_INDEXABLE} reviewed articles; ${reviewed.length} today.` }],
+          notes: [{ label: "Gate", text: `Indexable at ${DEPARTMENT_MIN_INDEXABLE} indexable guides; ${reviewed.length} today.` }],
         }}
       />
       <JsonLd
@@ -119,7 +119,7 @@ export default async function DepartmentPage({ params }: { params: Promise<Param
 
           {reviewed.length ? (
             <>
-              <h2>Reviewed articles</h2>
+              <h2>Condition guides</h2>
               <ul className="condlist">
                 {reviewed.map((c) => (
                   <li key={c.slug}>

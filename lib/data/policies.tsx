@@ -303,7 +303,7 @@ export const POLICIES: Policy[] = [
     title: "Editorial and medical review policy",
     summary:
       "Who writes and reviews health content on this site, how sources are handled, and what we will not publish.",
-    updatedOn: "28 Aug 2026",
+    updatedOn: "03 Oct 2026",
     body: (
       <>
         <p>
@@ -312,9 +312,10 @@ export const POLICIES: Policy[] = [
         </p>
         <h2>Authorship and review</h2>
         <ul>
-          <li>Every guide names a qualified author and a separate medical reviewer with their registration.</li>
-          <li>Every guide shows its publication date and the date of its last substantive review.</li>
-          <li>Guides are re-reviewed at least every 12 months, and sooner when guidance changes.</li>
+          <li>Health guides and condition articles are researched and written by The Doctor Index editorial team from the sources each page lists.</li>
+          <li>A page says it is medically reviewed only when a named registered medical practitioner has read and signed off that text. The reviewer&rsquo;s name, qualification, registration number and the review date are then shown on the page.</li>
+          <li>Pages that no doctor has reviewed yet say so at the top and carry a full medical disclaimer. They are published so that readers can understand a condition and find the right specialist; they are not medical advice.</li>
+          <li>Every page shows when it was written and last updated. Reviewed pages are re-reviewed at least every 12 months, and sooner when guidance changes.</li>
         </ul>
         <h2>Sources</h2>
         <p>
@@ -325,7 +326,7 @@ export const POLICIES: Policy[] = [
         <h2>What we will not publish</h2>
         <ul>
           <li>Symptom checkers, triage tools or anything that outputs a diagnosis.</li>
-          <li>Bulk-generated condition pages. Every guide is commissioned, written and reviewed individually.</li>
+          <li>Condition articles written to a template. Each article is written individually; reference pages compiled from public sources (such as MedlinePlus and Orphanet) are labelled as compiled, credit their sources, and are kept out of search results.</li>
           <li>Content that names or recommends a specific doctor. Guidance and directory are separate.</li>
           <li>Sponsored health content of any kind.</li>
         </ul>

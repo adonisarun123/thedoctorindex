@@ -49,7 +49,7 @@ export default async function ConditionsHub() {
           canonical: absoluteUrl(cpaths.hub()),
           index: indexable,
           structuredData: "CollectionPage › ItemList (departments), BreadcrumbList",
-          notes: [{ label: "Gate", text: `Indexable at ${HUB_MIN_INDEXABLE} reviewed articles; ${reviewed.length} today. ${all.length} conditions are browsable.` }],
+          notes: [{ label: "Gate", text: `Indexable at ${HUB_MIN_INDEXABLE} indexable guides; ${reviewed.length} today. ${all.length} conditions are browsable.` }],
         }}
       />
       <JsonLd
@@ -66,8 +66,8 @@ export default async function ConditionsHub() {
           <p style={{ maxWidth: "70ch" }}>
             {all.length.toLocaleString("en-IN")} conditions, each with what it is, the department that usually sees it, and a route to doctors on the index whose registration you can check.
             {reviewed.length
-              ? ` ${reviewed.length} have an original article reviewed by a registered doctor.`
-              : " Pages are compiled from public medical sources and labelled as such; reviewed articles are being added."}
+              ? ` ${reviewed.length} have an in-depth guide written for readers in India; the rest are compiled from public medical sources and labelled as such. Guides say whether a doctor has reviewed them.`
+              : " Pages are compiled from public medical sources and labelled as such."}
           </p>
 
           <nav className="azbar" aria-label="Browse by letter">
@@ -84,7 +84,7 @@ export default async function ConditionsHub() {
 
           {reviewed.length ? (
             <>
-              <h2>Reviewed articles</h2>
+              <h2>Condition guides</h2>
               <ul className="condlist">
                 {reviewed.map((c) => (
                   <li key={c.slug}>

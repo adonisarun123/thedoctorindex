@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { ArticleBody, Contents, FaqList } from "@/components/ArticleBody";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { ConditionDisclaimer } from "@/components/ConditionDisclaimer";
 import { ConditionDraftBody } from "@/components/ConditionDraftBody";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
@@ -14,7 +15,7 @@ import { articleBySlug } from "@/lib/conditions/articles";
 import { paths as cpaths } from "@/lib/conditions/browse";
 import { getConditionDraft, listConditions } from "@/lib/conditions/data";
 import { FIRST_CONTACT, departmentBySlug } from "@/lib/conditions/departments";
-import { articleIndexable, conditionIndexable, indexableSlugs } from "@/lib/conditions/gate";
+import { articleIndexable, articleReviewed, conditionIndexable, indexableSlugs } from "@/lib/conditions/gate";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, conditionLd } from "@/lib/seo/structured-data";
@@ -64,6 +65,7 @@ export default async function ConditionPage({ params }: { params: Promise<Params
 
   const article = articleBySlug(slug);
   const indexable = articleIndexable(article);
+  const reviewed = articleReviewed(article);
   // An article's department overrides the compiler's editorial mapping.
   const dept = departmentBySlug(article?.department ?? draft.departmentSlug);
   const deptName = dept?.name ?? draft.department;
@@ -118,7 +120,7 @@ export default async function ConditionPage({ params }: { params: Promise<Params
           symptoms: article.symptoms,
           tests: article.tests,
           treatments: article.treatments,
-          reviewed: indexable && article.reviewer ? { name: article.reviewer.name, on: article.reviewedOn, qualification: article.reviewer.qualification } : null,
+          reviewed: reviewed && article.reviewer ? { name: article.reviewer.name, on: article.reviewedOn, qualification: article.reviewer.qualification } : null,
         }
       : null,
   });
@@ -134,14 +136,14 @@ export default async function ConditionPage({ params }: { params: Promise<Params
           h1: title,
           canonical: absoluteUrl(path),
           index: indexable,
-          structuredData: `MedicalWebPage › MedicalCondition${article ? " (signs, tests, treatments) › Article" : ""}${indexable ? " (reviewedBy, lastReviewed)" : ""}, BreadcrumbList`,
+          structuredData: `MedicalWebPage › MedicalCondition${article ? " (signs, tests, treatments) › Article" : ""}${reviewed ? " (reviewedBy, lastReviewed)" : ""}, BreadcrumbList`,
           lastmod: article?.updatedOn ?? draft.compiledOn,
           notes: [
-            indexable
-              ? { label: "Indexable", text: `Original article, reviewed by ${article!.reviewer!.name} on ${article!.reviewedOn}.` }
+            reviewed
+              ? { label: "Indexable, reviewed", text: `Original article, reviewed by ${article!.reviewer!.name} on ${article!.reviewedOn}.` }
               : article
-                ? { label: "Noindex: awaiting clinical review", text: "Original article exists; it is indexed once a named clinician signs it off (reviewer + reviewedOn)." }
-                : { label: "Noindex: compiled draft", text: `Source text, ${draft.uniqueWordCount} of ${draft.wordCount} words not shared with other drafts. Indexed only once an original, reviewed article replaces it.` },
+                ? { label: "Indexable, unreviewed", text: "Original article indexed before clinical sign-off (decision 3 Oct 2026); carries the medical disclaimer and no review claim in markup." }
+                : { label: "Noindex: compiled draft", text: `Source text, ${draft.uniqueWordCount} of ${draft.wordCount} words not shared with other drafts. Indexed only once an original article replaces it.` },
           ],
         }}
       />
@@ -189,7 +191,7 @@ export default async function ConditionPage({ params }: { params: Promise<Params
                 <span className="when">{displayDate(draft.compiledOn)}</span>
               </div>
             )}
-            {indexable && article?.reviewer ? (
+            {reviewed && article?.reviewer ? (
               <div className="rrow">
                 <span className="dot ok" />
                 <div>
@@ -212,9 +214,13 @@ export default async function ConditionPage({ params }: { params: Promise<Params
             )}
           </div>
 
-          <div className="notice alert">
-            <b>This is not medical advice.</b> If symptoms are severe, sudden or getting worse, call 112 (or 108 for an ambulance) or go to the nearest emergency department.
-          </div>
+          {article && !reviewed ? (
+            <ConditionDisclaimer compact />
+          ) : (
+            <div className="notice alert">
+              <b>This is not medical advice.</b> If symptoms are severe, sudden or getting worse, call 112 (or 108 for an ambulance) or go to the nearest emergency department.
+            </div>
+          )}
 
           {!article && draft.sourceGaps.length ? (
             <p style={{ fontSize: "14.5px", color: "var(--muted)", marginTop: "14px" }}>
@@ -288,6 +294,8 @@ export default async function ConditionPage({ params }: { params: Promise<Params
           <p style={{ marginTop: "14px" }}>
             <Link href={cpaths.department(deptSlug)}>All {deptName.toLowerCase()} conditions →</Link>
           </p>
+
+          {article && !reviewed ? <ConditionDisclaimer /> : null}
 
           <h2 id="sources">Sources</h2>
           <ul style={{ fontSize: "15px" }}>
