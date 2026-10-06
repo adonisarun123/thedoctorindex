@@ -235,7 +235,11 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               <div className="role">
                 {specialty.one}
                 {qualsVerified.length ? ` · ${qualsVerified.map((q) => q.degree).slice(0, 2).join(", ")}` : ""}
-                {doctor.registration.registeredYear ? ` · practising since ${doctor.registration.registeredYear}` : ""}
+                {doctor.practiceStartYear
+                  ? ` · practising since ${doctor.practiceStartYear}`
+                  : doctor.registration.registeredYear
+                    ? ` · registered ${doctor.registration.registeredYear}`
+                    : ""}
                 {doctor.subspecialties.length ? ` · ${doctor.subspecialties.join(", ")}` : ""}
               </div>
               {primaryPractice ? (
