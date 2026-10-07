@@ -1437,7 +1437,7 @@ export const newsStories = pgTable(
     body: text("body").notNull(),
     /** "By the numbers" strip: [{ value, label }], only figures a source states. */
     numbers: jsonb("numbers").notNull().default(sql`'[]'::jsonb`),
-    /** award | research | first | appointment | recognition | public_health | milestone */
+    /** award | research | first | appointment | recognition | public_health | milestone | in_action (lib/news/format.ts) */
     category: text("category").notNull(),
     /** Person the story is about, as the sources name them. */
     subjectName: text("subject_name").notNull(),

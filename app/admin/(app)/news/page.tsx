@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { decideStoryAction, editStoryAction, linkDoctorAction, publishDueAction } from "@/app/admin/news-actions";
+import { decideStoryAction, draftFromUrlsAction, editStoryAction, linkDoctorAction, publishDueAction } from "@/app/admin/news-actions";
 import { ActionForm } from "@/components/ActionForm";
 import { ArticleBody } from "@/components/ArticleBody";
 import { parseArticleBody } from "@/lib/articles/format";
@@ -13,6 +13,8 @@ import { type QueueView, listNewsQueue, newsCounts, storyNumbers, storySources }
 import { paths } from "@/lib/site";
 
 export const metadata = { title: "Newsroom" };
+// "Draft from links" runs the model twice; give the server action room.
+export const maxDuration = 120;
 
 const VIEWS: Array<{ key: QueueView; label: string }> = [
   { key: "review", label: "Needs review" },
@@ -63,6 +65,14 @@ export default async function AdminNews({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
+      <details className="panel pad" style={{ marginBottom: "14px" }}>
+        <summary style={{ cursor: "pointer", fontWeight: 600 }}>Draft a story from links</summary>
+        <p style={{ fontSize: "14px", color: "var(--muted)", margin: "8px 0" }}>Paste 1–4 reports of the same event (one per line). The story is drafted, claims-checked and matched like the daily run; it lands in Needs review unless it passes the auto gate. Takes up to a minute.</p>
+        <ActionForm action={draftFromUrlsAction} submitLabel="Draft story" variant="solid">
+          <div className="field"><textarea name="urls" rows={3} placeholder="https://www.thehindu.com/…&#10;https://www.deccanherald.com/…" /></div>
+        </ActionForm>
+      </details>
+
       <nav className="newscats" aria-label="Queue">
         {VIEWS.map((x) => (
           <Link key={x.key} href={`/admin/news?view=${x.key}`} aria-current={view === x.key ? "page" : undefined}>{x.label}</Link>
@@ -84,6 +94,7 @@ export default async function AdminNews({ searchParams }: { searchParams: Promis
                 <div className="qm">
                   {NEWS_CATEGORIES[st.category as keyof typeof NEWS_CATEGORIES]?.label ?? st.category} · {st.subjectName}{st.place ? `, ${st.place}` : ""}{st.abroad ? " (abroad)" : ""} · {independentSourceCount(sources)} independent source(s) · {st.origin} · created {istDateTime(st.createdAt)}
                   {st.publishedAt ? <> · live {istDateTime(st.publishedAt)} · <Link href={paths.newsStory(st.slug)} target="_blank">/news/{st.slug}</Link></> : null}
+                  {" · "}<Link href={`/admin/news/preview/${st.id}`}>Preview</Link>
                 </div>
               </div>
               <span className={`pill ${st.status === "published" ? "ok" : st.status === "approved" ? "ok" : st.status === "draft" ? "wait" : "neut"}`}>{st.status === "approved" ? "buffer" : st.status}</span>

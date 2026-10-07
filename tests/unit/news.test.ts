@@ -15,7 +15,7 @@ const good: StoryInput = {
   category: "award",
   subjectName: "Dr Asha Rao",
   sources: [
-    { url: "https://www.thehindu.com/a", publisher: "The Hindu", title: "A" },
+    { url: "https://www.thehindu.com/a", publisher: "The Hindu", title: "A", publishedOn: new Date().toISOString().slice(0, 10) },
     { url: "https://timesofindia.indiatimes.com/b", publisher: "TOI", title: "B" },
   ],
 };
@@ -65,4 +65,11 @@ test("IST day boundary", () => {
 test("caption carries highlights and a tag marker", () => {
   const c = instagramCaption({ ...good, place: "Bengaluru, Karnataka", slug: "x" }, "Cardiology");
   assert.ok(c.includes("▪️ Awarded") && c.includes("#Bengaluru") && c.includes("[Tag the doctor"));
+});
+
+test("stale or undated stories need an editor", () => {
+  const old = good.sources.map((x) => ({ ...x, publishedOn: "2026-01-24" }));
+  assert.equal(autoGate({ sources: old, matchedDoctor: true, claimsOk: true, problems: [], now: new Date("2026-10-07") }).eligible, false);
+  const undated = good.sources.map((x) => ({ ...x, publishedOn: null }));
+  assert.equal(autoGate({ sources: undated, matchedDoctor: true, claimsOk: true, problems: [] }).eligible, false);
 });

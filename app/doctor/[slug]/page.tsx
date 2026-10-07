@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/Avatar";
 import { DoctorArticles } from "@/components/DoctorArticles";
+import { DoctorInTheNews } from "@/components/DoctorInTheNews";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { CallButton, DirectionsButton, ViewBeacon } from "@/components/ContactActions";
 import { JsonLd } from "@/components/JsonLd";
@@ -452,6 +453,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
             <Credentials doctor={doctor} />
 
             <DoctorArticles doctorDbId={doctor.dbId} name={displayName(doctor)} />
+            <DoctorInTheNews doctorDbId={doctor.dbId} />
 
             <section className="block" aria-labelledby="faq-h">
               <h2 id="faq-h">Questions people ask</h2>

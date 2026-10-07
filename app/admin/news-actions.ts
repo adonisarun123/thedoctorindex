@@ -97,3 +97,15 @@ export async function publishDueAction(_p: AdminState, _f: FormData): Promise<Ad
     return { error: e instanceof Error ? e.message : "Something went wrong." };
   }
 }
+
+export async function draftFromUrlsAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    await requireStaff("content_editor");
+    const { draftFromUrls } = await import("@/lib/news/pipeline");
+    const r = await draftFromUrls(String(f.get("urls") ?? "").split(/\s+/));
+    refresh();
+    return r.storyId ? { ok: true, message: `Drafted — ${r.outcome}.` } : { error: r.outcome };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Something went wrong." };
+  }
+}

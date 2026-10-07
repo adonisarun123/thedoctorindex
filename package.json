@@ -45,6 +45,7 @@
     "db:enrich": "NODE_EXTRA_CA_CERTS=lib/enrich/certs/ssl-com-tls-issuing-rsa-ca-r1.crt tsx --require ./scripts/server-only-shim.cjs scripts/enrich.ts",
     "db:merge-dupes": "tsx --require ./scripts/server-only-shim.cjs scripts/merge-duplicate-registrations.ts",
     "report:growth": "tsx --require ./scripts/server-only-shim.cjs scripts/report-growth.ts",
+    "news:run": "tsx --require ./scripts/server-only-shim.cjs scripts/news-run.ts",
     "reminders:signup": "tsx --require ./scripts/server-only-shim.cjs scripts/signup-reminders.ts",
     "outreach:export": "tsx --require ./scripts/server-only-shim.cjs scripts/outreach-export.ts",
     "nmc:load": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/load-register.ts",

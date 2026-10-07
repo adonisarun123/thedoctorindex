@@ -89,6 +89,14 @@ export async function getPublishedStory(slug: string): Promise<{ story: StoryRow
   return { story, doctors: docs.get(story.id) ?? [] };
 }
 
+/** Any story by id, whatever its status — staff preview only. */
+export async function getStoryForPreview(id: string): Promise<{ story: StoryRow; doctors: StoryDoctor[] } | null> {
+  const [story] = await getDb().select().from(s.newsStories).where(eq(s.newsStories.id, id)).limit(1);
+  if (!story) return null;
+  const docs = await doctorsForStories([story.id]);
+  return { story, doctors: docs.get(story.id) ?? [] };
+}
+
 export type StoryListItem = Pick<StoryRow, "id" | "slug" | "headline" | "dek" | "category" | "subjectName" | "subjectRole" | "place" | "abroad" | "publishedAt" | "updatedAt" | "correctedAt" | "highlights" | "specialtyKey">;
 
 const listCols = {
@@ -337,6 +345,8 @@ export interface NewStory {
   origin: "pipeline" | "staff";
   doctors: Array<{ doctorId: string; primary: boolean; matchedBy: string }>;
   claims: { ok: boolean; checked: number; unsupported: string[] } | null;
+  /** Sources we could only read as a search snippet; they do not count towards the two-source rule. */
+  weakUrls?: string[];
 }
 
 /**
@@ -354,7 +364,8 @@ export async function createStory(n: NewStory): Promise<{ row: StoryRow; gate: R
     return null;
   }
   const problems = storyProblems(n);
-  const gate = autoGate({ sources: n.sources, matchedDoctor: n.doctors.some((d) => d.primary), claimsOk: n.claims?.ok ?? false, problems });
+  const weak = new Set(n.weakUrls ?? []);
+  const gate = autoGate({ sources: n.sources.filter((x) => !weak.has(x.url)), matchedDoctor: n.doctors.some((d) => d.primary), claimsOk: n.claims?.ok ?? false, problems, eventDate: n.eventDate });
   const slug = await uniqueSlug(newsSlug(n.headline));
   const [row] = await db
     .insert(s.newsStories)

@@ -55,7 +55,7 @@ export default function NewsAbout() {
           </ul>
           <h2>When a story needs an editor</h2>
           <p>
-            Stories are researched and drafted with the help of software, including AI. A story is published without an editor reading it first only when all of these hold: at least two independent news organisations or institutions report it; the doctor has been matched to their profile on The Doctor Index; and the statement check passed. Everything else &mdash; a single-source story, a doctor not on the site, an Indian-origin doctor abroad &mdash; is read and approved by a member of our team before it appears.
+            Stories are researched and drafted with the help of software, including AI. A story is published without an editor reading it first only when all of these hold: at least two independent news organisations or institutions report it; the doctor has been matched to their profile on The Doctor Index; the news was reported within the last two weeks; and the statement check passed. Everything else &mdash; a single-source story, a doctor not on the site, an Indian-origin doctor abroad &mdash; is read and approved by a member of our team before it appears.
           </p>
           <h2>Linking to a doctor&rsquo;s profile</h2>
           <p>

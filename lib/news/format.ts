@@ -14,6 +14,7 @@ export const NEWS_CATEGORIES = {
   recognition: { label: "Recognition", plural: "Recognition" },
   public_health: { label: "Public health", plural: "Public health" },
   milestone: { label: "Milestone", plural: "Milestones" },
+  in_action: { label: "Doctors in action", plural: "Doctors in action" },
 } as const;
 export type NewsCategory = keyof typeof NEWS_CATEGORIES;
 export const isCategory = (c: string): c is NewsCategory => c in NEWS_CATEGORIES;
@@ -140,8 +141,16 @@ export interface AutoGate {
  * highlight and figure is supported by a source text) and no editorial
  * problem was found. Anything else is read by a human first.
  */
-export function autoGate(input: { sources: NewsSource[]; matchedDoctor: boolean; claimsOk: boolean; problems: string[] }): AutoGate {
+/** Older than this, a story is not news without an editor deciding it still is. */
+export const NEWS_FRESH_DAYS = 14;
+
+export function autoGate(input: { sources: NewsSource[]; matchedDoctor: boolean; claimsOk: boolean; problems: string[]; eventDate?: string | null; now?: Date }): AutoGate {
   const notes: string[] = [];
+  const now = (input.now ?? new Date()).getTime();
+  const dated = [input.eventDate, ...input.sources.map((s) => s.publishedOn)].filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}/.test(d)));
+  const newest = dated.length ? Math.max(...dated.map((d) => Date.parse(d.slice(0, 10)))) : null;
+  if (newest === null) notes.push("No source or event date — cannot confirm this is recent.");
+  else if ((now - newest) / 86_400_000 > NEWS_FRESH_DAYS) notes.push(`Newest report is over ${NEWS_FRESH_DAYS} days old.`);
   const n = independentSourceCount(input.sources);
   if (n < 2) notes.push(`Only ${n} independent source${n === 1 ? "" : "s"} — needs 2 to publish without review.`);
   if (!input.matchedDoctor) notes.push("Doctor not matched to a TDi profile.");
