@@ -39,6 +39,8 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
   if (!guide) notFound();
 
   const specialty = guide.specialty ? SPECIALTIES[guide.specialty] : null;
+  // Same kind first (clinical vs credential guides), then the rest.
+  const related = [...GUIDES.filter((g) => g.slug !== guide.slug && g.clinical === guide.clinical), ...GUIDES.filter((g) => g.slug !== guide.slug && g.clinical !== guide.clinical)].slice(0, 4);
   const crumbs = [
     { name: "Home", path: paths.home() },
     { name: "Health guides", path: "/health-guides" },
@@ -130,6 +132,30 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
                 Find {specialty.plural.toLowerCase()} by city
               </Link>
             </div>
+          ) : null}
+
+          {!guide.clinical ? (
+            <p style={{ marginTop: "24px" }}>
+              Check a doctor yourself: <Link href="/registers">medical registers by council</Link> ·{" "}
+              <Link href="/qualifications">medical qualifications explained</Link> ·{" "}
+              <Link href="/doctors">find doctors by location</Link>
+            </p>
+          ) : null}
+
+          {related.length ? (
+            <>
+              <h2>Related guides</h2>
+              <ul>
+                {related.map((g) => (
+                  <li key={g.slug}>
+                    <Link href={`/health-guides/${g.slug}`}>{g.title}</Link>
+                  </li>
+                ))}
+              </ul>
+              <p>
+                <Link href="/health-guides">All health guides</Link> · <Link href="/conditions">Conditions A–Z</Link>
+              </p>
+            </>
           ) : null}
 
           <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "24px" }}>

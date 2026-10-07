@@ -55,6 +55,12 @@ export default async function StatePage({ params }: { params: Promise<Params> })
   const cityCounts = new Map(byCity.filter((c) => c.stateSlug === st.slug).map((c) => [c.citySlug, c.n]));
   const cityListed = new Map(pubCity.filter((c) => c.stateSlug === st.slug).map((c) => [c.citySlug, c.n]));
   const cities = geo.citiesIn(st.slug).map((c) => ({ ...c, n: cityCounts.get(c.slug) ?? 0, p: cityListed.get(c.slug) ?? 0 })).filter((c) => c.p > 0).sort((a, b) => b.n - a.n || b.p - a.p || a.name.localeCompare(b.name));
+  // Other states with listings, so single-city states are not dead ends.
+  const otherStates = Object.entries(pubState)
+    .filter(([slug, n]) => slug !== st.slug && n > 0 && geo.state(slug))
+    .map(([slug, n]) => ({ slug, n, name: geo.state(slug)!.name }))
+    .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name))
+    .slice(0, 12);
   const crumbs = [
     { name: "Home", path: paths.home() },
     { name: "Doctors by location", path: "/doctors" },
@@ -126,6 +132,23 @@ export default async function StatePage({ params }: { params: Promise<Params> })
             A city × speciality page enters search results when it passes its inventory gate. Doctors anywhere in{" "}
             {st.name} can <Link href={paths.addDoctor()}>create a profile</Link> now.
           </p>
+
+          {otherStates.length ? (
+            <>
+              <h2>Other states</h2>
+              <div className="locgrid">
+                {otherStates.map((x) => (
+                  <Link key={x.slug} className="loc" href={`/doctors/${x.slug}`}>
+                    <span className="n">{x.name}</span>
+                    <span className="c">{x.n.toLocaleString("en-IN")} listed</span>
+                  </Link>
+                ))}
+              </div>
+              <p style={{ marginTop: "12px", fontSize: "13.5px" }}>
+                <Link href="/doctors">All states</Link> · <Link href="/specialties">Browse by speciality</Link>
+              </p>
+            </>
+          ) : null}
         </div>
       </div>
     </>
