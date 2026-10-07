@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ArticleBody, Contents, FaqList } from "@/components/ArticleBody";
+import { BlogReading } from "@/components/BlogReading";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { postsForQualification } from "@/lib/blog/placements";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
 import { anchorId } from "@/lib/blog/types";
@@ -338,6 +340,8 @@ export default async function QualificationPage({ params }: { params: Promise<Pa
             </div>
           </section>
         ) : null}
+
+        <BlogReading posts={postsForQualification()} title="Checking a doctor, in practice" />
       </article>
     </>
   );

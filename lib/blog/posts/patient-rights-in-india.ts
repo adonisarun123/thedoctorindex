@@ -79,7 +79,7 @@ export const post: BlogPost = {
     },
     {
       k: "p",
-      text: "On the final bill, you are entitled to an itemised account. Ask for it as a matter of course rather than as an accusation: an itemised bill is also what an insurer and an employer's scheme need. More on what consultations and procedures typically cost, and why the numbers vary so much, in [what doctors charge in India](/blog/doctor-consultation-fees-in-india).",
+      text: "On the final bill, you are entitled to an itemised account — [how to read a hospital bill](/blog/how-to-read-a-hospital-bill-in-india) walks through one line by line. Ask for it as a matter of course rather than as an accusation: an itemised bill is also what an insurer and an employer's scheme need. More on what consultations and procedures typically cost, and why the numbers vary so much, in [what doctors charge in India](/blog/doctor-consultation-fees-in-india).",
     },
     { k: "h2", text: "The second opinion, and the right to leave" },
     {

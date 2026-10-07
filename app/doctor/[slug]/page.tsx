@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/Avatar";
 import { DoctorArticles } from "@/components/DoctorArticles";
+import { postsForProfile } from "@/lib/blog/placements";
 import { DoctorInTheNews } from "@/components/DoctorInTheNews";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { CallButton, DirectionsButton, ViewBeacon } from "@/components/ContactActions";
@@ -468,6 +469,17 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               <p className="blocknote">
                 Answers come from the verified record on this page, not from opinion. Where a fact has not been confirmed, the answer says so.
               </p>
+            </section>
+
+            <section className="block" aria-labelledby="before-visit-h">
+              <h2 id="before-visit-h">Before you visit</h2>
+              <ul>
+                {postsForProfile(doctor.slug).map((p) => (
+                  <li key={p.slug}>
+                    <Link href={paths.blogPost(p.slug)}>{p.metaTitle ?? p.title}</Link>
+                  </li>
+                ))}
+              </ul>
             </section>
 
             <Reviews doctor={doctor} />

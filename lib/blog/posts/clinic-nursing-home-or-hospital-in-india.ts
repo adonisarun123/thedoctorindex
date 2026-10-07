@@ -54,7 +54,7 @@ export const post: BlogPost = {
       k: "note",
       tone: "info",
       title: "Accreditation is a different thing",
-      text: "Accreditation by a quality body is voluntary and is about process standards rather than legal permission to operate. It is a reasonable positive signal, particularly for insurance, but it is not a substitute for registration and its absence is not a disqualification for a small establishment.",
+      text: "Accreditation by a quality body is voluntary and is about process standards rather than legal permission to operate. It is a reasonable positive signal, particularly for insurance — [what NABH accreditation does and does not tell you](/blog/nabh-accreditation-explained) — but it is not a substitute for registration and its absence is not a disqualification for a small establishment.",
     },
     { k: "h2", text: "Match the setting to the procedure, not to the brand" },
     {
@@ -103,7 +103,7 @@ export const post: BlogPost = {
       k: "note",
       tone: "alert",
       title: "In an emergency, go to the nearest capable facility",
-      text: "Do not travel across a city to a preferred hospital in an emergency. The nearest establishment able to stabilise the patient is the right one, and every establishment — public or private — is obliged to provide emergency care and to stabilise a patient before questions of payment or paperwork arise. Transfer afterwards if needed. Call 108.",
+      text: "Do not travel across a city to a preferred hospital in an emergency. The nearest establishment able to stabilise the patient is the right one, and every establishment — public or private — is obliged to provide emergency care and to stabilise a patient before questions of payment or paperwork arise. Transfer afterwards if needed. Call 108. [Your emergency treatment rights](/blog/emergency-treatment-rights-in-india) sets out where that obligation comes from.",
     },
     {
       k: "p",
@@ -130,7 +130,7 @@ export const post: BlogPost = {
     },
     {
       k: "p",
-      text: "If you are using insurance, confirm before admission whether the establishment is on the insurer's network, what the room-rent limit is under your policy, and who files the paperwork. [What doctors charge in India](/blog/doctor-consultation-fees-in-india) covers the outpatient side of the same question.",
+      text: "If you are using insurance, confirm before admission whether the establishment is on the insurer's network, what the room-rent limit is under your policy, and who files the paperwork — [cashless or reimbursement](/blog/cashless-vs-reimbursement-health-insurance-claims) explains the difference. [What doctors charge in India](/blog/doctor-consultation-fees-in-india) covers the outpatient side of the same question.",
     },
     { k: "h2", text: "The short version" },
     {

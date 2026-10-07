@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { ArticleBody, Contents, FaqList } from "@/components/ArticleBody";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ConditionDisclaimer } from "@/components/ConditionDisclaimer";
+import { BlogReading } from "@/components/BlogReading";
+import { postsForCondition } from "@/lib/blog/placements";
 import { ConditionDraftBody } from "@/components/ConditionDraftBody";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
@@ -294,6 +296,8 @@ export default async function ConditionPage({ params }: { params: Promise<Params
           <p style={{ marginTop: "14px" }}>
             <Link href={cpaths.department(deptSlug)}>All {deptName.toLowerCase()} conditions →</Link>
           </p>
+
+          <BlogReading posts={postsForCondition(slug)} title="Practical reading" id="condition-reading" />
 
           {article && !reviewed ? <ConditionDisclaimer /> : null}
 

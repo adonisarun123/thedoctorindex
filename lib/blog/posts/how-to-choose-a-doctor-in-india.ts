@@ -167,7 +167,7 @@ export const post: BlogPost = {
         "Ask reception which days the doctor sits there and how soon a follow-up would be.",
         "Ask the consultation fee and whether a review visit is charged.",
         "Read three reviews properly instead of looking at the average.",
-        "Write down your medicines, your reports and your three questions before you go.",
+        "Write down your medicines, your reports and your three questions before you go — [what to bring to a first appointment](/blog/preparing-for-your-first-doctor-appointment).",
       ],
     },
     {

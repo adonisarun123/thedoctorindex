@@ -56,7 +56,7 @@ export const post: BlogPost = {
     { k: "h2", text: "The Healthcare Professionals Registry: a wider net" },
     {
       k: "p",
-      text: "The Healthcare Professionals Registry sits inside the national digital health programme, alongside the ABHA health account that patients hold and the facility registry that lists establishments. Its scope is deliberately broader than the medical registers: it is designed to cover healthcare professionals across systems of medicine and across roles — modern medicine, AYUSH, dentistry, nursing, allied and healthcare professions — each with a verified digital identity that can be used to sign records, authenticate teleconsultations and link into the digital health ecosystem.",
+      text: "The Healthcare Professionals Registry sits inside the national digital health programme, alongside the [ABHA health account](/blog/abha-health-id-explained) that patients hold and the facility registry that lists establishments. Its scope is deliberately broader than the medical registers: it is designed to cover healthcare professionals across systems of medicine and across roles — modern medicine, AYUSH, dentistry, nursing, allied and healthcare professions — each with a verified digital identity that can be used to sign records, authenticate teleconsultations and link into the digital health ecosystem.",
     },
     {
       k: "p",
