@@ -81,6 +81,10 @@ export const paths = {
   /** Articles written by registered doctors, published under their name after review. */
   articles: () => "/articles",
   article: (slug: string) => `/articles/${slug}`,
+  /** TDi Newsdesk: achievements and appointments of Indian doctors. */
+  news: (category?: string) => (category ? `/news?category=${encodeURIComponent(category)}` : "/news"),
+  newsStory: (slug: string) => `/news/${slug}`,
+  newsAbout: () => "/news/about",
   /** One page per council or registering body: how to check its numbers, and who on this site cites it. */
   registers: () => "/registers",
   register: (slug: string) => `/registers/${slug}`,

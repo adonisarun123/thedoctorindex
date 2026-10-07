@@ -655,3 +655,87 @@ export function conditionLd(c: ConditionLdInput): Json {
       : {}),
   };
 }
+
+/* ---------------------------------------------------------------------------
+   Newsroom (/news)
+--------------------------------------------------------------------------- */
+
+export const NEWSDESK_PATH = "/news/about";
+
+/** The TDi Newsdesk as an author: an Organization that is part of the site's publisher. */
+export function newsdeskLd(): Json {
+  return {
+    "@type": "Organization",
+    "@id": `${absoluteUrl(NEWSDESK_PATH)}#newsdesk`,
+    name: "TDi Newsdesk",
+    url: absoluteUrl(NEWSDESK_PATH),
+    parentOrganization: { "@id": ORG_ID() },
+  };
+}
+
+export interface NewsLdInput {
+  slug: string;
+  headline: string;
+  dek: string;
+  category: string;
+  section: string;
+  publishedAt: Date;
+  modifiedAt: Date;
+  wordCount: number;
+  subject: { name: string; jobTitle?: string; place?: string };
+  /** Linked TDi profiles; the primary one is what the story is `about`. */
+  doctors: Array<{ slug: string; primary: boolean }>;
+  sources: Array<{ url: string; publisher: string; title: string; publishedOn?: string | null }>;
+  correction?: { text: string; at: Date } | null;
+  keywords: string[];
+}
+
+/**
+ * NewsArticle per Google's Article guidance: headline ≤ 110 characters,
+ * three image ratios (16:9, 4:3, 1:1 — rendered by /news/<slug>/card),
+ * datePublished/dateModified with time zone, author with a url, publisher
+ * with a logo. `about` points at the doctor's Physician node (same @id the
+ * profile page emits) so the graph joins up; a doctor not on the site is
+ * described as a Person with no url. `citation` lists the reporting the
+ * story is built from — the same list the page shows.
+ */
+export function newsArticleLd(n: NewsLdInput): Json {
+  const url = absoluteUrl(`/news/${n.slug}`);
+  const card = (size: string) => `${url}/card?size=${size}`;
+  const primary = n.doctors.find((d) => d.primary);
+  const physician = (slug: string) => ({ "@id": `${absoluteUrl(paths.doctor(slug))}#physician` });
+  const about = primary
+    ? physician(primary.slug)
+    : { "@type": "Person", name: n.subject.name, ...(n.subject.jobTitle ? { jobTitle: n.subject.jobTitle } : {}), ...(n.subject.place ? { workLocation: { "@type": "Place", name: n.subject.place } } : {}) };
+  const mentions = n.doctors.filter((d) => !d.primary).map((d) => physician(d.slug));
+  return {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "@id": `${url}#article`,
+    url,
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    headline: n.headline.length > 110 ? `${n.headline.slice(0, 109)}…` : n.headline,
+    description: n.dek,
+    image: [card("wide"), card("standard"), card("square")],
+    datePublished: n.publishedAt.toISOString(),
+    dateModified: n.modifiedAt.toISOString(),
+    author: [newsdeskLd()],
+    publisher: { "@type": "Organization", "@id": ORG_ID(), name: SITE.name, logo: { "@type": "ImageObject", url: LOGO_URL(), width: 64, height: 64 } },
+    isPartOf: { "@id": SITE_ID() },
+    articleSection: n.section,
+    inLanguage: "en-IN",
+    isAccessibleForFree: true,
+    wordCount: n.wordCount,
+    keywords: n.keywords,
+    about,
+    ...(mentions.length ? { mentions } : {}),
+    citation: n.sources.map((src) => ({
+      "@type": "NewsArticle",
+      url: src.url,
+      headline: src.title,
+      publisher: { "@type": "Organization", name: src.publisher },
+      ...(src.publishedOn ? { datePublished: src.publishedOn } : {}),
+    })),
+    ...(n.correction ? { correction: { "@type": "CorrectionComment", text: n.correction.text, datePublished: n.correction.at.toISOString() } } : {}),
+  };
+}

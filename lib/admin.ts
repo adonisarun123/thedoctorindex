@@ -17,6 +17,7 @@ export async function queueCounts(): Promise<Record<string, number>> {
       (select count(*) from qualification_evidence where status = 'supplied')::int as qualifications,
       (select count(*) from qualification_evidence where status = 'supplied' and created_at < now() - interval '48 hours')::int as qualifications_overdue,
       (select count(*) from doctor_articles where status = 'submitted' or revision_submitted_at is not null)::int as articles,
+      (select count(*) from news_stories where status = 'draft')::int as news,
       (select count(*) from doctors where status = 'published')::int as published,
       (select count(*) from doctors where status = 'draft')::int as drafts,
       (select count(*) from doctors where status = 'published' and quality_score < ${Number(process.env.GATE_PROFILE_QUALITY ?? 70)})::int as below_gate,

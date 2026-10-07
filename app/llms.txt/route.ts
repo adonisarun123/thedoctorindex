@@ -74,6 +74,12 @@ why they carry no clinical reviewer and need none. [Index](${absoluteUrl(paths.b
 
 ${POSTS.map((p) => `- [${p.title}](${absoluteUrl(paths.blogPost(p.slug))}): ${p.standfirst}`).join("\n")}
 
+## News — TDi Newsdesk
+
+Achievements, firsts, research and appointments of Indian doctors at home and abroad, one or two
+stories a day, each citing its sources and linking the doctor's verified profile where one exists.
+[Index](${absoluteUrl(paths.news())}) · [Standards](${absoluteUrl(paths.newsAbout())}) · [RSS](${absoluteUrl("/news/feed.xml")})
+
 ## Registers — how to check a registration, by issuing body
 
 One page per council or registering body a profile here can cite: where its public register is
