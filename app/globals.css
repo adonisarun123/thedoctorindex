@@ -1842,7 +1842,7 @@ body:has(.lp-hero) header.site .hsearch { display: none; }
 .newsmast { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; border-bottom: 3px double var(--hair-strong); padding: 18px 0 16px; margin-bottom: 22px; }
 .newsmast .title { font-family: var(--font-display); font-size: 2.9rem; font-weight: 600; line-height: 1; letter-spacing: -0.01em; color: var(--ink); margin: 0; }
 .newsmast .title span { color: var(--teal-ink); }
-.newsmast .tag { font-size: 17px; color: var(--ink-2); margin: 10px 0 0; max-width: 60ch; }
+.newsmast .tagline { font-size: 17px; color: var(--ink-2); margin: 10px 0 0; max-width: 60ch; }
 .newsmast .dateline { font-size: 15px; color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .newsmast .dateline a { color: var(--muted); }
 
@@ -1862,7 +1862,8 @@ body:has(.lp-hero) header.site .hsearch { display: none; }
 .newslead h2 { font-family: var(--font-display); font-size: 2.1rem; line-height: 1.12; margin: 10px 0 12px; }
 .newslead .dek { font-size: 18.5px; color: var(--ink-2); line-height: 1.5; margin: 0; }
 .newslead .meta, .newsitem .meta { font-size: 14.5px; color: var(--muted); margin-top: 12px; font-variant-numeric: tabular-nums; }
-.newslead ol { list-style: none; margin: 0; padding: 18px 20px; background: var(--surface); border: 1px solid var(--hair); border-top: 3px solid var(--brand-teal); border-radius: var(--r); counter-reset: hl; }
+.newslead .hlbox { padding: 18px 20px; background: var(--surface); border: 1px solid var(--hair); border-top: 3px solid var(--brand-teal); border-radius: var(--r); }
+.newslead ol { list-style: none; margin: 0; padding: 0; counter-reset: hl; }
 .newslead ol li { counter-increment: hl; position: relative; padding-left: 30px; font-size: 16.5px; line-height: 1.45; color: var(--ink-2); margin-bottom: 12px; }
 .newslead ol li:last-child { margin-bottom: 0; }
 .newslead ol li::before { content: counter(hl); position: absolute; left: 0; top: -2px; font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; color: var(--teal-ink); }
@@ -1893,9 +1894,8 @@ body:has(.lp-hero) header.site .hsearch { display: none; }
 .numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; margin: 0 0 32px; border-top: 1px solid var(--hair-strong); border-bottom: 1px solid var(--hair-strong); }
 .numbers div { padding: 16px 18px; border-left: 1px solid var(--hair); }
 .numbers div:first-child { border-left: 0; padding-left: 0; }
-.numbers .v { font-family: var(--font-display); font-size: 2.1rem; font-weight: 600; line-height: 1.05; color: var(--ink); font-variant-numeric: tabular-nums; }
-.numbers .l { font-size: 15px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
-.numbers .hd { grid-column: 1 / -1; padding: 10px 0 0; border: 0; font-size: 14px; color: var(--muted); }
+.numbers .nv { font-family: var(--font-display); font-size: 2.1rem; font-weight: 600; line-height: 1.05; color: var(--ink); font-variant-numeric: tabular-nums; }
+.numbers .nl { font-size: 15px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
 
 .whymatters { margin: 34px 0 6px; padding: 20px 22px; border-radius: var(--r); background: var(--teal-soft); border: 1px solid color-mix(in srgb, var(--brand-teal) 35%, transparent); }
 .whymatters h2 { font-family: var(--font-sans); font-size: 15px; font-weight: 600; color: var(--teal-ink); margin: 0 0 8px !important; }

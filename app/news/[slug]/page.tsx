@@ -155,8 +155,8 @@ export default async function NewsStoryPage({ params }: { params: Promise<Params
               <section className="numbers" aria-label="By the numbers">
                 {numbers.map((n) => (
                   <div key={n.label}>
-                    <div className="v">{n.value}</div>
-                    <div className="l">{n.label}</div>
+                    <div className="nv">{n.value}</div>
+                    <div className="nl">{n.label}</div>
                   </div>
                 ))}
               </section>

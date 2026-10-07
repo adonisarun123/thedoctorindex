@@ -37,7 +37,7 @@ export default async function StoryPreview({ params }: { params: Promise<{ id: s
       <div className="postgrid">
         <div className="postbody doc">
           <section className="highlights"><h2>Key highlights</h2><ol>{st.highlights.map((h) => <li key={h}>{h}</li>)}</ol></section>
-          {numbers.length ? <section className="numbers">{numbers.map((n) => <div key={n.label}><div className="v">{n.value}</div><div className="l">{n.label}</div></div>)}</section> : null}
+          {numbers.length ? <section className="numbers">{numbers.map((n) => <div key={n.label}><div className="nv">{n.value}</div><div className="nl">{n.label}</div></div>)}</section> : null}
           <ArticleBody blocks={parseArticleBody(st.body)} />
           <section className="whymatters"><h2>Why it matters for patients</h2><p>{st.whyItMatters}</p></section>
           <section className="sources"><h2>Sources</h2><ol>{sources.map((s) => <li key={s.url}><a href={s.url} target="_blank" rel="noopener nofollow">{s.title}</a> <span className="pub">— {s.publisher}</span></li>)}</ol></section>

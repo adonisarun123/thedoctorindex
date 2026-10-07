@@ -180,6 +180,8 @@ export function storyProblems(s: StoryInput): string[] {
   if (!s.sources.length) out.push("At least one source is required.");
   for (const src of s.sources) if (!/^https?:\/\//.test(src.url)) out.push(`Source “${src.publisher}” has no usable link.`);
   if (s.numbers.length > 4) out.push("At most four figures in “By the numbers”.");
+  // The story reports the news; it does not narrate its own sourcing.
+  if (/\b(the (report|source|sources|article)s? (does not|do not|doesn'?t|don'?t|names?|gives?)|the doctor index (has|have) not)\b/i.test(s.body)) out.push("The body comments on its sources (e.g. “the report does not say…”); rewrite it as reporting.");
   // Quoted words are the source's; our own copy may not use them.
   const own = [s.headline, s.dek, ...s.highlights, s.whyItMatters].join(" \n ").replace(/[“"][^”"]*[”"]/g, "");
   const m = BANNED_IN_OWN_VOICE.exec(own);

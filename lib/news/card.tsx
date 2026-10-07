@@ -89,7 +89,7 @@ function Frame({ size, children, footer }: { size: { width: number; height: numb
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center", minHeight: 0 }}>{children}</div>
       <div style={{ display: "flex", justifyContent: "space-between", borderTop: `2px solid rgba(255,255,255,0.18)`, paddingTop: 20, fontSize: 22, color: SOFT }}>
         <div>{footer}</div>
-        <div>{SITE.origin.replace(/^https?:\/\//, "")}/news</div>
+        <div>{`${SITE.origin.replace(/^https?:\/\//, "")}/news`}</div>
       </div>
     </div>
   );
@@ -144,8 +144,8 @@ export function carouselSlide(st: StoryRow, photo: string | null, n: number): Im
         <Tag text="Key highlights" />
         {st.highlights.slice(0, 3).map((h, i) => (
           <div key={h} style={{ display: "flex", gap: 26, alignItems: "flex-start" }}>
-            <div style={{ fontSize: 76, fontWeight: 700, color: TEAL_LIGHT, lineHeight: 1, width: 60 }}>{i + 1}</div>
-            <div style={{ fontSize: 40, lineHeight: 1.3, flex: 1 }}>{clip(h, 150)}</div>
+            <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: TEAL_LIGHT, lineHeight: 1, width: 60 }}>{String(i + 1)}</div>
+            <div style={{ display: "flex", fontSize: 40, lineHeight: 1.3, flex: 1 }}>{clip(h, 150)}</div>
           </div>
         ))}
       </div>

@@ -73,7 +73,7 @@ export default async function NewsHub({ searchParams }: { searchParams: Search }
             <h1 className="title">
               TDi <span>Newsdesk</span>
             </h1>
-            <p className="tag">{DESCRIPTION}</p>
+            <p className="tagline">{DESCRIPTION}</p>
           </div>
           <div className="dateline">
             {latest ? <>Updated {istDate(latest)}<br /></> : null}
@@ -110,12 +110,14 @@ export default async function NewsHub({ searchParams }: { searchParams: Search }
                 {lead.publishedAt ? <div className="meta">{NEWS_DESK} · {istDate(lead.publishedAt)}</div> : null}
               </div>
               {lead.highlights.length ? (
-                <ol aria-label="Key highlights">
+                <div className="hlbox">
                   <div className="hlh">Key highlights</div>
-                  {lead.highlights.map((h) => (
-                    <li key={h}>{h}</li>
-                  ))}
-                </ol>
+                  <ol>
+                    {lead.highlights.map((h) => (
+                      <li key={h}>{h}</li>
+                    ))}
+                  </ol>
+                </div>
               ) : null}
             </Link>
             <div className="newsgrid">

@@ -73,3 +73,7 @@ test("stale or undated stories need an editor", () => {
   const undated = good.sources.map((x) => ({ ...x, publishedOn: null }));
   assert.equal(autoGate({ sources: undated, matchedDoctor: true, claimsOk: true, problems: [] }).eligible, false);
 });
+
+test("a body that narrates its sourcing is flagged", () => {
+  assert.ok(storyProblems({ ...good, body: good.body + " The report does not give their hospitals." }).some((p) => p.includes("comments on its sources")));
+});
