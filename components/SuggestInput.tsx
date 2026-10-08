@@ -32,6 +32,7 @@ export function SuggestInput({
   id,
   scope = "",
   minLength = 2,
+  adornment,
 }: {
   value: string;
   onChange: (text: string) => void;
@@ -43,6 +44,8 @@ export function SuggestInput({
   ariaLabel?: string;
   id?: string;
   minLength?: number;
+  /** A control shown inside the field after the input (the voice button). */
+  adornment?: React.ReactNode;
 }) {
   const reactId = useId();
   const listId = `${id ?? reactId}-list`;
@@ -163,6 +166,7 @@ export function SuggestInput({
         aria-controls={listId}
         aria-activedescendant={show && active >= 0 ? `${listId}-${active}` : undefined}
       />
+      {adornment}
       {show ? (
         <ul className="sugg" id={listId} role="listbox" onMouseDown={(e) => e.preventDefault()}>
           {items.map((it, i) => {

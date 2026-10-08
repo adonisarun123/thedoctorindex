@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { SuggestInput, type SuggestItem } from "@/components/SuggestInput";
+import { VoiceSearch } from "@/components/VoiceSearch";
 import { resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { loadWhat, loadWhere } from "@/lib/search/client";
+import { rememberLocation, useAutoLocation } from "@/lib/search/region-client";
 import { paths } from "@/lib/site";
 
 /**
@@ -19,28 +21,36 @@ export function HeaderSearch() {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [loc, setLoc] = useState("");
+  const touchLoc = useAutoLocation(setLoc);
+
+  function go(what: string, where: string) {
+    rememberLocation(where);
+    router.push(resolveDestination(what, where));
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    router.push(resolveDestination(q, loc));
+    go(q, loc);
   }
 
   function pickWhat(item: SuggestItem) {
     if (item.href) return router.push(item.href);
     setQ(item.text);
-    router.push(resolveDestination(item.text, loc));
+    go(item.text, loc);
   }
 
   function pickWhere(item: SuggestItem) {
+    touchLoc();
     setLoc(item.text);
-    if (q.trim()) router.push(resolveDestination(q, item.text));
+    rememberLocation(item.text);
+    if (q.trim()) go(q, item.text);
   }
 
   return (
     <form className="hsearch" onSubmit={submit} role="search">
-      <SuggestInput value={q} onChange={setQ} onPick={pickWhat} load={loadWhat} scope={loc} placeholder="Doctor or speciality" ariaLabel="Doctor name or speciality" />
+      <SuggestInput value={q} onChange={setQ} onPick={pickWhat} load={loadWhat} scope={loc} placeholder="Doctor or speciality" ariaLabel="Doctor name or speciality" adornment={<VoiceSearch onInterim={setQ} onResult={(t) => { setQ(t); go(t, loc); }} />} />
       <div className="div" />
-      <SuggestInput value={loc} onChange={setLoc} onPick={pickWhere} load={loadWhere} placeholder="City or locality" ariaLabel="City or locality" />
+      <SuggestInput value={loc} onChange={(v) => { touchLoc(); setLoc(v); }} onPick={pickWhere} load={loadWhere} placeholder="City or locality" ariaLabel="City or locality" />
       <button type="submit">Search</button>
     </form>
   );

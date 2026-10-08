@@ -15,7 +15,7 @@ export interface LlmUsage {
   output: number;
 }
 
-export async function askJson<T>(opts: { system: string; user: string; maxTokens?: number; model?: string; usage?: LlmUsage }): Promise<T> {
+export async function askJson<T>(opts: { system: string; user: string; maxTokens?: number; model?: string; usage?: LlmUsage; timeoutMs?: number }): Promise<T> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new LlmError("ANTHROPIC_API_KEY is not set.");
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -27,7 +27,7 @@ export async function askJson<T>(opts: { system: string; user: string; maxTokens
       system: opts.system,
       messages: [{ role: "user", content: opts.user }],
     }),
-    signal: AbortSignal.timeout(150_000),
+    signal: AbortSignal.timeout(opts.timeoutMs ?? 150_000),
   });
   if (!res.ok) throw new LlmError(`Anthropic API ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as { content: Array<{ type: string; text?: string }>; usage?: { input_tokens: number; output_tokens: number } };

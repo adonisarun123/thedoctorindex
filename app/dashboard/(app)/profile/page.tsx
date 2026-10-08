@@ -7,6 +7,7 @@ import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { certificatesForDoctor } from "@/lib/services/qualification-evidence";
 import { addCredentialAction, photoAction, removeCredentialAction, saveProfileAction } from "@/app/dashboard/actions";
+import { AboutDrafter } from "@/components/AboutDrafter";
 import { ActionForm } from "@/components/ActionForm";
 import { Avatar } from "@/components/Avatar";
 import { getDashboardContext } from "@/lib/dashboard";
@@ -131,6 +132,7 @@ export default async function DashboardProfile() {
               <label htmlFor="about">Professional introduction</label>
               <textarea id="about" name="about" defaultValue={doctor.about} />
               <div className="hint">Factual. Cure guarantees, outcome promises and superlatives are rejected.</div>
+              <AboutDrafter />
             </div>
             <div className="field">
               <label htmlFor="services">Services and conditions managed (comma-separated)</label>

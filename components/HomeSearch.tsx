@@ -5,7 +5,9 @@ import { useState } from "react";
 
 import { resolveDestination } from "@/components/HeaderSearch";
 import { SuggestInput, type SuggestItem } from "@/components/SuggestInput";
+import { VoiceSearch } from "@/components/VoiceSearch";
 import { loadWhat, loadWhere } from "@/lib/search/client";
+import { rememberLocation, useAutoLocation } from "@/lib/search/region-client";
 
 /**
  * `defaultLocation` is the busiest city the directory actually holds, chosen
@@ -16,16 +18,26 @@ export function HomeSearch({ defaultLocation = "" }: { defaultLocation?: string 
   const router = useRouter();
   const [q, setQ] = useState("");
   const [loc, setLoc] = useState(defaultLocation);
+  // The busiest city is only the server-rendered fallback; on the client the
+  // visitor's last place, else their IP city, replaces it (never a redirect).
+  const touchLoc = useAutoLocation(setLoc);
+
+  function go(what: string, where: string) {
+    rememberLocation(where);
+    router.push(resolveDestination(what, where));
+  }
 
   function pickWhat(item: SuggestItem) {
     if (item.href) return router.push(item.href);
     setQ(item.text);
-    router.push(resolveDestination(item.text, loc));
+    go(item.text, loc);
   }
 
   function pickWhere(item: SuggestItem) {
+    touchLoc();
     setLoc(item.text);
-    if (q.trim()) router.push(resolveDestination(q, item.text));
+    rememberLocation(item.text);
+    if (q.trim()) go(q, item.text);
   }
 
   return (
@@ -34,17 +46,17 @@ export function HomeSearch({ defaultLocation = "" }: { defaultLocation?: string 
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
-        router.push(resolveDestination(q, loc));
+        go(q, loc);
       }}
     >
       <label>
         <span className="k">Doctor, speciality or condition</span>
-        <SuggestInput value={q} onChange={setQ} onPick={pickWhat} load={loadWhat} scope={loc} placeholder="Skin specialist, Dr Sharma, knee pain…" ariaLabel="Doctor, speciality or condition" />
+        <SuggestInput value={q} onChange={setQ} onPick={pickWhat} load={loadWhat} scope={loc} placeholder="Skin specialist, Dr Sharma, knee pain…" ariaLabel="Doctor, speciality or condition" adornment={<VoiceSearch onInterim={setQ} onResult={(t) => { setQ(t); go(t, loc); }} />} />
       </label>
       <div className="sep" />
       <label>
         <span className="k">City or locality</span>
-        <SuggestInput value={loc} onChange={setLoc} onPick={pickWhere} load={loadWhere} placeholder="City or locality" ariaLabel="City or locality" />
+        <SuggestInput value={loc} onChange={(v) => { touchLoc(); setLoc(v); }} onPick={pickWhere} load={loadWhere} placeholder="City or locality" ariaLabel="City or locality" />
       </label>
       <button type="submit">Search</button>
     </form>
