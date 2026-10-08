@@ -64,6 +64,10 @@ export default async function DoctorsIndexPage() {
             reachable by link and on-site search meanwhile.
           </p>
 
+          <p>
+            Looking for a speciality in a particular neighbourhood? <Link href="/doctors/by-area">Browse doctors by area and speciality</Link>.
+          </p>
+
           <h2>States and union territories</h2>
           <div className="locgrid">
             {states.map((st) => (

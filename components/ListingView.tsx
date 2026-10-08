@@ -10,6 +10,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
 import { LISTING_CAP, LISTING_PAGE, allLanguages, applyFilters, countsByLocality, getListing, supplyProfile } from "@/lib/data";
 import { SupplyPanel } from "@/components/SupplyPanel";
+import { AREA_ARTICLE_MIN, areaSpecialtyLower, areaTitle, buildAreaArticle, isAreaGuide } from "@/lib/content/area-article";
 import { concentrationSentence, councilSentence, countPhrase, gapSentence, listingFaq, placementSentence, qualificationSentence, subspecialtySentence, supplyFacts, verificationSentence } from "@/lib/content/supply";
 import { getGeo } from "@/lib/data/geo";
 import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
@@ -80,7 +81,7 @@ export async function ListingView({
 
 
   const placeName = locality ? `${locality.name}, ${city.name}` : city.name;
-  const heading = `${specialty.plural} in ${placeName}`;
+  const heading = isAreaGuide(locality, specialty, scoped.length) ? areaTitle(specialty, locality) : `${specialty.plural} in ${placeName}`;
 
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
@@ -94,6 +95,18 @@ export async function ListingView({
   // Localities that clear the supply gate get a crawlable link from this page.
   // Ones that do not are simply absent — we never link into a thin page.
   const localityCounts = locality ? {} : await countsByLocality(city.slug, specialty.key, "eligible");
+
+  // Area article (locality pages with AREA_ARTICLE_MIN+ doctors): shown on the
+  // unfiltered first page only, so pages 2+ and facets do not repeat it.
+  const isArticleView = pageNo === 1 && !Object.keys(searchParams).some((k) => k !== "page" && searchParams[k]);
+  const article = locality && isArticleView ? buildAreaArticle(scoped, specialty, locality) : null;
+  const nearbyCounts = article ? await countsByLocality(city.slug, specialty.key, "published") : {};
+  const nearbyAreas = article
+    ? cityLocalities
+        .filter((l) => l.key !== locality!.key && (nearbyCounts[l.key] ?? 0) >= AREA_ARTICLE_MIN)
+        .sort((a, b) => (nearbyCounts[b.key] ?? 0) - (nearbyCounts[a.key] ?? 0))
+        .slice(0, 12)
+    : [];
   const localityLinks = locality ? [] : cityLocalities.filter((l) => (localityCounts[l.key] ?? 0) >= GATES.localityLinkMin);
 
   /*
@@ -157,6 +170,14 @@ export async function ListingView({
               </div>
             </div>
 
+            {article ? (
+              <div className="panel pad" style={{ marginBottom: "14px" }}>
+                {article.intro.map((t) => (
+                  <p key={t} style={{ fontSize: "14.5px", color: "var(--ink-2)", maxWidth: "70ch", margin: "0 0 8px" }}>{t}</p>
+                ))}
+              </div>
+            ) : null}
+
             {results.length > 0 ? (
               <>
                 <div className="rows">
@@ -195,6 +216,67 @@ export async function ListingView({
                 </div>
               </div>
             )}
+
+            {article && article.facilities.length > 0 ? (
+              <div className="panel pad" style={{ marginTop: "14px" }}>
+                <h2 style={{ fontSize: "1.22rem", marginBottom: "10px", marginTop: 0 }}>
+                  Where {areaSpecialtyLower(specialty)} practise in {locality!.name}
+                </h2>
+                <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "14px", color: "var(--ink-2)" }}>
+                  {article.facilities.slice(0, 15).map((f) => (
+                    <li key={f.name} style={{ marginBottom: "6px" }}>
+                      <strong>{f.name}</strong> ({f.doctors.length}):{" "}
+                      {f.doctors.map((d, i) => (
+                        <span key={d.slug}>
+                          {i > 0 ? ", " : ""}
+                          <Link href={paths.doctor(d.slug)}>{d.name}</Link>
+                        </span>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+                {article.facilities.length > 15 ? (
+                  <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "8px" }}>
+                    And {article.facilities.length - 15} more practices; every doctor is in the list below.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {article ? (
+              <div className="panel pad" style={{ marginTop: "14px" }}>
+                <h2 style={{ fontSize: "1.22rem", marginBottom: "10px", marginTop: 0 }}>
+                  All {article.roster.length} {areaSpecialtyLower(specialty)} in {locality!.name}, A–Z
+                </h2>
+                <ol style={{ margin: 0, paddingLeft: "22px", fontSize: "14px", color: "var(--ink-2)", columns: "2 280px" }}>
+                  {article.roster.map((d) => (
+                    <li key={d.slug} style={{ breakInside: "avoid", marginBottom: "6px" }}>
+                      <Link href={paths.doctor(d.slug)}>{d.name}</Link>
+                      {d.facility ? <span style={{ color: "var(--muted)" }}> · {d.facility}</span> : null}
+                      {d.years > 0 ? <span style={{ color: "var(--muted)" }}> · {d.years} yrs</span> : null}
+                      {d.claimed ? null : <span style={{ color: "var(--muted)", fontSize: "12px" }}> · not yet claimed</span>}
+                    </li>
+                  ))}
+                </ol>
+                <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "10px" }}>
+                  Are you one of these doctors? <Link href={paths.claimProfile()}>Claim your profile</Link> to correct and complete it.
+                </p>
+              </div>
+            ) : null}
+
+            {nearbyAreas.length > 0 ? (
+              <div className="panel pad" style={{ marginTop: "14px" }}>
+                <div className="eyebrow">{areaSpecialtyLower(specialty).replace(/^./, (c) => c.toUpperCase())} in nearby areas</div>
+                <div className="quick" style={{ marginTop: "10px" }}>
+                  {nearbyAreas.map((l) => (
+                    <Link key={l.key} className="chip" href={paths.localitySpecialty(city.stateSlug, city.slug, l.slug, specialty.slug)}>
+                      {l.name} ({nearbyCounts[l.key]})
+                    </Link>
+                  ))}
+                  <Link className="chip" href="/doctors/by-area">All areas</Link>
+                </div>
+              </div>
+            ) : null}
 
             <SupplyPanel
               heading={`${specialty.plural} in ${placeName}, by the record`}

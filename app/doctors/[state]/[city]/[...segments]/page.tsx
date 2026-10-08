@@ -7,6 +7,7 @@ import { LISTING_CAP, LISTING_PAGE, countIndexable, pathRedirect, supplyProfile 
 import { GATES, hasFacetParams, listingGate, listingPageParam } from "@/lib/seo/gates";
 import { resolveListing, type ListingParams } from "@/lib/seo/listing";
 import { pageMeta } from "@/lib/seo/meta";
+import { areaSpecialtyLower, areaTitle, commonCityName, isAreaGuide } from "@/lib/content/area-article";
 import { withOverride } from "@/lib/seo/override";
 import { absoluteUrl, paths } from "@/lib/site";
 
@@ -90,9 +91,16 @@ export async function generateMetadata({
     profile.withRegistration > 0 ? `, ${profile.withRegistration.toLocaleString("en-IN")} with a council registration on record` : "",
     ". Every profile states what has been checked, and when.",
   ].join("");
+  // Area guides (10+ doctors in a neighbourhood) use search wording:
+  // "Orthopaedic Doctors in HSR Layout, Bangalore". See lib/content/area-article.ts.
+  const guide = isAreaGuide(locality, specialty, publishedCount);
+  const baseTitle = guide ? areaTitle(specialty, locality) : `${specialty.plural} in ${placeName}`;
+  const guideDesc = guide
+    ? `${areaSpecialtyLower(specialty).replace(/^./, (c) => c.toUpperCase())} in ${locality.name}, ${commonCityName(city.slug, city.name)}: ${publishedCount.toLocaleString("en-IN")} listed with practice, experience, fees and registration. Every doctor included, claimed or not.`
+    : desc;
   return pageMeta({
-    title: pageNo > 1 ? `${specialty.plural} in ${placeName} — page ${pageNo}` : `${specialty.plural} in ${placeName}`,
-    description: pageNo > 1 ? `Page ${pageNo}. ${desc}` : desc,
+    title: pageNo > 1 ? `${baseTitle} — page ${pageNo}` : baseTitle,
+    description: pageNo > 1 ? `Page ${pageNo}. ${guideDesc}` : guideDesc,
     path: pageNo > 1 ? `${canonicalPath}?page=${pageNo}` : canonicalPath,
     index: gate.indexable && !faceted,
     image: { url: absoluteUrl(`/og/listing${canonicalPath.replace(/^\/doctors/, "")}`), alt: `${specialty.plural} in ${placeName}` },
@@ -140,10 +148,11 @@ export default async function ListingPage({
   const gate = await withOverride(canonicalPath, listingGate(locality ? "locality" : "city", eligibleCount, Boolean(specialty.guide)));
   const faceted = hasFacetParams(sp);
 
+  const heading = isAreaGuide(locality, specialty, publishedCount) ? areaTitle(specialty, locality) : `${specialty.plural} in ${placeName}`;
   const routeMeta: RouteMetaData = {
     route: locality ? "Locality × speciality" : "City × speciality",
-    title: `${specialty.plural} in ${placeName} | The Doctor Index`,
-    h1: `${specialty.plural} in ${placeName}`,
+    title: `${heading} | The Doctor Index`,
+    h1: heading,
     canonical: absoluteUrl(pageNo > 1 ? `${canonicalPath}?page=${pageNo}` : canonicalPath),
     index: gate.indexable && !faceted,
     gate: {

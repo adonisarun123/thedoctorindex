@@ -83,6 +83,9 @@ export async function SiteFooter() {
               <li>
                 <Link href={paths.specialties()}>Browse by speciality</Link>
               </li>
+              <li>
+                <Link href="/doctors/by-area">Browse by area</Link>
+              </li>
               {cities.map((c) => (
                 <li key={`${c.stateSlug}/${c.citySlug}`}>
                   <Link href={`/doctors/${c.stateSlug}/${c.citySlug}`}>Doctors in {c.city!.name}</Link>
