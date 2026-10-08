@@ -63,6 +63,7 @@ export async function draftAboutAction(): Promise<DraftState> {
         model: process.env.DRAFT_MODEL || "claude-sonnet-5-5",
         maxTokens: 600,
         timeoutMs: 30_000,
+        noThinking: true,
       });
       about = typeof r.about === "string" ? r.about.trim() : "";
       if (about && !SUPERLATIVE.test(about)) break;

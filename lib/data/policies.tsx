@@ -378,7 +378,7 @@ export const POLICIES: Policy[] = [
     title: "Privacy policy",
     summary:
       "What personal data this platform collects, why, for how long, and the rights you have over it under the DPDP Act.",
-    updatedOn: "23 Sep 2026",
+    updatedOn: "8 Oct 2026",
     body: (
       <>
         <p>
@@ -395,7 +395,8 @@ export const POLICIES: Policy[] = [
             <tbody>
               <tr><td>Doctors</td><td>Name, registration, qualifications, practice details, contact for OTP, identity evidence</td><td>Verifying and publishing a professional profile</td><td>While the profile exists, then 3 years for audit</td></tr>
               <tr><td>Reviewers</td><td>Name, mobile and email, review content, private proof of consultation (required)</td><td>Publishing first-hand reviews and validating evidence</td><td>Proof deleted once the review is decided (at most 30 days after upload); review while published</td></tr>
-              <tr><td>Visitors</td><td>Search terms, pages viewed, contact actions taken</td><td>Improving discovery and measuring whether people reach a doctor</td><td>Aggregated after 13 months</td></tr>
+              <tr><td>Visitors</td><td>Pages viewed, contact actions taken</td><td>Improving discovery and measuring whether people reach a doctor</td><td>Aggregated after 13 months</td></tr>
+              <tr><td>Visitors who search</td><td>The words of a search, and the reading of it described under <a href="#search">Search, voice and AI</a></td><td>Showing the right doctors, and the emergency notice where it applies</td><td>Not linked to you; a search&rsquo;s AI reading is reused for up to 30 days</td></tr>
             </tbody>
           </table>
         </div>
@@ -404,6 +405,44 @@ export const POLICIES: Policy[] = [
           We do not collect diagnoses, prescriptions, reports or treatment records. Reviewers are warned
           not to include them and moderators redact them. Identity documents and proof of visit are
           private evidence and never appear on a public page.
+        </p>
+        <h2 id="search">Search, voice and AI</h2>
+        <ul>
+          <li>
+            <b>What you search for never goes into a web address.</b> The results page is addressed by a
+            sealed code that only our server can read, so analytics and advertising tags, browser history
+            sync and server logs see the code, not your words.
+          </li>
+          <li>
+            <b>Emergency check.</b> Every search is checked on our own server for words that suggest an
+            emergency or a crisis, so we can show emergency numbers first. No AI is involved in this check.
+          </li>
+          <li>
+            <b>AI reading.</b> A search written as a sentence, or in an Indian language, is sent to
+            Anthropic, our AI provider, to work out which kind of doctor and which place you mean. Before it
+            is sent we remove phone numbers, email addresses and long ID or hospital numbers. Your name,
+            account, IP address and location are not sent. The reading is stored against the words of the
+            search, not against you, and reused for up to 30 days so the same search is not sent twice.
+          </li>
+          <li>
+            <b>Voice search.</b> Speech is turned into text by your browser&rsquo;s own speech service (Google
+            for Chrome, Apple for Safari); the audio does not reach us. We receive only the text, which is
+            then handled like a typed search.
+          </li>
+          <li>
+            <b>Your city.</b> We suggest a city from the approximate location of your internet connection.
+            We do not store it. The place you last searched with is remembered only in your browser.
+            <em> Use my location</em> asks your permission each time and is rounded to about 1&nbsp;km.
+          </li>
+          <li>
+            <b>Doctors.</b> The profile drafting assistant sends the professional details already on the
+            doctor&rsquo;s profile to Anthropic to draft an introduction. Nothing is published until the doctor
+            edits and saves it.
+          </li>
+        </ul>
+        <p>
+          AI readings are automatic and can be wrong. They choose which listing to show you; they are not a
+          diagnosis or medical advice.
         </p>
         <h2 id="cookies">Cookies and analytics</h2>
         <p>
@@ -416,6 +455,8 @@ export const POLICIES: Policy[] = [
           reach a doctor. It sets the <code>_ga</code> cookies and sends Google the page address, the
           page that referred you and the page title. It is not sent which doctor you enquired about,
           what you searched for or anything you type into a form. Advertising features are switched off.
+          A separate Google Ads tag measures whether our advertising leads doctors to sign up; it receives
+          the page address, and ad personalisation (remarketing) is switched off for it.
         </p>
         <p>
           Until you choose <em>Allow analytics</em>, the analytics script is not loaded at all. You can

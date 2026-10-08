@@ -33,3 +33,13 @@ test("needsReading only sends sentences and non-Latin queries to the model", () 
   assert.equal(needsReading("पेट दर्द"), true);
   assert.equal(needsReading("x".repeat(300)), false);
 });
+
+test("redactIdentifiers strips contact details and ID numbers but keeps the complaint", async () => {
+  const { redactIdentifiers } = await import("../../lib/search/interpret");
+  assert.equal(redactIdentifiers("fever 3 days call 9845012345"), "fever 3 days call [phone]");
+  assert.equal(redactIdentifiers("+91 98450 12345 knee pain"), "[phone] knee pain");
+  assert.equal(redactIdentifiers("me at a.b@example.com rash"), "me at [email] rash");
+  assert.equal(redactIdentifiers("aadhaar 1234 5678 9012 sugar"), "aadhaar [number] sugar");
+  assert.equal(redactIdentifiers("UHID 20231187 follow up"), "UHID [number] follow up");
+  assert.equal(redactIdentifiers("child 2 years cough near 560102"), "child 2 years cough near 560102");
+});

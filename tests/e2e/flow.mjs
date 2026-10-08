@@ -407,7 +407,7 @@ await signIn(claimant, "e2e.claimant@example.com", `/doctor/${unclaimed.slug}`);
   const geo = await ctxGeo.newPage();
   await geo.goto(listing);
   await geo.locator("button:has-text('Near me')").click();
-  await geo.waitForURL(/near=12\.978(,|%2C)77\.641/, { timeout: 15000 });
+  await geo.waitForURL(/near=12\.98(,|%2C)77\.64/, { timeout: 15000 });
   const firstDist = await geo.locator(".row .meta .dist").first().innerText();
   const firstLoc = await geo.locator(".row .meta").first().innerText();
   ok("near me: results re-sorted by distance with km shown", /away/.test(firstDist) && firstLoc.includes("Indiranagar"), `${firstDist} | ${firstLoc.split("\n")[1]}`);

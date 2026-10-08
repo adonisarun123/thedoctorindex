@@ -53,7 +53,8 @@
     "nmc:build": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/build-profiles.ts",
     "nmc:research": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/research.ts",
     "nmc:research:osm": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/research-osm.ts",
-    "nmc:harvest": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/harvest-publish.ts"
+    "nmc:harvest": "tsx --require ./scripts/server-only-shim.cjs scripts/nmc/harvest-publish.ts",
+    "ai:smoke": "tsx --require ./scripts/server-only-shim.cjs scripts/ai-smoke.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

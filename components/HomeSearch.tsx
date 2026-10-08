@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { resolveDestination } from "@/components/HeaderSearch";
 import { SuggestInput, type SuggestItem } from "@/components/SuggestInput";
+import { searchHrefAction } from "@/app/search/actions";
 import { VoiceSearch } from "@/components/VoiceSearch";
 import { loadWhat, loadWhere } from "@/lib/search/client";
 import { rememberLocation, useAutoLocation } from "@/lib/search/region-client";
@@ -22,9 +23,11 @@ export function HomeSearch({ defaultLocation = "" }: { defaultLocation?: string 
   // visitor's last place, else their IP city, replaces it (never a redirect).
   const touchLoc = useAutoLocation(setLoc);
 
-  function go(what: string, where: string) {
+  async function go(what: string, where: string) {
     rememberLocation(where);
-    router.push(resolveDestination(what, where));
+    const dest = resolveDestination(what, where);
+    // Free-text searches are sealed server-side so the terms never sit in the URL (lib/search/sealed.ts).
+    router.push(dest.startsWith("/search") ? await searchHrefAction(what, where) : dest);
   }
 
   function pickWhat(item: SuggestItem) {
@@ -46,7 +49,7 @@ export function HomeSearch({ defaultLocation = "" }: { defaultLocation?: string 
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
-        go(q, loc);
+        void go(q, loc);
       }}
     >
       <label>

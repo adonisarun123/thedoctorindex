@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { SuggestInput, type SuggestItem } from "@/components/SuggestInput";
+import { searchHrefAction } from "@/app/search/actions";
 import { VoiceSearch } from "@/components/VoiceSearch";
 import { resolveSpecialtyQuery } from "@/lib/data/taxonomy";
 import { loadWhat, loadWhere } from "@/lib/search/client";
@@ -23,14 +24,16 @@ export function HeaderSearch() {
   const [loc, setLoc] = useState("");
   const touchLoc = useAutoLocation(setLoc);
 
-  function go(what: string, where: string) {
+  async function go(what: string, where: string) {
     rememberLocation(where);
-    router.push(resolveDestination(what, where));
+    const dest = resolveDestination(what, where);
+    // Free-text searches are sealed server-side so the terms never sit in the URL (lib/search/sealed.ts).
+    router.push(dest.startsWith("/search") ? await searchHrefAction(what, where) : dest);
   }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    go(q, loc);
+    void go(q, loc);
   }
 
   function pickWhat(item: SuggestItem) {

@@ -84,6 +84,21 @@ export interface Reading {
   english: string | null;
 }
 
+/**
+ * Identifiers a visitor might type into a search box (a phone number, an
+ * email, an Aadhaar or hospital number) are replaced before the query goes to
+ * the model provider or into the cache. The model needs the complaint and the
+ * place, never who is asking.
+ */
+export function redactIdentifiers(text: string): string {
+  return text
+    .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[email]")
+    .replace(/(\+?91[\s-]?)?\b[6-9]\d{4}[\s-]?\d{5}\b/g, "[phone]")
+    .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, "[number]")
+    // 7+ digits: hospital and patient numbers. A 6-digit PIN code is a place and is kept.
+    .replace(/\b\d{7,}\b/g, "[number]");
+}
+
 /** Worth a model call: reads like a sentence, or is not in Latin script. */
 export function needsReading(q: string): boolean {
   const t = q.trim();
@@ -103,6 +118,8 @@ Reply with ONE JSON object and nothing else:
 {"specialty": <one key from the list, or null>, "place": <an Indian city or locality named in the query, as written in English, or null>, "doctorName": <a doctor's name if the query names one, without "Dr", or null>, "urgent": <true only if the text describes a possible emergency happening now: chest pain, stroke signs, severe breathing trouble, unconsciousness, seizure, heavy bleeding, poisoning, serious injury, or thoughts of suicide or self-harm>, "english": <the query restated in plain English, max 12 words>}
 Rules:
 - specialty is the kind of doctor the patient should book FIRST. For vague or general symptoms (fever, weakness, body pain) choose general-practice or internal-medicine; for a child choose paediatrics unless a specific specialist is obvious.
+- Prefer the medical speciality over the surgical one (gastroenterology before gi-surgery, neurology before neurosurgery, cardiology before cardiothoracic surgery) unless the query asks for an operation or a surgeon.
+- For a possible emergency set urgent true and still choose the speciality for follow-up care, not emergency-medicine.
 - Never diagnose and never add facts that are not in the query.
 - If the query is only a doctor's name, set specialty to null.
 Specialty keys:
@@ -124,14 +141,15 @@ export async function readQuery(normalised: string): Promise<Reading> {
     system: SYSTEM,
     user: normalised,
     model: process.env.SEARCH_MODEL || "claude-haiku-5-5",
-    maxTokens: 200,
+    maxTokens: 300,
     timeoutMs: 7000,
+    noThinking: true,
   });
   const key = typeof raw.specialty === "string" && (CHOICES as string[]).includes(raw.specialty) ? (raw.specialty as SpecialtyKey) : null;
   return {
     specialty: key,
     place: str(raw.place, 60),
-    doctorName: str(raw.doctorName, 60),
+    doctorName: str(typeof raw.doctorName === "string" ? raw.doctorName.replace(/^dr\.?\s+/i, "") : null, 60),
     urgent: raw.urgent === true,
     english: str(raw.english, 120),
   };
@@ -149,7 +167,7 @@ const SITE_PER_DAY = 3000;
 
 export async function interpretQuery(query: string, ipKey: string | null): Promise<Reading | null> {
   if (!process.env.ANTHROPIC_API_KEY || !needsReading(query)) return null;
-  const normalised = query.toLowerCase().replace(/\s+/g, " ").trim();
+  const normalised = redactIdentifiers(query).toLowerCase().replace(/\s+/g, " ").trim();
   try {
     const [site, visitor] = await Promise.all([
       rateLimit("search-read:site", SITE_PER_DAY, 86_400),

@@ -8,8 +8,9 @@ const KEY = "tdi_near";
 
 /**
  * "Use my location" — explicit, per-click consent through the browser's own
- * permission prompt. The position is rounded to three decimals (~100 m),
- * kept only in this browser (localStorage) so the control can offer it
+ * permission prompt. The position is rounded to two decimals (~1 km) — enough
+ * to sort by distance, too coarse to place a home — because it rides in the
+ * URL, where analytics tags can read it. It is kept only in this browser (localStorage) so the control can offer it
  * again on the next results page, and applied by reloading the current URL
  * with `near=lat,lng`. Nothing about the visitor's position is sent
  * anywhere except as that query parameter on pages they choose to open.
@@ -32,7 +33,9 @@ export function NearMe({ active }: { active: boolean }) {
   const withNear = (near: string | null) => {
     const p = new URLSearchParams(sp.toString());
     if (near) {
-      p.set("near", near);
+      // Values saved before the ~1 km rounding are coarsened here too.
+      const [a, b] = near.split(",").map(Number);
+      p.set("near", Number.isFinite(a) && Number.isFinite(b) ? `${a.toFixed(2)},${b.toFixed(2)}` : near);
       p.delete("sort");
     } else p.delete("near");
     const qs = p.toString();
@@ -44,7 +47,7 @@ export function NearMe({ active }: { active: boolean }) {
     setState("locating");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const near = `${pos.coords.latitude.toFixed(3)},${pos.coords.longitude.toFixed(3)}`;
+        const near = `${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`;
         try {
           localStorage.setItem(KEY, near);
         } catch {
