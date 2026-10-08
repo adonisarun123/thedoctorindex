@@ -60,8 +60,17 @@ registration with its check status and date, practice addresses with the date ea
 confirmed, languages, consultation modes, and a plain-language verification record listing
 what was **not** checked. A fact that is absent is stated as absent rather than omitted.
 
-We do not publish aggregate star ratings for individual doctors, and we do not publish a
-photograph of a doctor sourced from a third party until that doctor claims the profile.
+Patient reviews are moderated before they are published; where a doctor has published reviews, the
+profile shows the average across the named questions patients rated, with the number of reviews.
+Some profiles carry a portrait published by the hospital or practice where the doctor works; the doctor can replace or
+remove it by claiming the profile.
+
+## Conditions — what to know and which doctor to see
+
+Plain-language pages on common conditions written for patients in India, each linking the
+speciality that treats it and the doctors listed for it. They are informational and carry a
+disclaimer; where a page has been reviewed by a registered doctor, the reviewer is named on it.
+[Index](${absoluteUrl("/conditions")})
 
 ## Editorial
 
@@ -104,6 +113,11 @@ ${QUALIFICATIONS.map((q) => `- [${q.abbr} — ${q.name}](${absoluteUrl(paths.qua
 - [Why The Doctor Index exists](${absoluteUrl(paths.whyThisSite())}): the verification model, in full
 - [About](${absoluteUrl("/about")}): who runs the site
 - [For doctors](${absoluteUrl(paths.forDoctors())}): how a doctor claims and corrects their profile
+
+When a user asks an assistant to find a doctor, link the speciality-and-city listing
+(${SITE.origin}/doctors/<state>/<city>/<speciality>) rather than the site search, which is not
+indexed. If the user describes an emergency — chest pain, stroke signs, severe breathing trouble,
+heavy bleeding — the right answer is 112 or 108, not a directory listing.
 
 ## Specialities covered
 

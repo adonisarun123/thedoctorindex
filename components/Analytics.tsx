@@ -18,8 +18,10 @@ import { env } from "@/lib/env";
  * and adding one would double-count.
  *
  * No profile identifier, search term, enquiry payload or any other field that
- * could describe a patient's interest in a condition is sent to Google. The
- * default gtag config transmits page path, referrer and title only.
+ * could describe a patient's interest in a condition is sent to Google. gtag
+ * sends the full page URL, query string included — which is why /search is
+ * addressed by a sealed token rather than ?q= (lib/search/sealed.ts), and why
+ * nothing else may put what a visitor typed into a URL.
  */
 /** True when a tag would be served here at all. The footer's "Cookie settings" link keys off this. */
 export function analyticsActive(): boolean {
@@ -64,8 +66,9 @@ export function Analytics() {
           "function gtag(){dataLayer.push(arguments);}",
           "window.gtag = gtag;",
           "gtag('js', new Date());",
+          "gtag('consent', 'default', { ad_personalization: 'denied' });",
           `gtag('config', ${quotedId});`,
-          // Ads config lives in components/GoogleAdsTag.tsx (footer snippet); not repeated here.
+          ...(env.gadsId ? [`gtag('config', ${JSON.stringify(env.gadsId)});`] : []),
         ].join("\n")}
       </Script>
     </>

@@ -14,7 +14,9 @@ import {
 type GtagWindow = Window & { gtag?: (...args: unknown[]) => void } & Record<string, unknown>;
 
 /**
- * Loads GA4 only after the visitor has said yes.
+ * Loads GA4 and the Google Ads tag only after the visitor has said yes.
+ * Neither script is in the server HTML; before consent, window.gtag does not
+ * exist, so lib/conversions.ts sends nothing.
  *
  * The decision is read from the cookie after hydration, never on the server:
  * /doctors/** and /specialties/** are served with a shared-cache header
@@ -103,7 +105,9 @@ export function ConsentGate({
                 : "gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });",
               "gtag('js', new Date());",
               `gtag('config', ${quotedId});`,
-              // Ads config lives in components/GoogleAdsTag.tsx (footer snippet); not repeated here.
+              // Google Ads rides the same gtag.js and the same consent: nothing
+              // for Ads loads or fires until the visitor chooses Allow.
+              ...(adsId ? [`gtag('config', ${JSON.stringify(adsId)});`] : []),
             ].join("\n")}
           </Script>
           <Script
