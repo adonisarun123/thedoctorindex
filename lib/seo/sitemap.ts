@@ -122,6 +122,7 @@ export async function directoryEntries(): Promise<SitemapEntry[]> {
   const entries: SitemapEntry[] = [
     { loc: absoluteUrl(paths.home()) },
     { loc: absoluteUrl("/doctors") },
+    { loc: absoluteUrl("/doctors/by-area") },
     { loc: absoluteUrl("/specialties") },
   ];
   for (const st of geo.states) if ((stateCounts[st.slug] ?? 0) > 0) entries.push({ loc: absoluteUrl(`/doctors/${st.slug}`) });
