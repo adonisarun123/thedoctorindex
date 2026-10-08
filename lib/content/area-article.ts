@@ -21,6 +21,65 @@ export const AREA_ARTICLE_MIN = 10;
 /** Specialities with no patient-facing area guide (nobody searches for them by neighbourhood). */
 export const AREA_ARTICLE_EXCLUDED = new Set<string>(["non-clinical-medicine"]);
 
+
+/**
+ * Search wording for area guides (8 Oct 2026). Titles and H1s use the words
+ * patients type — "Orthopaedic Doctors in HSR Layout, Bangalore" — rather than
+ * the register's wording ("Orthopaedic surgeons … Bengaluru"). URLs, breadcrumbs
+ * and structured data keep the official names; only the copy changes.
+ */
+const CITY_COMMON_NAME: Record<string, string> = {
+  bengaluru: "Bangalore",
+  gurugram: "Gurgaon",
+  mysuru: "Mysore",
+  mangaluru: "Mangalore",
+  belagavi: "Belgaum",
+  kalaburagi: "Gulbarga",
+  "hubballi-dharwad": "Hubli-Dharwad",
+  kozhikode: "Calicut",
+  thiruvananthapuram: "Trivandrum",
+  puducherry: "Pondicherry",
+  "kanpur-nagar": "Kanpur",
+};
+
+const SPECIALTY_SEARCH_NAME: Record<string, string> = {
+  orthopaedics: "Orthopaedic Doctors",
+  ent: "ENT Doctors",
+  ayush: "AYUSH Doctors",
+  "internal-medicine": "Internal Medicine Doctors",
+  "general-practice": "General Physicians",
+  "physical-medicine-rehabilitation": "Rehabilitation Doctors",
+  "infectious-diseases": "Infectious Disease Doctors",
+  "transplant-surgery": "Transplant Doctors",
+};
+
+const titleCase = (t: string) => t.replace(/\b([a-z])/g, (m) => m.toUpperCase()).replace(/\bIn\b/g, "in");
+
+/** "Bangalore" for bengaluru, "Gurgaon" for gurugram; the official name otherwise. */
+export function commonCityName(citySlug: string, cityName: string): string {
+  return CITY_COMMON_NAME[citySlug] ?? cityName;
+}
+
+/** "Orthopaedic Doctors", "Gynaecologists", "ENT Doctors". */
+export function areaSpecialtyName(specialty: Pick<Specialty, "key" | "plural">): string {
+  return SPECIALTY_SEARCH_NAME[specialty.key] ?? titleCase(specialty.plural);
+}
+
+/** The same name inside a sentence: "orthopaedic doctors", keeping ENT and AYUSH upper case. */
+export function areaSpecialtyLower(specialty: Pick<Specialty, "key" | "plural">): string {
+  return areaSpecialtyName(specialty).replace(/\b([A-Z][a-z]+)\b/g, (w) => w.toLowerCase());
+}
+
+/** "Orthopaedic Doctors in HSR Layout, Bangalore" */
+export function areaTitle(specialty: Pick<Specialty, "key" | "plural">, locality: Pick<Locality, "name" | "citySlug" | "city">): string {
+  return `${areaSpecialtyName(specialty)} in ${locality.name}, ${commonCityName(locality.citySlug, locality.city)}`;
+}
+
+/** Whether a locality × speciality page is an area guide (gets the article and the search wording). */
+export function isAreaGuide(locality: Locality | null, specialty: Pick<Specialty, "key">, doctors: number): locality is Locality {
+  return Boolean(locality) && doctors >= AREA_ARTICLE_MIN && !isCitywideLocality(locality!) && !AREA_ARTICLE_EXCLUDED.has(specialty.key);
+}
+
 export interface AreaFacility {
   name: string;
   doctors: Array<{ name: string; slug: string }>;
@@ -53,7 +112,7 @@ export function isCitywideLocality(locality: Pick<Locality, "slug" | "name" | "c
 }
 
 export function buildAreaArticle(doctors: DoctorView[], specialty: Specialty, locality: Locality): AreaArticle | null {
-  if (doctors.length < AREA_ARTICLE_MIN || isCitywideLocality(locality) || AREA_ARTICLE_EXCLUDED.has(specialty.key)) return null;
+  if (!isAreaGuide(locality, specialty, doctors.length)) return null;
   const here = (d: DoctorView) => d.practices.filter((p) => p.locality === locality.key);
 
   // Where they practise: facilities inside this locality, largest first.
@@ -83,10 +142,10 @@ export function buildAreaArticle(doctors: DoctorView[], specialty: Specialty, lo
   const langs = [...langCount.entries()].filter(([l]) => l !== "English").sort((a, b) => b[1] - a[1]).slice(0, 3).map(([l]) => l);
 
   const n = doctors.length;
-  const place = `${locality.name}, ${locality.city}`;
+  const place = `${locality.name}, ${commonCityName(locality.citySlug, locality.city)}`;
   const intro: string[] = [];
   intro.push(
-    `The Doctor Index lists ${plural(n, specialty.one.toLowerCase(), specialty.plural.toLowerCase())} practising in ${place}` +
+    `The Doctor Index lists ${plural(n, areaSpecialtyLower(specialty).replace(/s$/, ""), areaSpecialtyLower(specialty))} practising in ${place}` +
       (facilities.length > 0 ? `, across ${plural(facilities.length, "hospital or clinic", "hospitals and clinics")} in the area` : "") +
       (facilities[0] && facilities[0].doctors.length > 1 ? `. ${facilities[0].name} has the most, with ${facilities[0].doctors.length}.` : "."),
   );

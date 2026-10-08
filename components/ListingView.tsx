@@ -10,7 +10,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
 import { LISTING_CAP, LISTING_PAGE, allLanguages, applyFilters, countsByLocality, getListing, supplyProfile } from "@/lib/data";
 import { SupplyPanel } from "@/components/SupplyPanel";
-import { AREA_ARTICLE_MIN, buildAreaArticle } from "@/lib/content/area-article";
+import { AREA_ARTICLE_MIN, areaSpecialtyLower, areaTitle, buildAreaArticle, isAreaGuide } from "@/lib/content/area-article";
 import { concentrationSentence, councilSentence, countPhrase, gapSentence, listingFaq, placementSentence, qualificationSentence, subspecialtySentence, supplyFacts, verificationSentence } from "@/lib/content/supply";
 import { getGeo } from "@/lib/data/geo";
 import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
@@ -81,7 +81,7 @@ export async function ListingView({
 
 
   const placeName = locality ? `${locality.name}, ${city.name}` : city.name;
-  const heading = `${specialty.plural} in ${placeName}`;
+  const heading = isAreaGuide(locality, specialty, scoped.length) ? areaTitle(specialty, locality) : `${specialty.plural} in ${placeName}`;
 
   const crumbs: Crumb[] = [
     { name: "Home", path: paths.home() },
@@ -220,7 +220,7 @@ export async function ListingView({
             {article && article.facilities.length > 0 ? (
               <div className="panel pad" style={{ marginTop: "14px" }}>
                 <h2 style={{ fontSize: "1.22rem", marginBottom: "10px", marginTop: 0 }}>
-                  Where {specialty.plural.toLowerCase()} practise in {locality!.name}
+                  Where {areaSpecialtyLower(specialty)} practise in {locality!.name}
                 </h2>
                 <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "14px", color: "var(--ink-2)" }}>
                   {article.facilities.slice(0, 15).map((f) => (
@@ -246,7 +246,7 @@ export async function ListingView({
             {article ? (
               <div className="panel pad" style={{ marginTop: "14px" }}>
                 <h2 style={{ fontSize: "1.22rem", marginBottom: "10px", marginTop: 0 }}>
-                  All {article.roster.length} {specialty.plural.toLowerCase()} in {locality!.name}, A–Z
+                  All {article.roster.length} {areaSpecialtyLower(specialty)} in {locality!.name}, A–Z
                 </h2>
                 <ol style={{ margin: 0, paddingLeft: "22px", fontSize: "14px", color: "var(--ink-2)", columns: "2 280px" }}>
                   {article.roster.map((d) => (
@@ -266,7 +266,7 @@ export async function ListingView({
 
             {nearbyAreas.length > 0 ? (
               <div className="panel pad" style={{ marginTop: "14px" }}>
-                <div className="eyebrow">{specialty.plural} in nearby areas of {city.name}</div>
+                <div className="eyebrow">{areaSpecialtyLower(specialty).replace(/^./, (c) => c.toUpperCase())} in nearby areas</div>
                 <div className="quick" style={{ marginTop: "10px" }}>
                   {nearbyAreas.map((l) => (
                     <Link key={l.key} className="chip" href={paths.localitySpecialty(city.stateSlug, city.slug, l.slug, specialty.slug)}>

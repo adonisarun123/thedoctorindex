@@ -7,14 +7,14 @@ import { RouteMeta } from "@/components/RouteMeta";
 import { countsByLocalityAll } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
-import { AREA_ARTICLE_EXCLUDED, AREA_ARTICLE_MIN, isCitywideLocality } from "@/lib/content/area-article";
+import { AREA_ARTICLE_EXCLUDED, AREA_ARTICLE_MIN, areaSpecialtyName, commonCityName, isCitywideLocality } from "@/lib/content/area-article";
 import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
 import { pageMeta } from "@/lib/seo/meta";
 import { absoluteUrl, paths } from "@/lib/site";
 
 export const metadata: Metadata = pageMeta({
   title: "Doctors by area and speciality",
-  description: `Every neighbourhood with ${AREA_ARTICLE_MIN} or more doctors of one speciality on The Doctor Index — orthopaedic surgeons in HSR Layout, gynaecologists in Koramangala and more — each listing every doctor, claimed or not.`,
+  description: `Every neighbourhood with ${AREA_ARTICLE_MIN} or more doctors of one speciality on The Doctor Index — orthopaedic doctors in HSR Layout, Bangalore and more — each listing every doctor, claimed or not.`,
   path: "/doctors/by-area",
 });
 
@@ -38,8 +38,8 @@ export default async function AreasHubPage() {
     const city = geo.city(r.stateSlug, r.citySlug);
     if (!spec || !loc || !city || isCitywideLocality(loc)) continue;
     const k = `${city.stateSlug}/${city.slug}`;
-    const g = byCity.get(k) ?? { city: city.name, state: city.state, entries: [] };
-    g.entries.push({ label: `${spec.plural} in ${loc.name}`, path: paths.localitySpecialty(city.stateSlug, city.slug, loc.slug, spec.slug), n: r.n });
+    const g = byCity.get(k) ?? { city: commonCityName(city.slug, city.name), state: city.state, entries: [] };
+    g.entries.push({ label: `${areaSpecialtyName(spec)} in ${loc.name}`, path: paths.localitySpecialty(city.stateSlug, city.slug, loc.slug, spec.slug), n: r.n });
     byCity.set(k, g);
   }
   const groups = [...byCity.values()]
