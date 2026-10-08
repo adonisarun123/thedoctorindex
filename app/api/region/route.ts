@@ -21,6 +21,20 @@ const MIN_SUPPLY = 5;
 /** A lat/long fix further than this from every covered city is not "in" any of them. */
 const MAX_KM = 45;
 
+/** Older or English spellings geolocation databases still report, mapped to the names the directory uses. */
+const CITY_ALIASES: Record<string, string> = {
+  bangalore: "Bengaluru",
+  bombay: "Mumbai",
+  madras: "Chennai",
+  calcutta: "Kolkata",
+  gurgaon: "Gurugram",
+  mysore: "Mysuru",
+  mangalore: "Mangaluru",
+  trivandrum: "Thiruvananthapuram",
+  cochin: "Kochi",
+  pondicherry: "Puducherry",
+};
+
 function header(req: NextRequest, name: string): string {
   const v = req.headers.get(name);
   if (!v) return "";
@@ -54,7 +68,8 @@ export async function GET(req: NextRequest) {
   };
 
   // 1. The city name, when it is one we cover.
-  const cityName = header(req, "x-vercel-ip-city");
+  const rawCity = header(req, "x-vercel-ip-city");
+  const cityName = CITY_ALIASES[rawCity.toLowerCase()] ?? rawCity;
   if (cityName) {
     const hit = await resolvePlaceQuery(cityName);
     if (hit && !hit.locality) {
