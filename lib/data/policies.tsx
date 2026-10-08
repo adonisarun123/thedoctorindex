@@ -303,7 +303,7 @@ export const POLICIES: Policy[] = [
     title: "Editorial and medical review policy",
     summary:
       "Who writes and reviews health content on this site, how sources are handled, and what we will not publish.",
-    updatedOn: "03 Oct 2026",
+    updatedOn: "07 Oct 2026",
     body: (
       <>
         <p>
@@ -327,7 +327,7 @@ export const POLICIES: Policy[] = [
         <ul>
           <li>Symptom checkers, triage tools or anything that outputs a diagnosis.</li>
           <li>Condition articles written to a template. Each article is written individually; reference pages compiled from public sources (such as MedlinePlus and Orphanet) are labelled as compiled, credit their sources, and are kept out of search results.</li>
-          <li>Content that names or recommends a specific doctor. Guidance and directory are separate.</li>
+          <li>Health guidance that names or recommends a specific doctor. Guidance and directory are separate. (The <a href="/news/about">TDi Newsdesk</a> reports doctors&rsquo; achievements by name under its own standards; a news story is not a recommendation.)</li>
           <li>Sponsored health content of any kind.</li>
         </ul>
         <h2>Corrections</h2>

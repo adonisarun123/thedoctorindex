@@ -140,6 +140,7 @@ export function SiteHeader() {
           <div className="h">Learn</div>
           <Link href="/conditions">Conditions A–Z</Link>
           <Link href="/health-guides">Health guides</Link>
+          <Link href={paths.news()}>News</Link>
           <Link href={paths.blog()}>Blog</Link>
           <Link href={paths.registers()}>Registers</Link>
           <Link href={paths.qualifications()}>Qualifications</Link>

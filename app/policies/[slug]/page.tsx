@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
@@ -58,6 +59,15 @@ export default async function PolicyPage({ params }: { params: Promise<Params> }
           <h1>{policy.title}</h1>
           <div className="upd">Last substantive update {policy.updatedOn}</div>
           {policy.body}
+
+          <h2>Other policies</h2>
+          <ul>
+            {POLICIES.filter((p) => p.slug !== policy.slug).map((p) => (
+              <li key={p.slug}>
+                <Link href={paths.policy(p.slug)}>{p.title}</Link> — {p.summary}
+              </li>
+            ))}
+          </ul>
         </article>
       </div>
     </>

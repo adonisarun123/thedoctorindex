@@ -10,6 +10,8 @@ import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/Avatar";
 import { DoctorArticles } from "@/components/DoctorArticles";
+import { postsForProfile } from "@/lib/blog/placements";
+import { DoctorInTheNews } from "@/components/DoctorInTheNews";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { CallButton, DirectionsButton, ViewBeacon } from "@/components/ContactActions";
 import { JsonLd } from "@/components/JsonLd";
@@ -235,7 +237,11 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               <div className="role">
                 {specialty.one}
                 {qualsVerified.length ? ` · ${qualsVerified.map((q) => q.degree).slice(0, 2).join(", ")}` : ""}
-                {doctor.registration.registeredYear ? ` · practising since ${doctor.registration.registeredYear}` : ""}
+                {doctor.practiceStartYear
+                  ? ` · practising since ${doctor.practiceStartYear}`
+                  : doctor.registration.registeredYear
+                    ? ` · registered ${doctor.registration.registeredYear}`
+                    : ""}
                 {doctor.subspecialties.length ? ` · ${doctor.subspecialties.join(", ")}` : ""}
               </div>
               {primaryPractice ? (
@@ -448,6 +454,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
             <Credentials doctor={doctor} />
 
             <DoctorArticles doctorDbId={doctor.dbId} name={displayName(doctor)} />
+            <DoctorInTheNews doctorDbId={doctor.dbId} />
 
             <section className="block" aria-labelledby="faq-h">
               <h2 id="faq-h">Questions people ask</h2>
@@ -462,6 +469,17 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               <p className="blocknote">
                 Answers come from the verified record on this page, not from opinion. Where a fact has not been confirmed, the answer says so.
               </p>
+            </section>
+
+            <section className="block" aria-labelledby="before-visit-h">
+              <h2 id="before-visit-h">Before you visit</h2>
+              <ul>
+                {postsForProfile(doctor.slug).map((p) => (
+                  <li key={p.slug}>
+                    <Link href={paths.blogPost(p.slug)}>{p.metaTitle ?? p.title}</Link>
+                  </li>
+                ))}
+              </ul>
             </section>
 
             <Reviews doctor={doctor} />

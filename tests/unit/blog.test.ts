@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { BLOG_CATEGORIES, CATEGORY_ORDER, POSTS, contents, postBySlug, postLinks, postStrings, relatedTo, wordCount } from "../../lib/blog";
 import { DESCRIPTION_MAX, TITLE_MAX, fullTitle } from "../../lib/seo/meta";
+import { REGISTERS } from "../../lib/registers";
+import { QUALIFICATIONS } from "../../lib/qualifications";
+import { SPECIALTIES } from "../../lib/data/specialties";
 
 /**
  * Editorial minimums, enforced rather than asserted in a style guide.
@@ -28,7 +31,18 @@ const POLICY_SLUGS = new Set(slugsIn("lib/data/policies.tsx"));
 const STATIC_ROUTES = new Set([
   "/", "/doctors", "/specialties", "/search", "/about", "/for-doctors",
   "/why-the-doctor-index", "/add-doctor", "/claim-profile", "/health-guides", "/blog",
+  "/registers", "/qualifications", "/conditions",
 ]);
+
+/** The page families a post may link into, each checked against its own registry. */
+const REGISTER_SLUGS = new Set(REGISTERS.map((r) => r.slug));
+const QUALIFICATION_SLUGS = new Set(QUALIFICATIONS.map((q) => q.slug));
+const SPECIALTY_KEYS = new Set(Object.keys(SPECIALTIES));
+const CONDITION_SLUGS = new Set(
+  readdirSync(new URL("../../lib/conditions/articles", import.meta.url))
+    .filter((f) => f.endsWith(".ts") && f !== "index.ts")
+    .map((f) => f.replace(/\.ts$/, "")),
+);
 
 test("the registry is coherent", () => {
   assert.ok(POSTS.length >= 10, `expected at least 10 posts, found ${POSTS.length}`);
@@ -94,6 +108,16 @@ test("every internal link resolves to a route that exists", () => {
         assert.ok(GUIDE_SLUGS.has(slug), `${p.slug}: links to a guide that does not exist — ${path}`);
       } else if (head === "policies") {
         assert.ok(POLICY_SLUGS.has(slug), `${p.slug}: links to a policy that does not exist — ${path}`);
+      } else if (head === "registers") {
+        assert.ok(REGISTER_SLUGS.has(slug), `${p.slug}: links to a register that does not exist — ${path}`);
+      } else if (head === "qualifications") {
+        assert.ok(QUALIFICATION_SLUGS.has(slug), `${p.slug}: links to a qualification that does not exist — ${path}`);
+      } else if (head === "specialties") {
+        assert.ok(SPECIALTY_KEYS.has(slug), `${p.slug}: links to a speciality that does not exist — ${path}`);
+      } else if (head === "conditions") {
+        assert.ok(CONDITION_SLUGS.has(slug), `${p.slug}: links to a condition that does not exist — ${path}`);
+      } else if (head === "doctors") {
+        // Location listings are database-driven; the directory test below covers them.
       } else {
         assert.fail(`${p.slug}: unrecognised internal link — ${path}`);
       }

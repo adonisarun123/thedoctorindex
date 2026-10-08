@@ -1400,6 +1400,121 @@ export const doctorArticlesRelations = relations(doctorArticles, ({ one }) => ({
 }));
 
 /* ------------------------------------------------------------------------- */
+/* Newsroom (/news)                                                          */
+/* ------------------------------------------------------------------------- */
+
+export const newsStatus = pgEnum("news_status", ["draft", "approved", "published", "rejected", "withdrawn"]);
+
+/**
+ * News about Indian doctors — achievements, awards, firsts, research and
+ * appointments — written by the TDi Newsdesk from published reporting
+ * (lib/news). Rules:
+ *  - Every story cites at least one source, and every fact on the page must
+ *    be supported by a cited source. Stories paraphrase; they never copy.
+ *  - Lifecycle: draft (needs a human) → approved (buffer, waiting for a
+ *    publishing slot) → published. Rejected and withdrawn stay for audit.
+ *  - Auto-publish (no human) only when the story is `autoEligible`: two or
+ *    more independent sources AND the doctor matched to a TDi profile AND the
+ *    claims check passed. Everything else waits in the admin queue.
+ *  - At most NEWS_DAILY_MAX stories publish per IST day; the rest wait in
+ *    the buffer, which also covers days with no fresh news.
+ *  - A correction after publication is shown on the page with its date.
+ */
+export const newsStories = pgTable(
+  "news_stories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Public path segment: /news/<slug>. Fixed once published. */
+    slug: text("slug").notNull().unique(),
+    headline: text("headline").notNull(),
+    /** Standfirst under the H1 and the meta description. */
+    dek: text("dek").notNull(),
+    /** Exactly three short "Key highlights" bullets. */
+    highlights: text("highlights").array().notNull().default(sql`'{}'::text[]`),
+    /** "Why it matters for patients" panel. */
+    whyItMatters: text("why_it_matters").notNull().default(""),
+    /** Body in the editorial inline syntax (## headings, - lists, **bold**, [links](…)). */
+    body: text("body").notNull(),
+    /** "By the numbers" strip: [{ value, label }], only figures a source states. */
+    numbers: jsonb("numbers").notNull().default(sql`'[]'::jsonb`),
+    /** award | research | first | appointment | recognition | public_health | milestone | in_action (lib/news/format.ts) */
+    category: text("category").notNull(),
+    /** Person the story is about, as the sources name them. */
+    subjectName: text("subject_name").notNull(),
+    /** Role and institution, e.g. "Head of Cardiac Surgery, Narayana Health". */
+    subjectRole: text("subject_role").notNull().default(""),
+    /** Where they practise: city in India, or city + country abroad. */
+    place: text("place").notNull().default(""),
+    /** Indian-origin doctor practising outside India. */
+    abroad: boolean("abroad").notNull().default(false),
+    specialtyKey: text("specialty_key").references(() => specialties.key),
+    /** [{ url, publisher, title, publishedOn }] — at least one. */
+    sources: jsonb("sources").notNull().default(sql`'[]'::jsonb`),
+    /** Same event reported twice is one story: normalised subject + event. */
+    fingerprint: text("fingerprint").notNull().unique(),
+    eventDate: date("event_date"),
+    status: newsStatus("status").notNull().default("draft"),
+    autoEligible: boolean("auto_eligible").notNull().default(false),
+    /** Why the story went to the queue instead of publishing itself. */
+    gateNotes: text("gate_notes").array().notNull().default(sql`'{}'::text[]`),
+    /** Claims check: { ok, checked, unsupported: string[] }. */
+    verification: jsonb("verification"),
+    /** "pipeline" | "staff" */
+    origin: text("origin").notNull().default("pipeline"),
+    /** Publicly shown correction, with correctedAt. */
+    correction: text("correction"),
+    correctedAt: timestamp("corrected_at", { withTimezone: true }),
+    reviewerNote: text("reviewer_note"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("news_status_published_idx").on(t.status, t.publishedAt), index("news_category_idx").on(t.category, t.publishedAt)],
+);
+
+/** Doctors a story is about (primary) or mentions, matched to TDi profiles. */
+export const newsStoryDoctors = pgTable(
+  "news_story_doctors",
+  {
+    storyId: uuid("story_id").notNull().references(() => newsStories.id, { onDelete: "cascade" }),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    primary: boolean("primary").notNull().default(true),
+    /** How the match was made: "registration" | "name+place" | "staff". */
+    matchedBy: text("matched_by").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.storyId, t.doctorId] }), index("news_doctor_idx").on(t.doctorId)],
+);
+
+/** Every source URL the pipeline has already looked at, so a run never re-reads one. */
+export const newsSeenUrls = pgTable("news_seen_urls", {
+  url: text("url").primaryKey(),
+  /** "drafted" | "skipped:<reason>" */
+  outcome: text("outcome").notNull(),
+  storyId: uuid("story_id").references(() => newsStories.id, { onDelete: "set null" }),
+  seenAt: timestamp("seen_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One row per pipeline run, for the admin page and the failure alert. */
+export const newsRuns = pgTable("news_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  ok: boolean("ok"),
+  report: jsonb("report"),
+  error: text("error"),
+});
+
+export const newsStoriesRelations = relations(newsStories, ({ many }) => ({
+  doctors: many(newsStoryDoctors),
+}));
+export const newsStoryDoctorsRelations = relations(newsStoryDoctors, ({ one }) => ({
+  story: one(newsStories, { fields: [newsStoryDoctors.storyId], references: [newsStories.id] }),
+  doctor: one(doctors, { fields: [newsStoryDoctors.doctorId], references: [doctors.id] }),
+}));
+
+/* ------------------------------------------------------------------------- */
 /* Condition library (/conditions)                                           */
 /* ------------------------------------------------------------------------- */
 

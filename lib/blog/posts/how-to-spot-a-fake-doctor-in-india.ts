@@ -41,7 +41,7 @@ export const post: BlogPost = {
     { k: "h2", text: "Check one: search the register, by number and by name" },
     {
       k: "p",
-      text: "Every practitioner of modern medicine in India must hold a current registration with a state medical council or the national register maintained by the National Medical Commission. The registers are public and searchable. This is the single highest-yield check available to a patient and it takes a couple of minutes.",
+      text: "Every practitioner of modern medicine in India must hold a current registration with a state medical council or the national register maintained by the National Medical Commission. The registers are public and searchable — [every Indian register, and how to search it](/registers). This is the single highest-yield check available to a patient and it takes a couple of minutes.",
     },
     {
       k: "p",
@@ -70,7 +70,7 @@ export const post: BlogPost = {
     },
     {
       k: "p",
-      text: "None of these is fake. All of them are legitimate qualifications held by people who are entitled to the title Dr in ordinary usage. The question is scope: whether that qualification entitles the holder to diagnose and prescribe for the problem you have brought. [What the letters after an Indian doctor's name mean](/health-guides/medical-degrees-in-india-explained) sets out the pathways in detail, and [which council registered your doctor](/health-guides/medical-councils-of-india) explains which register to search for each.",
+      text: "None of these is fake. All of them are legitimate qualifications held by people who are entitled to the title Dr in ordinary usage. The question is scope: whether that qualification entitles the holder to diagnose and prescribe for the problem you have brought. [What the letters after an Indian doctor's name mean](/health-guides/medical-degrees-in-india-explained) sets out the pathways in detail, each degree has [its own page](/qualifications), and [which council registered your doctor](/health-guides/medical-councils-of-india) explains which register to search for each.",
     },
     { k: "h2", text: "Check three: confirm the registration is current" },
     {
@@ -102,7 +102,7 @@ export const post: BlogPost = {
     { k: "h2", text: "Check six: the prescription tells you a great deal" },
     {
       k: "p",
-      text: "A prescription is a document with conventions, and departures from those conventions are visible without any medical knowledge. Things worth noticing:",
+      text: "A prescription is a document with conventions ([what a valid prescription contains](/blog/prescriptions-and-pharmacies-in-india)), and departures from those conventions are visible without any medical knowledge. Things worth noticing:",
     },
     {
       k: "ul",

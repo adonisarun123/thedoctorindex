@@ -24,7 +24,7 @@ export const post: BlogPost = {
     { k: "h2", text: "What the fee is, in principle" },
     {
       k: "p",
-      text: "A consultation fee buys a block of a doctor's time, their judgement about your problem, and a written record of it — usually a prescription or an advice note. On a first visit that block is typically longer, because there is a history to take. On a review visit it may be a few minutes.",
+      text: "A consultation fee buys a block of a doctor's time, their judgement about your problem, and a written record of it — usually a prescription or an advice note. On a first visit that block is typically longer, because there is a history to take — [preparing for a first appointment](/blog/preparing-for-your-first-doctor-appointment) is how you get the most from it. On a review visit it may be a few minutes.",
     },
     {
       k: "p",
@@ -133,7 +133,7 @@ export const post: BlogPost = {
     },
     {
       k: "p",
-      text: "If you are using insurance, establish before the consultation whether the establishment is on your insurer's network, whether outpatient care is covered at all under your policy, and who files the paperwork. Cashless arrangements generally apply to admissions rather than outpatient visits, which surprises people every day.",
+      text: "If you are using insurance, establish before the consultation whether the establishment is on your insurer's network, whether outpatient care is covered at all under your policy, and who files the paperwork. Cashless arrangements generally apply to admissions rather than outpatient visits, which surprises people every day. For admissions, see [cashless or reimbursement](/blog/cashless-vs-reimbursement-health-insurance-claims).",
     },
     { k: "h2", text: "The four questions, verbatim" },
     {

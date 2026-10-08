@@ -12,6 +12,7 @@ import { getGeo } from "@/lib/data/geo";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { applyOverride, overrideMap } from "@/lib/seo/override";
 import { listIndexableArticles } from "@/lib/services/articles";
+import { listStoriesForSitemap } from "@/lib/services/news";
 import { listingGate, type GateResult } from "@/lib/seo/gates";
 import { absoluteUrl, paths } from "@/lib/site";
 import { DOCTORS_PER_FILE, doctorFileCount, doctorFilePath, latestLastmod, toIsoDate, type SitemapEntry } from "@/lib/seo/sitemap-xml";
@@ -57,7 +58,31 @@ export async function indexEntries(): Promise<SitemapEntry[]> {
   if (conditionUrls.length) entries.push({ loc: absoluteUrl("/sitemaps/conditions.xml"), lastmod: latestLastmod(conditionUrls) });
   const articleUrls = await articleEntries();
   if (articleUrls.length) entries.push({ loc: absoluteUrl("/sitemaps/articles.xml"), lastmod: latestLastmod(articleUrls) });
+  const newsUrls = await newsroomEntries();
+  if (newsUrls.length) entries.push({ loc: absoluteUrl("/sitemaps/newsroom.xml"), lastmod: latestLastmod(newsUrls) });
+  if ((await googleNewsEntries()).length) entries.push({ loc: absoluteUrl("/sitemaps/news.xml") });
   return entries;
+}
+
+/** Every live news story plus the /news hub — the permanent archive sitemap. */
+export async function newsroomEntries(): Promise<SitemapEntry[]> {
+  if (!process.env.DATABASE_URL) return [];
+  const rows = await listStoriesForSitemap();
+  if (!rows.length) return [];
+  const entries = rows.map((r) => ({ loc: absoluteUrl(paths.newsStory(r.slug)), lastmod: (r.correctedAt ?? r.publishedAt ?? r.updatedAt).toISOString().slice(0, 10) }));
+  return [{ loc: absoluteUrl(paths.news()), lastmod: latestLastmod(entries) }, ...entries];
+}
+
+/**
+ * Google News sitemap: stories published in the last 48 hours only, per
+ * Google's spec (older entries are ignored there; they live in newsroom.xml).
+ */
+export async function googleNewsEntries(): Promise<Array<{ loc: string; title: string; published: string }>> {
+  if (!process.env.DATABASE_URL) return [];
+  const since = Date.now() - 48 * 3600_000;
+  return (await listStoriesForSitemap())
+    .filter((r) => r.publishedAt && r.publishedAt.getTime() >= since)
+    .map((r) => ({ loc: absoluteUrl(paths.newsStory(r.slug)), title: r.headline, published: r.publishedAt!.toISOString() }));
 }
 
 /**
@@ -141,6 +166,7 @@ export function editorialEntries(): SitemapEntry[] {
     { loc: absoluteUrl(paths.forDoctors()) },
     { loc: absoluteUrl("/health-guides") },
     { loc: absoluteUrl(paths.blog()) },
+    { loc: absoluteUrl(paths.newsAbout()) },
     ...POSTS.map((p) => ({
       loc: absoluteUrl(paths.blogPost(p.slug)),
       lastmod: toIsoDate(p.updatedOn),

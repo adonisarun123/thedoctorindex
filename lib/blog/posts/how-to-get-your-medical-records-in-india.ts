@@ -111,7 +111,7 @@ export const post: BlogPost = {
     { k: "h2", text: "Digital records, and what they do not yet replace" },
     {
       k: "p",
-      text: "Under the national digital health programme, a patient can hold an ABHA health account and link records from participating hospitals, laboratories and clinics, retrieving them through an app with consent. Where it works, it works well and removes the counter entirely.",
+      text: "Under the national digital health programme, a patient can hold an [ABHA health account](/blog/abha-health-id-explained) and link records from participating hospitals, laboratories and clinics, retrieving them through an app with consent. Where it works, it works well and removes the counter entirely.",
     },
     {
       k: "p",

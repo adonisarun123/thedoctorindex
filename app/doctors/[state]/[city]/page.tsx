@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
-import { countsByLocalitySpecialty, countsBySpecialty, supplyProfile, totals } from "@/lib/data";
+import { countsByCity, countsByLocalitySpecialty, countsBySpecialty, supplyProfile, totals } from "@/lib/data";
 import { SupplyPanel } from "@/components/SupplyPanel";
 import { concentrationSentence, councilSentence, countPhrase, gapSentence, placementSentence, qualificationSentence, singletonSentence, supplyFacts, verificationSentence } from "@/lib/content/supply";
 import { getGeo } from "@/lib/data/geo";
@@ -60,7 +60,7 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
   if (!c) notFound();
 
   const place = { stateSlug: state, citySlug: city };
-  const [countBySpecialty, listedBySpecialty, perLocality, t, profile] = await Promise.all([countsBySpecialty(place), countsBySpecialty(place, "published"), countsByLocalitySpecialty(city, "eligible"), totals(place), supplyProfile(place, undefined, "published")]);
+  const [countBySpecialty, listedBySpecialty, perLocality, t, profile, pubCity] = await Promise.all([countsBySpecialty(place), countsBySpecialty(place, "published"), countsByLocalitySpecialty(city, "eligible"), totals(place), supplyProfile(place, undefined, "published"), countsByCity(undefined, "published")]);
   const verified = t.indexable;
   const openSpecialties = SPECIALTY_KEYS.filter((k) => (listedBySpecialty[k] ?? 0) > 0).sort((a, b) => (countBySpecialty[b] ?? 0) - (countBySpecialty[a] ?? 0) || (listedBySpecialty[b] ?? 0) - (listedBySpecialty[a] ?? 0));
   const localities = geo.localitiesIn(city).filter((l) => l.stateSlug === state);
@@ -73,6 +73,16 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
     if (r.n >= GATES.localitySpecialty && SPECIALTIES[r.specialty]) info.qualifying.push(r.specialty);
   }
   const sortedLocalities = [...localities].sort((a, b) => (localityInfo.get(b.key)?.n ?? 0) - (localityInfo.get(a.key)?.n ?? 0) || a.name.localeCompare(b.name));
+  // Sibling hubs that already have listings. Small cities otherwise render
+  // with a single content link; these are real pages, not gate-failing ones.
+  const cityListed = new Map(pubCity.filter((x) => x.stateSlug === state).map((x) => [x.citySlug, x.n]));
+  const siblingCities = geo
+    .citiesIn(state)
+    .filter((x) => x.slug !== city)
+    .map((x) => ({ ...x, p: cityListed.get(x.slug) ?? 0 }))
+    .filter((x) => x.p > 0)
+    .sort((a, b) => b.p - a.p || a.name.localeCompare(b.name))
+    .slice(0, 12);
   const crumbs = [
     { name: "Home", path: paths.home() },
     { name: "Doctors by location", path: "/doctors" },
@@ -198,6 +208,42 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
               );
             })}
           </div>
+
+          {openSpecialties.length ? (
+            <>
+              <h2>These specialities across India</h2>
+              <div className="quick">
+                {openSpecialties.slice(0, 16).map((k) => (
+                  <Link key={k} className="chip" href={paths.specialty(k)}>
+                    {SPECIALTIES[k].plural}
+                  </Link>
+                ))}
+              </div>
+            </>
+          ) : null}
+
+          {siblingCities.length ? (
+            <>
+              <h2>Other cities in {c.state}</h2>
+              <div className="locgrid">
+                {siblingCities.map((x) => (
+                  <Link key={x.slug} className="loc" href={`/doctors/${state}/${x.slug}`}>
+                    <span className="n">{x.name}</span>
+                    <span className="c">{x.p.toLocaleString("en-IN")} listed</span>
+                  </Link>
+                ))}
+              </div>
+              <p style={{ marginTop: "12px", fontSize: "13.5px" }}>
+                <Link href={`/doctors/${state}`}>All cities in {c.state}</Link>
+              </p>
+            </>
+          ) : (
+            <p style={{ marginTop: "22px", fontSize: "13.5px" }}>
+              {c.name} is the only city in {c.state} with listings so far.{" "}
+              <Link href="/doctors">Doctors in other states</Link> · <Link href="/specialties">Browse by speciality</Link> ·{" "}
+              <Link href="/registers">Medical registers</Link>
+            </p>
+          )}
         </div>
       </div>
     </>

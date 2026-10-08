@@ -9,6 +9,8 @@ import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
 import { SpecialtyArticle } from "@/components/SpecialtyArticle";
+import { BlogReading } from "@/components/BlogReading";
+import { postsForSpecialty } from "@/lib/blog/placements";
 import { countIndexable, countsByCity } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
 import { guideForSpecialty } from "@/lib/data/guides";
@@ -212,6 +214,8 @@ export default async function SpecialtyPage({ params }: { params: Promise<Params
           <p style={{ marginTop: "16px" }}>
             <Link href={conditionPaths.hub()}>Browse health conditions A–Z →</Link>
           </p>
+
+          <BlogReading posts={postsForSpecialty(specialty.key)} title="Before your appointment" />
         </div>
       </div>
     </>

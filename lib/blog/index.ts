@@ -10,6 +10,16 @@ import { post as complain } from "@/lib/blog/posts/how-to-complain-about-a-docto
 import { post as secondOpinion } from "@/lib/blog/posts/getting-a-second-opinion-in-india";
 import { post as registries } from "@/lib/blog/posts/healthcare-professionals-registry-hpr-explained";
 import { post as whereToBeTreated } from "@/lib/blog/posts/clinic-nursing-home-or-hospital-in-india";
+import { post as insuranceClaims } from "@/lib/blog/posts/cashless-vs-reimbursement-health-insurance-claims";
+import { post as pmjay } from "@/lib/blog/posts/ayushman-bharat-pm-jay-explained";
+import { post as abha } from "@/lib/blog/posts/abha-health-id-explained";
+import { post as hospitalBill } from "@/lib/blog/posts/how-to-read-a-hospital-bill-in-india";
+import { post as nabh } from "@/lib/blog/posts/nabh-accreditation-explained";
+import { post as consent } from "@/lib/blog/posts/informed-consent-before-surgery-in-india";
+import { post as emergency } from "@/lib/blog/posts/emergency-treatment-rights-in-india";
+import { post as generics } from "@/lib/blog/posts/generic-medicines-and-jan-aushadhi";
+import { post as prescriptions } from "@/lib/blog/posts/prescriptions-and-pharmacies-in-india";
+import { post as firstAppointment } from "@/lib/blog/posts/preparing-for-your-first-doctor-appointment";
 
 export * from "@/lib/blog/types";
 
@@ -52,6 +62,16 @@ export const CATEGORY_ORDER: CategoryKey[] = ["checking", "choosing", "rights"];
 /** Published posts, newest first. Order here is the order on the index. */
 export const POSTS: BlogPost[] = [
   chooseADoctor,
+  firstAppointment,
+  emergency,
+  insuranceClaims,
+  hospitalBill,
+  pmjay,
+  consent,
+  abha,
+  nabh,
+  generics,
+  prescriptions,
   spotAFake,
   consultationFees,
   patientRights,
