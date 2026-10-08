@@ -66,8 +66,9 @@ export function Analytics() {
           "function gtag(){dataLayer.push(arguments);}",
           "window.gtag = gtag;",
           "gtag('js', new Date());",
+          "gtag('consent', 'default', { ad_personalization: 'denied' });",
           `gtag('config', ${quotedId});`,
-          // Ads config lives in components/GoogleAdsTag.tsx (footer snippet); not repeated here.
+          ...(env.gadsId ? [`gtag('config', ${JSON.stringify(env.gadsId)});`] : []),
         ].join("\n")}
       </Script>
     </>

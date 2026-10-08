@@ -455,11 +455,11 @@ export const POLICIES: Policy[] = [
           reach a doctor. It sets the <code>_ga</code> cookies and sends Google the page address, the
           page that referred you and the page title. It is not sent which doctor you enquired about,
           what you searched for or anything you type into a form. Advertising features are switched off.
-          A separate Google Ads tag measures whether our advertising leads doctors to sign up; it receives
-          the page address, and ad personalisation (remarketing) is switched off for it.
+          The same choice covers a Google Ads tag that measures whether our advertising leads doctors to
+          sign up; it receives the page address, and ad personalisation (remarketing) is switched off.
         </p>
         <p>
-          Until you choose <em>Allow analytics</em>, the analytics script is not loaded at all. You can
+          Until you choose <em>Allow</em>, neither the analytics script nor the Google Ads tag is loaded at all. You can
           change your answer at any time from <em>Cookie settings</em> at the foot of every page;
           declining removes the analytics cookies from your browser.
         </p>
