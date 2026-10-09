@@ -146,6 +146,9 @@ test("Doctor journey: setup is shortened only for claim, create and dashboard de
   assert.equal(doctorDestination("/claim-profile", "Radhesh R Menon"), "/claim-profile/find?q=Radhesh%20R%20Menon");
   assert.equal(doctorDestination("/claim-profile/find?q=X%20Y", "Asha Rao"), "/claim-profile/find?q=X%20Y");
   assert.equal(doctorDestination("/", "Asha Rao"), "/");
+  // Instant onboarding: manual=1 keeps the full form (dental, AYUSH, physio, or the register missed them).
+  assert.equal(doctorDestination("/add-doctor?manual=1&src=find", "Asha Rao"), "/add-doctor?manual=1&src=find");
+  assert.equal(doctorDestination("/add-doctor?src=ads", "Asha Rao"), "/claim-profile/find?q=Asha%20Rao");
 });
 
 test("Google userinfo: an unverified or missing email never counts as verified", () => {

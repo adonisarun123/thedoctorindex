@@ -114,7 +114,7 @@ export async function decideSubmission(id: string, decision: "approved" | "rejec
 /* Claims (plan §9.3)                                                        */
 /* ------------------------------------------------------------------------- */
 
-export async function createClaim(userId: string, doctorId: string, registrationNumber: string, method: "practice_otp" | "work_email" | "practice_admin" | "document" | "staff_invite", evidenceFileId?: string | null, council?: string) {
+export async function createClaim(userId: string, doctorId: string, registrationNumber: string, method: "practice_otp" | "work_email" | "practice_admin" | "document" | "staff_invite" | "register_match", evidenceFileId?: string | null, council?: string) {
   const db = getDb();
   const [d] = await db.select({ id: s.doctors.id, claimed: s.doctors.claimed, claimedBy: s.doctors.claimedByUserId }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
   if (!d) throw new Error("profile not found");

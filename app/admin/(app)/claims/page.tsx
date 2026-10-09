@@ -10,7 +10,7 @@ import { requireStaff } from "@/lib/auth/session";
 
 export const metadata = { title: "Profile claims" };
 
-const METHOD: Record<string, string> = { practice_otp: "OTP to practice number on file", work_email: "Hospital / clinic email domain", practice_admin: "Practice administrator confirmation", document: "Supporting document", staff_invite: "Staff invite link + registration number on file" };
+const METHOD: Record<string, string> = { practice_otp: "OTP to practice number on file", work_email: "Hospital / clinic email domain", practice_admin: "Practice administrator confirmation", document: "Supporting document", staff_invite: "Staff invite link + registration number on file", register_match: "Register lookup (instant onboarding) — sent here because the name, an existing owner or a second profile needs a person" };
 
 export default async function AdminClaims({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireStaff();
