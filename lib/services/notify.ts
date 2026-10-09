@@ -28,8 +28,6 @@ type Kind =
   | { kind: "qualification"; decision: "verified" | "rejected"; degree: string; doctorName: string; note?: string | null }
   | { kind: "tribe_level"; level: number; verified: number; rewardKind: "voucher" | "recognition"; amountInr: number; holdDays: number }
   | { kind: "tribe_reward_issued"; level: number; rewardKind: "voucher" | "recognition"; amountInr: number; voucherCode: string | null }
-  | { kind: "appointment_requested"; doctorName: string; when: string }
-  | { kind: "appointment_cancelled"; doctorName: string; when: string }
   | { kind: "appointment_decision"; decision: "confirmed" | "declined" | "cancelled"; doctorName: string; when: string; note: string | null; slug: string };
 
 function body(n: Kind): { subject: string; text: string } {
@@ -87,10 +85,6 @@ function body(n: Kind): { subject: string; text: string } {
           `\n\nKeep going: ${absoluteUrl("/dashboard/tribe")}` +
           sign,
       };
-    case "appointment_requested":
-      return { subject: `New appointment request — ${n.when}`, text: `A patient has asked to see ${n.doctorName} on ${n.when} (IST). Confirm or decline it in your calendar; the patient is told either way. Their name and mobile are in the dashboard, never in email: ${absoluteUrl("/dashboard/calendar")}.` + sign };
-    case "appointment_cancelled":
-      return { subject: `Appointment cancelled — ${n.when}`, text: `A patient cancelled their appointment with ${n.doctorName} on ${n.when} (IST). The slot is open for booking again: ${absoluteUrl("/dashboard/calendar")}.` + sign };
     case "appointment_decision": {
       const profile = absoluteUrl(`/doctor/${n.slug}`);
       const map = {
