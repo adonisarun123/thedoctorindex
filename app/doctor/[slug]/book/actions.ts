@@ -29,7 +29,7 @@ export async function bookAction(_prev: ActionState, form: FormData): Promise<Ac
     });
     await track("appointment_requested", { doctorId: doctor.dbId, practiceId });
     revalidatePath("/account");
-    return { ok: true, message: `Requested for ${formatIst(res.startsAt)} (IST). The practice confirms it and you get an email either way. You can cancel from your account.` };
+    return { ok: true, message: `Requested for ${formatIst(res.startsAt)} (IST). Booking reference ${res.ref}. This is not confirmed yet — the practice confirms it and you get an email either way. We have emailed you a copy; you can cancel from your account.` };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Something went wrong." };
   }

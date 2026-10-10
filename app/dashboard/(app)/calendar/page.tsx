@@ -96,7 +96,7 @@ export default async function CalendarPage() {
           <div className="qcard" key={a.id}>
             <div className="qh">
               <div>
-                <div className="qt">{formatIst(a.startsAt)} · {a.practice.facility.name}</div>
+                <div className="qt">{formatIst(a.startsAt)} · {a.practice.facility.name} · <span className="mono">{a.ref}</span></div>
                 <div className="qm">{a.patientName} · <span className="mono">{a.patientPhone}</span> · for {a.forWhom === "other" ? "someone else" : "themself"}{a.reason ? ` · “${a.reason}”` : ""}</div>
               </div>
             </div>
@@ -115,13 +115,14 @@ export default async function CalendarPage() {
         <div className="chart-head"><span className="t">Upcoming</span><span className="m">{upcoming.length}</span></div>
         {upcoming.length ? (
           <table className="table">
-            <thead><tr><th>When</th><th>Patient</th><th>Practice</th><th /></tr></thead>
+            <thead><tr><th>When</th><th>Patient</th><th>Practice</th><th>Ref</th><th /></tr></thead>
             <tbody>
               {upcoming.map((a) => (
                 <tr key={a.id}>
                   <td className="mono">{formatIst(a.startsAt)}</td>
                   <td>{a.patientName}<br /><span className="mono" style={{ fontSize: "12px" }}>{a.patientPhone}</span></td>
                   <td>{a.practice.facility.name}</td>
+                  <td className="mono">{a.ref}</td>
                   <td>
                     <ActionForm action={decideAppointmentAction} submitLabel="Cancel" variant="quiet" inline confirm="Cancel this appointment? The patient is emailed.">
                       <input type="hidden" name="id" value={a.id} />
@@ -142,7 +143,7 @@ export default async function CalendarPage() {
           <div className="chart-head"><span className="t">Mark attendance</span><span className="m">last 7 days</span></div>
           {past.map((a) => (
             <div className="qcard" key={a.id}>
-              <div className="qh"><div><div className="qt">{formatIst(a.startsAt)} · {a.patientName}</div><div className="qm"><span className={`pill ${STATUS_PILL[a.status]}`}>{a.status}</span></div></div></div>
+              <div className="qh"><div><div className="qt">{formatIst(a.startsAt)} · {a.patientName} · <span className="mono">{a.ref}</span></div><div className="qm"><span className={`pill ${STATUS_PILL[a.status]}`}>{a.status}</span></div></div></div>
               <ActionForm action={decideAppointmentAction} submitLabel="Record" variant="outline" inline style={{ marginTop: "6px" }}>
                 <input type="hidden" name="id" value={a.id} />
                 <select name="decision" defaultValue="completed">

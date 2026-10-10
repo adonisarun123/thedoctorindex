@@ -10,6 +10,7 @@ export type PracticeEvent = "requested" | "confirmed" | "declined" | "cancelled_
 
 export interface NoticeInput {
   event: PracticeEvent;
+  ref: string;
   doctorName: string;
   when: string;
   patientName: string;
@@ -42,6 +43,7 @@ export function practiceNotice(n: NoticeInput): { subject: string; text: string 
   const lines = [
     LEAD[n.event],
     "",
+    `Booking: ${n.ref}`,
     `Doctor:  ${n.doctorName}`,
     `When:    ${n.when} (IST)`,
     `Clinic:  ${n.clinicName}${n.clinicAddress ? `, ${n.clinicAddress}` : ""}`,
@@ -56,7 +58,67 @@ export function practiceNotice(n: NoticeInput): { subject: string; text: string 
     n.siteUrl,
     "You receive this because this address was added to receive appointment emails for this doctor. The doctor can remove it from their calendar settings.",
   ];
-  return { subject: `${SUBJECT[n.event]} — ${n.when}, ${n.doctorName}`, text: lines.join("\n") };
+  return { subject: `${SUBJECT[n.event]} — ${n.when}, ${n.doctorName} (${n.ref})`, text: lines.join("\n") };
+}
+
+export type PatientEvent = "requested" | "confirmed" | "declined" | "cancelled_by_patient" | "cancelled_by_practice";
+
+export interface PatientNoticeInput {
+  event: PatientEvent;
+  ref: string;
+  doctorName: string;
+  when: string;
+  clinicName: string;
+  clinicAddress: string;
+  clinicPhone: string | null;
+  note: string | null;
+  profileUrl: string;
+  accountUrl: string;
+  siteName: string;
+  siteUrl: string;
+}
+
+const P_SUBJECT: Record<PatientEvent, string> = {
+  requested: "Appointment requested — not yet confirmed",
+  confirmed: "Appointment confirmed",
+  declined: "Appointment not available",
+  cancelled_by_patient: "You cancelled your appointment",
+  cancelled_by_practice: "Appointment cancelled by the practice",
+};
+
+/** Email to the patient (the account that booked). Their own booking, so no "do not forward" line. */
+export function patientNotice(n: PatientNoticeInput): { subject: string; text: string } {
+  const lead: Record<PatientEvent, string> = {
+    requested: `We have sent your request to ${n.doctorName}'s practice. It is NOT confirmed yet — please don't go to the clinic until you get a confirmation email. You will hear either way.`,
+    confirmed: `Your appointment with ${n.doctorName} is confirmed by the practice.`,
+    declined: `The practice could not take your request for this time.`,
+    cancelled_by_patient: `Your appointment has been cancelled as you asked, and the practice has been told.`,
+    cancelled_by_practice: `The practice has cancelled this appointment.`,
+  };
+  const next: Record<PatientEvent, string> = {
+    requested: `Changed your mind? Cancel from ${n.accountUrl}`,
+    confirmed: `Can't make it? Cancel from ${n.accountUrl} so someone else can have the slot. Quote the booking reference if you call the clinic.`,
+    declined: `Pick another time at ${n.profileUrl}/book`,
+    cancelled_by_patient: `Book another time at ${n.profileUrl}/book`,
+    cancelled_by_practice: `Pick another time at ${n.profileUrl}/book`,
+  };
+  const lines = [
+    lead[n.event],
+    ...(n.note ? ["", `Note from the practice: ${n.note}`] : []),
+    "",
+    `Booking reference: ${n.ref}`,
+    `Doctor:  ${n.doctorName}`,
+    `When:    ${n.when} (IST)`,
+    `Clinic:  ${n.clinicName}${n.clinicAddress ? `, ${n.clinicAddress}` : ""}`,
+    ...(n.clinicPhone ? [`Phone:   ${n.clinicPhone}`] : []),
+    "",
+    next[n.event],
+    "",
+    `— ${n.siteName}`,
+    n.siteUrl,
+    "This is a transactional message about a booking on your account; it is not marketing.",
+  ];
+  return { subject: `${P_SUBJECT[n.event]} — ${n.doctorName}, ${n.when} (${n.ref})`, text: lines.join("\n") };
 }
 
 /** Lower-case and validate; null when it is not a plausible address. */
