@@ -6,7 +6,7 @@ import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { notifyPatient, notifyPractice } from "@/lib/services/booking-notify";
-import { newBookingRef } from "@/lib/booking/ref";
+import { newBookingRef, normaliseBookingRef } from "@/lib/booking/ref";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { displayName } from "@/lib/display-name";
 import { bookingRequirements, formatIst, generateSlots, isUnlocked, istDay, istInstant, validateRules, type Requirement, type Rule, type Slot } from "@/lib/booking/slots";
@@ -168,10 +168,15 @@ export async function requestAppointment(userId: string, doctorId: string, input
 
 export type DoctorDecision = "confirmed" | "declined" | "cancelled" | "completed" | "no_show";
 
-export async function decideAppointment(doctorId: string, actorUserId: string, appointmentId: string, decision: DoctorDecision, note: string | null) {
+/**
+ * `scope` is the practice ids a clinic manager may act for (empty = all, i.e.
+ * the doctor themself or an unscoped manager).
+ */
+export async function decideAppointment(doctorId: string, actorUserId: string, appointmentId: string, decision: DoctorDecision, note: string | null, scope: string[] = []) {
   const db = getDb();
   const [a] = await db.select().from(s.appointments).where(and(eq(s.appointments.id, appointmentId), eq(s.appointments.doctorId, doctorId))).limit(1);
   if (!a) throw new Error("Appointment not found.");
+  if (scope.length && !scope.includes(a.practiceId)) throw new Error("This appointment is at a practice you don't manage.");
   const allowed: Record<string, DoctorDecision[]> = {
     requested: ["confirmed", "declined"],
     confirmed: ["cancelled", "completed", "no_show"],
@@ -212,6 +217,51 @@ export async function listPatientAppointments(userId: string) {
     with: { doctor: true, practice: { with: { facility: true } } },
     orderBy: [desc(s.appointments.startsAt)],
     limit: 50,
+  });
+}
+
+/** Upcoming requests awaiting a decision, oldest request first. */
+export async function listPendingRequests(doctorId: string, scope: string[] = []) {
+  const rows = await getDb().query.appointments.findMany({
+    where: and(eq(s.appointments.doctorId, doctorId), eq(s.appointments.status, "requested"), gt(s.appointments.startsAt, new Date())),
+    with: { practice: { with: { facility: true } } },
+    orderBy: [asc(s.appointments.createdAt)],
+    limit: 100,
+  });
+  return scope.length ? rows.filter((r) => scope.includes(r.practiceId)) : rows;
+}
+
+export type AdminBookingFilter = { status?: string; stale?: boolean; q?: string };
+
+/**
+ * Super-admin view across all doctors. Read-only by design: staff do not
+ * confirm on a doctor's behalf. "Stale" = an upcoming request left unanswered
+ * for more than 24 hours.
+ */
+export async function listAppointmentsAdmin(f: AdminBookingFilter) {
+  const conds = [];
+  if (f.stale) conds.push(and(eq(s.appointments.status, "requested"), gt(s.appointments.startsAt, new Date()), lt(s.appointments.createdAt, new Date(Date.now() - 24 * 3_600_000))));
+  else if (f.status) conds.push(eq(s.appointments.status, f.status as (typeof s.appointments.$inferSelect)["status"]));
+  const q = f.q?.trim();
+  if (q) {
+    const ref = normaliseBookingRef(q);
+    const digits = q.replace(/\D/g, "");
+    const like = `%${q}%`;
+    // A six-letter word like "Sharma" is also a valid-looking reference, so match either.
+    const byName = sql`(${s.appointments.doctorId} in (select id from doctors where name ilike ${like}) or ${s.appointments.patientName} ilike ${like})`;
+    conds.push(
+      digits.length >= 4 && !ref
+        ? sql`regexp_replace(${s.appointments.patientPhone}, '[^0-9]', '', 'g') like ${`%${digits}%`}`
+        : ref
+          ? sql`(${s.appointments.ref} = ${ref} or ${byName})`
+          : byName,
+    );
+  }
+  return getDb().query.appointments.findMany({
+    where: conds.length ? and(...conds) : undefined,
+    with: { doctor: true, practice: { with: { facility: true } } },
+    orderBy: [desc(s.appointments.createdAt)],
+    limit: 200,
   });
 }
 
