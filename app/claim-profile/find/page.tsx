@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { FunnelStep } from "@/components/FunnelStep";
+import { GoLiveButton } from "@/components/GoLiveButton";
 import { RegisterResultCta } from "@/components/RegisterResultCta";
 import { RouteMeta } from "@/components/RouteMeta";
 import { SPECIALTIES } from "@/lib/data/specialties";
@@ -10,6 +11,7 @@ import { STATE_NAMES } from "@/lib/nmc/classify";
 import { parseQuery, searchRegister, type RegisterHit } from "@/lib/nmc/claim-search";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { absoluteUrl } from "@/lib/site";
+import { getSessionUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "Find your registration",
@@ -23,15 +25,24 @@ const NON_NMC_NOTE = "Dentists, AYUSH practitioners and physiotherapists are on 
 
 const qs = (o: Record<string, string>) => new URLSearchParams(o).toString();
 
-function actionFor(hit: RegisterHit) {
+/**
+ * Instant onboarding: a signed-in doctor picks their entry and goes live in one
+ * click (components/GoLiveButton → lib/services/instant-onboard.ts). Signed out,
+ * the same button sends them through sign-in and back to these results.
+ */
+function actionFor(hit: RegisterHit, signedIn: boolean, back: string) {
   const a = hit.action;
+  const goLive = (note: string) =>
+    signedIn
+      ? { cta: <GoLiveButton entry={hit.id} label="This is me — go live" />, note }
+      : { cta: <RegisterResultCta href={`/sign-in?${qs({ next: back })}`} kind={`${a.kind}:sign-in`} label="This is me — sign in to go live" />, note };
   switch (a.kind) {
     case "claim-published":
-      return { cta: <RegisterResultCta href={`/claim-profile?${qs({ profile: a.slug, src: "find" })}`} kind="claim-published" label="Claim this profile" />, note: "A profile already exists for this registration." };
+      return goLive("We already hold a profile for this registration. Confirm it is you and it is yours.");
     case "claim-draft":
-      return { cta: <RegisterResultCta href={`/claim-profile?${qs({ registration: hit.number, council: hit.council, src: "find" })}`} kind="claim-draft" label="Claim this profile" />, note: "We hold a private draft built from the register. Claiming it lets you review it before it is shown." };
+      return goLive("We hold a private draft built from the register. Confirm it is you and it goes live.");
     case "create":
-      return { cta: <RegisterResultCta href={`/add-doctor?${qs({ registration: hit.number, council: hit.council, src: "find" })}`} kind="create" label="Create my profile" />, note: "No profile exists yet for this registration." };
+      return goLive("No profile yet. Confirm it is you and we create it from the register.");
     case "claimed":
       return {
         cta: a.slug ? <RegisterResultCta href={`/doctor/${a.slug}`} kind="claimed" label="View the profile" solid={false} /> : null,
@@ -49,6 +60,9 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
   const q = typeof sp.q === "string" ? sp.q : "";
   const state = typeof sp.state === "string" && STATE_NAMES[sp.state] ? sp.state : "";
   const parsed = q ? parseQuery(q) : null;
+  const user = await getSessionUser();
+  const signedIn = Boolean(user?.profileComplete);
+  const back = `/claim-profile/find?${qs(state ? { q, state } : { q })}`;
 
   let hits: RegisterHit[] = [];
   let limited = false;
@@ -97,8 +111,8 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
           <h1 style={{ margin: "10px 0 6px" }}>{hits.length ? "Is this you?" : "Find your registration"}</h1>
           <p style={{ color: "var(--ink-2)", fontSize: "15px", marginBottom: "22px", maxWidth: "58ch" }}>
             {hits.length
-              ? "These entries in the medical council register match your name. Pick yours to claim the profile we hold for it — or create it, if we don't have one yet."
-              : "Search the medical council registers by your name as the council records it, or by your registration number. Then claim the profile we hold for you, or create it."}
+              ? "These entries in the medical council register match. Pick yours and your verified profile goes live straight away — photo, clinic and bio can come later."
+              : "Search the medical council register by your registration number or your name as the council records it. Pick your entry and your verified profile goes live straight away."}
           </p>
           {hits.length ? null : searchForm}
 
@@ -109,7 +123,7 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
           {hits.length > 0 ? (
             <div style={{ display: "grid", gap: "12px" }}>
               {hits.map((hit) => {
-                const { cta, note } = actionFor(hit);
+                const { cta, note } = actionFor(hit, signedIn, back);
                 return (
                   <div className="panel pad" key={hit.id}>
                     <div style={{ fontWeight: 600, fontSize: "16px" }}>{hit.name}</div>
@@ -126,13 +140,13 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
               {hits.length >= 10 ? <div className="hint">Showing the first 10. Add your state or use your registration number to narrow it down.</div> : null}
               <div className="notice">
                 <b>None of these is you?</b> Search again above with your registration number, or{" "}
-                <Link href="/add-doctor?src=find">create your profile</Link>. {NON_NMC_NOTE}
+                <Link href="/add-doctor?manual=1&src=find">fill in the full form</Link>. {NON_NMC_NOTE}
               </div>
             </div>
           ) : parsed && parsed.kind !== "invalid" && !limited ? (
             <div className="notice">
               <b>No entry found.</b> The register spells some names differently from how you write them (initials, a surname first). Try your registration number, or{" "}
-              <Link href="/add-doctor?src=find">create a profile with your registration</Link>; a verification officer checks it against the register. {NON_NMC_NOTE}
+              <Link href="/add-doctor?manual=1&src=find">fill in the full form with your registration</Link>; a verification officer checks it against the register. {NON_NMC_NOTE}
             </div>
           ) : null}
           {hits.length ? <div style={{ marginTop: "18px" }}>{searchForm}</div> : null}

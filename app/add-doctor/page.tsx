@@ -9,6 +9,7 @@ import { RouteMeta } from "@/components/RouteMeta";
 import { getSessionUser, setupPath } from "@/lib/auth/session";
 import { absoluteUrl } from "@/lib/site";
 import { claimSource } from "@/lib/claim-source";
+import { doctorDestination } from "@/lib/auth/doctor-journey";
 
 export const metadata: Metadata = {
   title: "Create your free doctor profile",
@@ -27,10 +28,15 @@ export default async function AddDoctorPage({ searchParams }: { searchParams: Pr
   const keep = new URLSearchParams();
   if (initialRegistration) keep.set("registration", initialRegistration);
   if (initialCouncil) keep.set("council", initialCouncil);
+  const manual = sp.manual === "1";
+  if (manual) keep.set("manual", "1");
   if (src) keep.set("src", src);
   const self = keep.toString() ? `/add-doctor?${keep.toString()}` : "/add-doctor";
   const user = await getSessionUser();
   if (user && !user.profileComplete) redirect(setupPath(self));
+  // Instant onboarding: a doctor on the register goes live from the register search
+  // in one click. The full form stays for registers the search does not cover.
+  if (user && !initialRegistration && !manual) redirect(doctorDestination(self, user.displayName ?? null));
   return (
     <>
       <RouteMeta

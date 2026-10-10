@@ -27,13 +27,15 @@ function nameWords(name: string | null): string[] {
 /**
  * Where a doctor goes after signing in. A bare doctor journey (claim or create
  * with nothing chosen yet) goes to the register search with the name filled in.
- * A journey that already names a profile or a registration keeps its destination.
+ * A journey that already names a profile or a registration keeps its destination,
+ * and so does `manual=1` — the full form, for registers the search does not
+ * cover (dental, AYUSH, physiotherapy) and for doctors the register misses.
  */
 export function doctorDestination(next: string, name: string | null): string {
   const path = next.split("?")[0];
   const query = new URLSearchParams(next.includes("?") ? next.slice(next.indexOf("?") + 1) : "");
   const bareDoctorJourney =
-    (path === "/claim-profile" || path === "/add-doctor") && !query.get("profile") && !query.get("registration");
+    (path === "/claim-profile" || path === "/add-doctor") && !query.get("profile") && !query.get("registration") && !query.get("manual");
   if (bareDoctorJourney || (path === "/claim-profile/find" && !query.get("q"))) {
     const words = nameWords(name);
     return words.length >= 2 ? `/claim-profile/find?q=${encodeURIComponent(words.join(" "))}` : "/claim-profile/find";

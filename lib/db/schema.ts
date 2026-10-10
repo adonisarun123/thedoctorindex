@@ -81,7 +81,7 @@ export const correctionStatus = pgEnum("correction_status", ["open", "applied", 
 export const enquiryStatus = pgEnum("enquiry_status", ["new", "sent", "contacted", "closed"]);
 export const submissionStatus = pgEnum("submission_status", ["submitted", "in_review", "needs_info", "approved", "rejected"]);
 export const claimStatus = pgEnum("claim_status", ["pending", "approved", "rejected"]);
-export const claimMethod = pgEnum("claim_method", ["practice_otp", "work_email", "practice_admin", "document", "staff_invite"]);
+export const claimMethod = pgEnum("claim_method", ["practice_otp", "work_email", "practice_admin", "document", "staff_invite", "register_match"]);
 /** Staff-sent "your profile is ready, claim it" emails (lib/services/doctor-invites.ts). */
 export const inviteStatus = pgEnum("invite_status", ["queued", "sent", "claimed", "opted_out", "cancelled"]);
 export const changeStatus = pgEnum("change_status", ["pending", "published", "rejected"]);
