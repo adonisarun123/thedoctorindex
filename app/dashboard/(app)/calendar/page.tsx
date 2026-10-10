@@ -1,11 +1,13 @@
 import Link from "next/link";
 
-import { addBlockAction, decideAppointmentAction, removeBlockAction, saveHoursAction, toggleBookingAction } from "@/app/dashboard/calendar-actions";
+import { addBlockAction, addNotifyEmailAction, decideAppointmentAction, removeBlockAction, removeNotifyEmailAction, resendNotifyEmailAction, saveHoursAction, toggleBookingAction } from "@/app/dashboard/calendar-actions";
 import { ActionForm } from "@/components/ActionForm";
 import { ProfileLinks } from "@/components/ProfileLinks";
 import { getDashboardContext } from "@/lib/dashboard";
 import { formatIst, istDay, WEEKDAYS } from "@/lib/booking/slots";
 import { bookingRequirementsFor, getRules, listBlocks, listDoctorAppointments } from "@/lib/services/booking";
+import { listNotifyEmails } from "@/lib/services/booking-notify";
+import { MAX_NOTIFY_EMAILS } from "@/lib/booking/notice";
 import { SITE } from "@/lib/site";
 import { displayName } from "@/lib/display-name";
 
@@ -58,7 +60,7 @@ export default async function CalendarPage() {
     );
   }
 
-  const [rules, blocks, appts] = await Promise.all([getRules(ctx.doctorId), listBlocks(ctx.doctorId), listDoctorAppointments(ctx.doctorId)]);
+  const [rules, blocks, appts, notifyEmails] = await Promise.all([getRules(ctx.doctorId), listBlocks(ctx.doctorId), listDoctorAppointments(ctx.doctorId), listNotifyEmails(ctx.doctorId)]);
   const practices = ctx.doctor.practices.filter((p) => p.id && (!ctx.asManager || !ctx.scope.length || ctx.scope.includes(p.id)));
   const scoped = ctx.asManager && ctx.scope.length ? appts.filter((a) => ctx.scope.includes(a.practiceId)) : appts;
   const now = new Date();
@@ -211,6 +213,45 @@ export default async function CalendarPage() {
                 <ActionForm action={removeBlockAction} submitLabel="Reopen" variant="quiet" inline>
                   <input type="hidden" name="id" value={b.id} />
                 </ActionForm>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section style={{ marginBottom: "22px" }}>
+        <div className="chart-head"><span className="t">Who gets appointment emails</span><span className="m">{notifyEmails.length}/{MAX_NOTIFY_EMAILS} extra</span></div>
+        <p style={{ fontSize: "13px", color: "var(--muted)", margin: "0 0 8px" }}>
+          The doctor&rsquo;s account email{!ctx.asManager && ctx.user.email ? <> (<span className="mono">{ctx.user.email}</span>)</> : null} always gets them. Add your front desk or clinic manager below. Each email carries the patient&rsquo;s name, mobile, time and clinic &mdash; never the visit reason &mdash; so a new address receives nothing until someone there clicks the verification link we send.
+        </p>
+        {ctx.asManager ? (
+          <p style={{ fontSize: "13px", margin: 0 }}>Only the doctor can change this list.</p>
+        ) : notifyEmails.length < MAX_NOTIFY_EMAILS ? (
+          <ActionForm action={addNotifyEmailAction} submitLabel="Add and send verification" variant="outline" inline>
+            <input type="email" name="email" placeholder="frontdesk@yourclinic.in" required maxLength={254} />
+          </ActionForm>
+        ) : null}
+        {notifyEmails.length ? (
+          <div className="checklist" style={{ marginTop: "10px" }}>
+            {notifyEmails.map((e) => (
+              <div className={`check${e.verifiedAt ? " done" : ""}`} key={e.id}>
+                <div className="box">{e.verifiedAt ? "✓" : ""}</div>
+                <div>
+                  <div className="t mono">{e.email}</div>
+                  <div className="d">{e.verifiedAt ? "Verified — receiving appointment emails" : e.tokenExpiresAt && e.tokenExpiresAt > new Date() ? "Waiting for verification — receives nothing yet" : "Verification link expired — resend it"}</div>
+                </div>
+                {ctx.asManager ? <div className="pts" /> : (
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    {e.verifiedAt ? null : (
+                      <ActionForm action={resendNotifyEmailAction} submitLabel="Resend" variant="quiet" inline>
+                        <input type="hidden" name="id" value={e.id} />
+                      </ActionForm>
+                    )}
+                    <ActionForm action={removeNotifyEmailAction} submitLabel="Remove" variant="quiet" inline confirm={`Stop sending appointment emails to ${e.email}?`}>
+                      <input type="hidden" name="id" value={e.id} />
+                    </ActionForm>
+                  </div>
+                )}
               </div>
             ))}
           </div>

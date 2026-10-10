@@ -751,6 +751,31 @@ export const appointments = pgTable(
   ],
 );
 
+/**
+ * Extra addresses (front desk, clinic manager) that receive appointment
+ * emails for a doctor. An address receives nothing until someone at it clicks
+ * the verification link, so a typo never sends patient contact details to a
+ * stranger. Only the token's hash is stored.
+ */
+export const bookingNotifyEmails = pgTable(
+  "booking_notify_emails",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    /** Lower-cased. */
+    email: text("email").notNull(),
+    tokenHash: text("token_hash"),
+    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    addedByUserId: uuid("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("booking_notify_emails_doctor_email_uq").on(t.doctorId, t.email),
+    uniqueIndex("booking_notify_emails_token_uq").on(t.tokenHash),
+  ],
+);
+
 export const doctorResponses = pgTable("doctor_responses", {
   id: uuid("id").primaryKey().defaultRandom(),
   reviewId: uuid("review_id").notNull().references(() => reviews.id, { onDelete: "cascade" }).unique(),

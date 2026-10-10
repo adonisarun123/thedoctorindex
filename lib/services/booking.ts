@@ -5,7 +5,8 @@ import { and, asc, desc, eq, gt, gte, inArray, lt, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
-import { notifyDoctorOwner, notifyUser } from "@/lib/services/notify";
+import { notifyPractice } from "@/lib/services/booking-notify";
+import { notifyUser } from "@/lib/services/notify";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { displayName } from "@/lib/display-name";
 import { bookingRequirements, formatIst, generateSlots, isUnlocked, istDay, istInstant, validateRules, type Requirement, type Rule, type Slot } from "@/lib/booking/slots";
@@ -105,6 +106,7 @@ export async function addBlock(doctorId: string, actorUserId: string, day: strin
     for (const a of affected) {
       await audit({ actorUserId, actorRole: "doctor", action: "appointment.cancelled", entityType: "appointment", entityId: a.id, after: { reason: "day_blocked", day } });
       await notifyUser(a.patientUserId, { kind: "appointment_decision", decision: "cancelled", doctorName, when: formatIst(a.startsAt), note: "The doctor is unavailable on this day.", slug: slug?.slug ?? "" });
+      await notifyPractice(a.id, "cancelled_by_practice");
     }
   }
   return { cancelled: affected.length };
@@ -155,8 +157,7 @@ export async function requestAppointment(userId: string, doctorId: string, input
     throw e;
   }
   await audit({ actorUserId: userId, actorRole: "patient", action: "appointment.requested", entityType: "appointment", entityId: id, after: { doctorId, startsAt: slot.startsAt } });
-  const doctorName = await nameOf(doctorId);
-  await notifyDoctorOwner(doctorId, { kind: "appointment_requested", doctorName, when: formatIst(slot.startsAt) });
+  await notifyPractice(id, "requested");
   return { id, startsAt: slot.startsAt };
 }
 
@@ -177,6 +178,7 @@ export async function decideAppointment(doctorId: string, actorUserId: string, a
   if (decision === "confirmed" || decision === "declined" || decision === "cancelled") {
     const [slug] = await db.select({ slug: s.doctors.slug }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
     await notifyUser(a.patientUserId, { kind: "appointment_decision", decision, doctorName: await nameOf(doctorId), when: formatIst(a.startsAt), note: note?.trim() || null, slug: slug?.slug ?? "" });
+    await notifyPractice(appointmentId, decision === "cancelled" ? "cancelled_by_practice" : decision);
   }
 }
 
@@ -187,7 +189,7 @@ export async function cancelByPatient(userId: string, appointmentId: string) {
   if (a.status !== "requested" && a.status !== "confirmed") throw new Error("This appointment is already closed.");
   await db.update(s.appointments).set({ status: "cancelled", statusNote: "Cancelled by patient", decidedAt: new Date() }).where(eq(s.appointments.id, appointmentId));
   await audit({ actorUserId: userId, actorRole: "patient", action: "appointment.cancelled_by_patient", entityType: "appointment", entityId: appointmentId });
-  await notifyDoctorOwner(a.doctorId, { kind: "appointment_cancelled", doctorName: await nameOf(a.doctorId), when: formatIst(a.startsAt) });
+  await notifyPractice(appointmentId, "cancelled_by_patient");
 }
 
 export async function listDoctorAppointments(doctorId: string) {

@@ -6,6 +6,7 @@ import type { DashState } from "@/app/dashboard/actions";
 import { getDashboardContext } from "@/lib/dashboard";
 import type { Rule } from "@/lib/booking/slots";
 import { addBlock, decideAppointment, removeBlock, saveRules, setBookingEnabled, type DoctorDecision } from "@/lib/services/booking";
+import { addNotifyEmail, removeNotifyEmail, resendNotifyVerification } from "@/lib/services/booking-notify";
 
 function fail(e: unknown): DashState {
   return { error: e instanceof Error ? e.message : "Something went wrong." };
@@ -89,6 +90,45 @@ export async function decideAppointmentAction(_p: DashState, form: FormData): Pr
     await decideAppointment(ctx.doctorId, ctx.user.id, String(form.get("id") ?? ""), decision, String(form.get("note") ?? "") || null);
     refresh(ctx.doctor.slug);
     return { ok: true, message: decision === "confirmed" ? "Confirmed. The patient has been emailed." : decision === "declined" || decision === "cancelled" ? "Done. The patient has been emailed." : "Recorded." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Extra addresses for appointment emails are the doctor's call, not a clinic manager's. */
+async function ownerContext() {
+  const ctx = await getDashboardContext();
+  if (ctx.asManager) throw new Error("Only the doctor can change who receives appointment emails.");
+  return ctx;
+}
+
+export async function addNotifyEmailAction(_p: DashState, form: FormData): Promise<DashState> {
+  try {
+    const ctx = await ownerContext();
+    const email = await addNotifyEmail(ctx.doctorId, ctx.user.id, String(form.get("email") ?? ""));
+    revalidatePath("/dashboard/calendar");
+    return { ok: true, message: `Verification email sent to ${email}. It starts receiving appointment emails once someone there clicks the link.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function resendNotifyEmailAction(_p: DashState, form: FormData): Promise<DashState> {
+  try {
+    const ctx = await ownerContext();
+    const email = await resendNotifyVerification(ctx.doctorId, String(form.get("id") ?? ""));
+    return { ok: true, message: `Sent a fresh verification link to ${email}.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function removeNotifyEmailAction(_p: DashState, form: FormData): Promise<DashState> {
+  try {
+    const ctx = await ownerContext();
+    await removeNotifyEmail(ctx.doctorId, ctx.user.id, String(form.get("id") ?? ""));
+    revalidatePath("/dashboard/calendar");
+    return { ok: true, message: "Removed. That address gets no further appointment emails." };
   } catch (e) {
     return fail(e);
   }
