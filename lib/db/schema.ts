@@ -726,6 +726,8 @@ export const appointments = pgTable(
   "appointments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Human-readable booking reference, "TDI-BK-7K3M9Q" (lib/booking/ref.ts). Shown to patient and practice. */
+    ref: text("ref").notNull(),
     doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
     practiceId: uuid("practice_id").notNull().references(() => doctorPractices.id),
     patientUserId: uuid("patient_user_id").notNull().references(() => users.id),
@@ -744,6 +746,7 @@ export const appointments = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    uniqueIndex("appointments_ref_uq").on(t.ref),
     index("appointments_doctor_start_idx").on(t.doctorId, t.startsAt),
     index("appointments_patient_idx").on(t.patientUserId, t.startsAt),
     // A slot holds at most one live booking. Declined/cancelled rows free it.

@@ -25,7 +25,8 @@ export async function queueCounts(): Promise<Record<string, number>> {
       (select count(*) from review_reports where status = 'open' and priority = 'safety')::int + (select count(*) from profile_reports where status = 'open' and priority = 'safety')::int as safety,
       (select count(*) from doctor_enrichment where nmc_status in ('ambiguous','number_mismatch','removed'))::int as enrichment_queue,
       (select count(*) from tribe_rewards where status = 'pending_review' and hold_until <= now())::int as tribe,
-      (select count(*) from doctor_invites where status = 'queued')::int as invites
+      (select count(*) from doctor_invites where status = 'queued')::int as invites,
+      (select count(*) from appointments where status = 'requested' and starts_at > now() and created_at < now() - interval '24 hours')::int as bookings_stale
   `)) as unknown as Array<Record<string, number>>;
   const r = rows[0] ?? {};
   return Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Number(v)]));

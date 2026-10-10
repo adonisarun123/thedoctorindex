@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { signOutAction } from "@/app/sign-in/actions";
 
-const ITEMS: Array<{ href: string; label: string; countKey?: string }> = [
+const ITEMS: Array<{ href: string; label: string; countKey?: string; superOnly?: boolean }> = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/submissions", label: "New profiles", countKey: "submissions" },
   { href: "/admin/claims", label: "Claims", countKey: "claims" },
@@ -18,6 +18,7 @@ const ITEMS: Array<{ href: string; label: string; countKey?: string }> = [
   { href: "/admin/news", label: "Newsroom", countKey: "news" },
   { href: "/admin/reports", label: "Reports & corrections", countKey: "reports" },
   { href: "/admin/enquiries", label: "Enquiries", countKey: "enquiries" },
+  { href: "/admin/bookings", label: "Bookings", countKey: "bookings_stale", superOnly: true },
   { href: "/admin/doctors", label: "Doctors" },
   { href: "/admin/condition-drafts", label: "Condition article drafts" },
   { href: "/admin/calls", label: "Call queue" },
@@ -38,7 +39,7 @@ export function AdminNav({ email, roles, counts }: { email: string; roles: strin
         <div className="n">{email}</div>
         <div className="s">{roles.join(", ")}</div>
       </div>
-      {ITEMS.map((it) => {
+      {ITEMS.filter((it) => !it.superOnly || roles.includes("super_admin")).map((it) => {
         const active = it.href === "/admin" ? pathname === "/admin" : pathname.startsWith(it.href);
         const count = it.countKey ? counts[it.countKey] : undefined;
         return (

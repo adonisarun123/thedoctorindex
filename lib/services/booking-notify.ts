@@ -6,7 +6,7 @@ import { and, eq, gt, isNotNull } from "drizzle-orm";
 import { sendEmail } from "@/lib/auth/mailer";
 import { sha256 } from "@/lib/auth/hash";
 import { formatIst } from "@/lib/booking/slots";
-import { MAX_NOTIFY_EMAILS, normaliseEmail, practiceNotice, VERIFY_TTL_DAYS, type PracticeEvent } from "@/lib/booking/notice";
+import { MAX_NOTIFY_EMAILS, normaliseEmail, patientNotice, practiceNotice, VERIFY_TTL_DAYS, type PatientEvent, type PracticeEvent } from "@/lib/booking/notice";
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { displayName } from "@/lib/display-name";
@@ -122,6 +122,7 @@ export async function notifyPractice(appointmentId: string, event: PracticeEvent
     if (!to.length) return;
     const { subject, text } = practiceNotice({
       event,
+      ref: a.ref,
       doctorName: displayName(a.doctor),
       when: formatIst(a.startsAt),
       patientName: a.patientName,
@@ -143,6 +144,34 @@ export async function notifyPractice(appointmentId: string, event: PracticeEvent
     }
   } catch (e) {
     console.error("[booking-notify] failed", event, e instanceof Error ? e.message : e);
+  }
+}
+
+/** Emails the patient account that made the booking. Same swallow-and-log rule as above. */
+export async function notifyPatient(appointmentId: string, event: PatientEvent, note: string | null = null): Promise<void> {
+  try {
+    const a = await getDb().query.appointments.findFirst({
+      where: eq(s.appointments.id, appointmentId),
+      with: { doctor: true, patient: true, practice: { with: { facility: true } } },
+    });
+    if (!a?.patient?.email || a.patient.disabledAt) return;
+    const { subject, text } = patientNotice({
+      event,
+      ref: a.ref,
+      doctorName: displayName(a.doctor),
+      when: formatIst(a.startsAt),
+      clinicName: a.practice?.facility?.name ?? "",
+      clinicAddress: a.practice?.facility?.address ?? "",
+      clinicPhone: a.practice?.phone || a.practice?.facility?.phone || null,
+      note,
+      profileUrl: absoluteUrl(`/doctor/${a.doctor.slug}`),
+      accountUrl: absoluteUrl("/account"),
+      siteName: SITE.name,
+      siteUrl: absoluteUrl("/"),
+    });
+    await sendEmail({ to: a.patient.email, subject, text });
+  } catch (e) {
+    console.error("[booking-notify] patient send failed", event, e instanceof Error ? e.message : e);
   }
 }
 

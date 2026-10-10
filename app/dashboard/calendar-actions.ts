@@ -87,7 +87,7 @@ export async function decideAppointmentAction(_p: DashState, form: FormData): Pr
     const ctx = await getDashboardContext();
     const decision = String(form.get("decision") ?? "") as DoctorDecision;
     if (!["confirmed", "declined", "cancelled", "completed", "no_show"].includes(decision)) return { error: "Choose what to do." };
-    await decideAppointment(ctx.doctorId, ctx.user.id, String(form.get("id") ?? ""), decision, String(form.get("note") ?? "") || null);
+    await decideAppointment(ctx.doctorId, ctx.user.id, String(form.get("id") ?? ""), decision, String(form.get("note") ?? "") || null, ctx.asManager ? ctx.scope : []);
     refresh(ctx.doctor.slug);
     return { ok: true, message: decision === "confirmed" ? "Confirmed. The patient has been emailed." : decision === "declined" || decision === "cancelled" ? "Done. The patient has been emailed." : "Recorded." };
   } catch (e) {

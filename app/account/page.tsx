@@ -105,12 +105,13 @@ export default async function AccountPage() {
           <section style={{ marginBottom: "22px" }}>
             <div className="chart-head"><span className="t">My appointments</span><span className="m">{appts.length}</span></div>
             <table className="table">
-              <thead><tr><th>When (IST)</th><th>Doctor</th><th>Status</th><th /></tr></thead>
+              <thead><tr><th>When (IST)</th><th>Doctor</th><th>Booking ref</th><th>Status</th><th /></tr></thead>
               <tbody>
                 {appts.map((a) => (
                   <tr key={a.id}>
                     <td className="mono">{formatIst(a.startsAt)}</td>
                     <td><Link href={paths.doctor(a.doctor.slug)}>{displayName(a.doctor)}</Link><div style={{ fontSize: "12px", color: "var(--muted)" }}>{a.practice.facility.name}</div></td>
+                    <td className="mono">{a.ref}</td>
                     <td><span className={`pill ${a.status === "confirmed" || a.status === "completed" ? "ok" : a.status === "requested" ? "wait" : "neut"}`}>{a.status === "requested" ? "awaiting confirmation" : a.status.replace("_", " ")}</span>{a.statusNote ? <div style={{ fontSize: "12px", color: "var(--muted)" }}>{a.statusNote}</div> : null}</td>
                     <td>
                       {(a.status === "requested" || a.status === "confirmed") && a.startsAt > now ? (

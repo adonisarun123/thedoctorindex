@@ -12,7 +12,8 @@ import { progressFor, TRIBE } from "@/lib/tribe";
 import { QrShare } from "@/components/QrShare";
 import { EmbedBadge } from "@/components/EmbedBadge";
 import { ProfileLinks } from "@/components/ProfileLinks";
-import { bookingRequirementsFor } from "@/lib/services/booking";
+import { bookingRequirementsFor, listPendingRequests } from "@/lib/services/booking";
+import { BookingRequestCard } from "@/components/BookingRequestCard";
 import { badgeSnippet } from "@/lib/tdi/badge";
 import { registrationState } from "@/lib/verification";
 import { paths, SITE } from "@/lib/site";
@@ -36,6 +37,7 @@ export default async function DashboardOverview() {
     ctx.asManager ? Promise.resolve(0) : verifiedCount(ctx.user.id),
     bookingRequirementsFor(ctx.doctorId),
   ]);
+  const bookingRequests = await listPendingRequests(ctx.doctorId, ctx.asManager ? ctx.scope : []);
   const bookingDone = booking.requirements.filter((r) => r.done).length;
   const tribe = progressFor(tribeVerified);
   const actions = Object.values(analytics.actions).reduce((a, b) => a + b, 0);
@@ -62,6 +64,17 @@ export default async function DashboardOverview() {
         </div>
         <Link className="btn" href={paths.doctor(doctor.slug)}>View public profile</Link>
       </div>
+
+      {bookingRequests.length ? (
+        <section style={{ marginBottom: "22px" }}>
+          <div className="chart-head">
+            <span className="t">Booking requests to confirm</span>
+            <span className="m">{bookingRequests.length} · <Link href="/dashboard/calendar">open calendar →</Link></span>
+          </div>
+          {bookingRequests.slice(0, 5).map((a) => <BookingRequestCard key={a.id} a={a} />)}
+          {bookingRequests.length > 5 ? <p style={{ fontSize: "13px" }}><Link href="/dashboard/calendar">{bookingRequests.length - 5} more in your calendar →</Link></p> : null}
+        </section>
+      ) : null}
 
       {live && doctor.tdiId ? (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>

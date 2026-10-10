@@ -5,8 +5,8 @@ import { and, asc, desc, eq, gt, gte, inArray, lt, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
-import { notifyPractice } from "@/lib/services/booking-notify";
-import { notifyUser } from "@/lib/services/notify";
+import { notifyPatient, notifyPractice } from "@/lib/services/booking-notify";
+import { newBookingRef, normaliseBookingRef } from "@/lib/booking/ref";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { displayName } from "@/lib/display-name";
 import { bookingRequirements, formatIst, generateSlots, isUnlocked, istDay, istInstant, validateRules, type Requirement, type Rule, type Slot } from "@/lib/booking/slots";
@@ -101,11 +101,9 @@ export async function addBlock(doctorId: string, actorUserId: string, day: strin
     .returning({ id: s.appointments.id, patientUserId: s.appointments.patientUserId, startsAt: s.appointments.startsAt });
 
   if (affected.length) {
-    const doctorName = await nameOf(doctorId);
-    const [slug] = await db.select({ slug: s.doctors.slug }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
     for (const a of affected) {
       await audit({ actorUserId, actorRole: "doctor", action: "appointment.cancelled", entityType: "appointment", entityId: a.id, after: { reason: "day_blocked", day } });
-      await notifyUser(a.patientUserId, { kind: "appointment_decision", decision: "cancelled", doctorName, when: formatIst(a.startsAt), note: "The doctor is unavailable on this day.", slug: slug?.slug ?? "" });
+      await notifyPatient(a.id, "cancelled_by_practice", "The doctor is unavailable on this day.");
       await notifyPractice(a.id, "cancelled_by_practice");
     }
   }
@@ -145,28 +143,40 @@ export async function requestAppointment(userId: string, doctorId: string, input
   if (!slot) throw new Error("That time was just taken or is no longer available. Pick another slot.");
 
   const reason = input.reason?.trim().slice(0, 200) || null;
-  let id: string;
-  try {
-    const [row] = await db
-      .insert(s.appointments)
-      .values({ doctorId, practiceId: slot.practiceId, patientUserId: userId, patientName: input.name, patientPhone: input.phone, forWhom: input.forWhom, reason, startsAt: slot.startsAt, endsAt: slot.endsAt })
-      .returning({ id: s.appointments.id });
-    id = row.id;
-  } catch (e) {
-    if (/appointments_live_slot_uq|duplicate key/i.test(String((e as Error)?.message ?? e))) throw new Error("Someone booked that time a moment ago. Pick another slot.");
-    throw e;
+  let id = "";
+  let ref = "";
+  for (let attempt = 0; !id; attempt++) {
+    try {
+      const [row] = await db
+        .insert(s.appointments)
+        .values({ ref: newBookingRef(), doctorId, practiceId: slot.practiceId, patientUserId: userId, patientName: input.name, patientPhone: input.phone, forWhom: input.forWhom, reason, startsAt: slot.startsAt, endsAt: slot.endsAt })
+        .returning({ id: s.appointments.id, ref: s.appointments.ref });
+      id = row.id;
+      ref = row.ref;
+    } catch (e) {
+      const msg = String((e as Error)?.message ?? e);
+      if (/appointments_ref_uq/.test(msg) && attempt < 4) continue; // reference clash: draw another
+      if (/appointments_live_slot_uq|duplicate key/i.test(msg)) throw new Error("Someone booked that time a moment ago. Pick another slot.");
+      throw e;
+    }
   }
-  await audit({ actorUserId: userId, actorRole: "patient", action: "appointment.requested", entityType: "appointment", entityId: id, after: { doctorId, startsAt: slot.startsAt } });
+  await audit({ actorUserId: userId, actorRole: "patient", action: "appointment.requested", entityType: "appointment", entityId: id, after: { doctorId, startsAt: slot.startsAt, ref } });
+  await notifyPatient(id, "requested");
   await notifyPractice(id, "requested");
-  return { id, startsAt: slot.startsAt };
+  return { id, ref, startsAt: slot.startsAt };
 }
 
 export type DoctorDecision = "confirmed" | "declined" | "cancelled" | "completed" | "no_show";
 
-export async function decideAppointment(doctorId: string, actorUserId: string, appointmentId: string, decision: DoctorDecision, note: string | null) {
+/**
+ * `scope` is the practice ids a clinic manager may act for (empty = all, i.e.
+ * the doctor themself or an unscoped manager).
+ */
+export async function decideAppointment(doctorId: string, actorUserId: string, appointmentId: string, decision: DoctorDecision, note: string | null, scope: string[] = []) {
   const db = getDb();
   const [a] = await db.select().from(s.appointments).where(and(eq(s.appointments.id, appointmentId), eq(s.appointments.doctorId, doctorId))).limit(1);
   if (!a) throw new Error("Appointment not found.");
+  if (scope.length && !scope.includes(a.practiceId)) throw new Error("This appointment is at a practice you don't manage.");
   const allowed: Record<string, DoctorDecision[]> = {
     requested: ["confirmed", "declined"],
     confirmed: ["cancelled", "completed", "no_show"],
@@ -176,8 +186,7 @@ export async function decideAppointment(doctorId: string, actorUserId: string, a
   await db.update(s.appointments).set({ status: decision, statusNote: note?.trim() || null, decidedAt: new Date() }).where(eq(s.appointments.id, appointmentId));
   await audit({ actorUserId, actorRole: "doctor", action: `appointment.${decision}`, entityType: "appointment", entityId: appointmentId, before: { status: a.status }, after: { status: decision } });
   if (decision === "confirmed" || decision === "declined" || decision === "cancelled") {
-    const [slug] = await db.select({ slug: s.doctors.slug }).from(s.doctors).where(eq(s.doctors.id, doctorId)).limit(1);
-    await notifyUser(a.patientUserId, { kind: "appointment_decision", decision, doctorName: await nameOf(doctorId), when: formatIst(a.startsAt), note: note?.trim() || null, slug: slug?.slug ?? "" });
+    await notifyPatient(appointmentId, decision === "cancelled" ? "cancelled_by_practice" : decision, note?.trim() || null);
     await notifyPractice(appointmentId, decision === "cancelled" ? "cancelled_by_practice" : decision);
   }
 }
@@ -189,6 +198,7 @@ export async function cancelByPatient(userId: string, appointmentId: string) {
   if (a.status !== "requested" && a.status !== "confirmed") throw new Error("This appointment is already closed.");
   await db.update(s.appointments).set({ status: "cancelled", statusNote: "Cancelled by patient", decidedAt: new Date() }).where(eq(s.appointments.id, appointmentId));
   await audit({ actorUserId: userId, actorRole: "patient", action: "appointment.cancelled_by_patient", entityType: "appointment", entityId: appointmentId });
+  await notifyPatient(appointmentId, "cancelled_by_patient");
   await notifyPractice(appointmentId, "cancelled_by_patient");
 }
 
@@ -207,6 +217,51 @@ export async function listPatientAppointments(userId: string) {
     with: { doctor: true, practice: { with: { facility: true } } },
     orderBy: [desc(s.appointments.startsAt)],
     limit: 50,
+  });
+}
+
+/** Upcoming requests awaiting a decision, oldest request first. */
+export async function listPendingRequests(doctorId: string, scope: string[] = []) {
+  const rows = await getDb().query.appointments.findMany({
+    where: and(eq(s.appointments.doctorId, doctorId), eq(s.appointments.status, "requested"), gt(s.appointments.startsAt, new Date())),
+    with: { practice: { with: { facility: true } } },
+    orderBy: [asc(s.appointments.createdAt)],
+    limit: 100,
+  });
+  return scope.length ? rows.filter((r) => scope.includes(r.practiceId)) : rows;
+}
+
+export type AdminBookingFilter = { status?: string; stale?: boolean; q?: string };
+
+/**
+ * Super-admin view across all doctors. Read-only by design: staff do not
+ * confirm on a doctor's behalf. "Stale" = an upcoming request left unanswered
+ * for more than 24 hours.
+ */
+export async function listAppointmentsAdmin(f: AdminBookingFilter) {
+  const conds = [];
+  if (f.stale) conds.push(and(eq(s.appointments.status, "requested"), gt(s.appointments.startsAt, new Date()), lt(s.appointments.createdAt, new Date(Date.now() - 24 * 3_600_000))));
+  else if (f.status) conds.push(eq(s.appointments.status, f.status as (typeof s.appointments.$inferSelect)["status"]));
+  const q = f.q?.trim();
+  if (q) {
+    const ref = normaliseBookingRef(q);
+    const digits = q.replace(/\D/g, "");
+    const like = `%${q}%`;
+    // A six-letter word like "Sharma" is also a valid-looking reference, so match either.
+    const byName = sql`(${s.appointments.doctorId} in (select id from doctors where name ilike ${like}) or ${s.appointments.patientName} ilike ${like})`;
+    conds.push(
+      digits.length >= 4 && !ref
+        ? sql`regexp_replace(${s.appointments.patientPhone}, '[^0-9]', '', 'g') like ${`%${digits}%`}`
+        : ref
+          ? sql`(${s.appointments.ref} = ${ref} or ${byName})`
+          : byName,
+    );
+  }
+  return getDb().query.appointments.findMany({
+    where: conds.length ? and(...conds) : undefined,
+    with: { doctor: true, practice: { with: { facility: true } } },
+    orderBy: [desc(s.appointments.createdAt)],
+    limit: 200,
   });
 }
 
