@@ -128,6 +128,15 @@ export const users = pgTable(
      */
     signupFlow: text("signup_flow"),
     signupNext: text("signup_next"),
+    /**
+     * What the person said they are when the account was created: "patient"
+     * or "doctor". `role` is the verified state — it becomes "doctor" only
+     * once a profile is claimed or created against the register — so a
+     * doctor who has not finished verification is account_type = doctor,
+     * role = patient. Staff and patient lists filter on this, never on role
+     * alone. Null for accounts that predate the question.
+     */
+    accountType: text("account_type"),
     /** Set by the unsubscribe link in a signup reminder; no further reminders. */
     remindersOptOutAt: timestamp("reminders_opt_out_at", { withTimezone: true }),
     /** Set by the unsubscribe link in the monthly doctor digest; no further digests. */

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { OtpSignIn } from "@/components/OtpSignIn";
+import { isDoctorNext } from "@/lib/auth/doctor-journey";
 import { getSessionUser } from "@/lib/auth/session";
 import { privateMeta } from "@/lib/seo/meta";
 import { paths } from "@/lib/site";
@@ -33,7 +34,12 @@ const GOOGLE_ERRORS: Record<string, string> = {
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const next = typeof sp.next === "string" ? sp.next : "/";
+  const as = sp.as === "doctor" ? "doctor" : "patient";
+  const requested = typeof sp.next === "string" ? sp.next : "/";
+  // The doctor tab steers a bare sign-in to the register search; a destination
+  // the person already carried (a profile to claim, an enquiry to send) stays.
+  const next = as === "doctor" && !isDoctorNext(requested) && requested === "/" ? "/claim-profile" : requested;
+  const tabHref = (kind: "patient" | "doctor") => `/sign-in?${new URLSearchParams({ ...(requested !== "/" ? { next: requested } : {}), ...(kind === "doctor" ? { as: "doctor" } : {}) })}`;
   const liError = typeof sp.li === "string" ? LINKEDIN_ERRORS[sp.li] ?? LINKEDIN_ERRORS.failed : typeof sp.g === "string" ? GOOGLE_ERRORS[sp.g] ?? GOOGLE_ERRORS.failed : null;
   const user = await getSessionUser();
   if (user) {
@@ -46,16 +52,25 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <div className="signin">
         <span className="eyebrow">The Doctor Index</span>
         <h1 style={{ marginTop: "8px" }}>Sign in or create an account</h1>
+        <nav className="acct-tabs" aria-label="I am a">
+          <Link href={tabHref("patient")} aria-current={as === "patient" ? "page" : undefined}>I&rsquo;m a patient</Link>
+          <Link href={tabHref("doctor")} aria-current={as === "doctor" ? "page" : undefined}>I&rsquo;m a doctor</Link>
+        </nav>
         <p style={{ color: "var(--ink-2)", fontSize: "14.5px", marginBottom: "18px" }}>
-          Enter your email or mobile; we send a one-time code. New here? The same step creates your account, then we ask for your name, contact details and locality once. One account for patients and doctors; nothing about you is ever shown publicly.
+          {as === "doctor"
+            ? "Enter your email or mobile; we send a one-time code. New here? The same step creates your account, then we match your name and registration number against the medical council register before anything goes live. Nothing about you is shown until it is verified."
+            : "Enter your email or mobile; we send a one-time code. New here? The same step creates your account, then we ask for your name, contact details and area once. Nothing about you is ever shown publicly."}
         </p>
         {liError ? <div className="notice alert" style={{ marginBottom: "12px" }}>{liError}</div> : null}
         <div className="panel pad">
-          <OtpSignIn next={next} linkedin />
+          <OtpSignIn next={next} linkedin={as === "doctor"} />
         </div>
         <p style={{ fontSize: "13px", color: "var(--muted)", marginTop: "16px" }}>
-          Doctors sign in the same way and land on their dashboard. New here? <Link href={paths.addDoctor()}>Create your profile</Link> or{" "}
-          <Link href={paths.claimProfile()}>claim one</Link> that already exists for your registration.
+          {as === "doctor" ? (
+            <>Already have a profile here? Signing in with the email or mobile it was created with opens your dashboard. Otherwise <Link href={paths.addDoctor()}>create your profile</Link> or <Link href={paths.claimProfile()}>claim one</Link> that exists for your registration.</>
+          ) : (
+            <>A doctor or healthcare professional? <Link href={tabHref("doctor")}>Sign in as a doctor</Link> — your account is verified against the council register and kept separate from patient accounts.</>
+          )}
         </p>
       </div>
     </div>

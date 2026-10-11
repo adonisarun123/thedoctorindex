@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { FunnelStep } from "@/components/FunnelStep";
 import { ProfileDetailsForm } from "@/components/ProfileDetailsForm";
 import { flowFromNext } from "@/lib/funnel";
-import { isDoctorNext } from "@/lib/auth/doctor-journey";
+import { impliedAccountType } from "@/lib/auth/doctor-journey";
 import { RouteMeta } from "@/components/RouteMeta";
 import { getSessionUser } from "@/lib/auth/session";
 import { userPlace } from "@/lib/data/geo";
@@ -30,7 +30,8 @@ export default async function AccountSetup({ searchParams }: { searchParams: Pro
   if (user.profileComplete) redirect(next);
   const [row] = await getDb().select({ city: s.users.city, marketingOptIn: s.users.marketingOptIn }).from(s.users).where(eq(s.users.id, user.id)).limit(1);
 
-  const doctor = isDoctorNext(next);
+  const accountType = user.accountType ?? impliedAccountType(next, typeof sp.as === "string" ? sp.as : null);
+  const doctor = accountType === "doctor";
   const why = doctor ? "Your name and mobile, once, so a verification officer can reach you. Next you'll see your entry in the medical council register." : next.includes("/enquire") ? "An enquiry is sent to a practice with your name and mobile number, so we need them first." : next.includes("/review") ? "Reviews are tied to a real, contactable person (published under a pseudonym), so we need your details first." : next.startsWith("/dashboard") || next.includes("add-doctor") || next.includes("claim") ? "A doctor's account is a real identity we may need to reach." : "Before you can enquire, review or manage a profile we need to know who you are.";
 
   return (
@@ -38,14 +39,14 @@ export default async function AccountSetup({ searchParams }: { searchParams: Pro
       <RouteMeta data={{ route: "Account setup (authenticated)", title: "Complete your details", canonical: absoluteUrl("/account/setup"), index: false, structuredData: "None" }} />
       <div className="wrap">
         <div className="signin" style={{ maxWidth: "640px" }}>
-          <span className="eyebrow">{doctor ? "For doctors · one quick step" : "Create your account · step 2 of 2"}</span>
-          <h1 style={{ marginTop: "8px" }}>{doctor ? "Your name and mobile" : "Complete your details"}</h1>
+          <span className="eyebrow">Create your account · step 2 of 2</span>
+          <h1 style={{ marginTop: "8px" }}>{doctor ? "Who you are, then your registration" : "Complete your details"}</h1>
           <p style={{ color: "var(--ink-2)", fontSize: "14.5px", marginBottom: "18px" }}>
             {why} Signed in as <span className="mono">{user.email ?? user.phone}</span>. One account works for patients and doctors.
           </p>
           <FunnelStep event="account_setup_view" params={{ flow: flowFromNext(next) }} />
           <div data-funnel="account_setup" data-funnel-flow={flowFromNext(next)}>
-          <ProfileDetailsForm user={{ ...user, city: row?.city ?? null, ...(await userPlace(user.localityKey, row?.city ?? null)), marketingOptIn: row?.marketingOptIn ?? false }} next={next} doctor={doctor} submitLabel={doctor ? "Find my registration" : undefined} />
+          <ProfileDetailsForm user={{ ...user, city: row?.city ?? null, ...(await userPlace(user.localityKey, row?.city ?? null)), marketingOptIn: row?.marketingOptIn ?? false }} next={next} doctor={doctor} accountType={accountType} />
           </div>
           <p style={{ fontSize: "12.5px", color: "var(--muted)", marginTop: "14px" }}>
             Your name and contact details are never shown on the public site. They are shared only with a practice you choose to enquire with, and used to tell you the outcome of anything you submit.

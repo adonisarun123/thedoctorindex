@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { signOutAction } from "@/app/sign-in/actions";
 import { ProfileDetailsForm } from "@/components/ProfileDetailsForm";
 import { RouteMeta } from "@/components/RouteMeta";
+import { unverifiedDoctorHome } from "@/lib/auth/doctor-journey";
 import { requireUser } from "@/lib/auth/session";
 import { cancelBookingAction } from "@/app/doctor/[slug]/book/actions";
 import { ActionForm } from "@/components/ActionForm";
@@ -65,9 +66,13 @@ export default async function AccountPage() {
             {isStaff ? <><b>Staff account.</b> <Link href="/admin">Open the admin console →</Link></> : null}
             {isDoctor ? <><b>Doctor account.</b> <Link href="/dashboard">Open your dashboard →</Link></> : null}
           </div>
+        ) : user.accountType === "doctor" ? (
+          <div className="notice" style={{ marginBottom: "18px" }}>
+            <b>Doctor account, not yet verified.</b> <Link href={unverifiedDoctorHome(user.displayName)}>Find your entry in the council register →</Link> to claim or create your profile; the dashboard opens once it is matched.
+          </div>
         ) : (
           <div className="notice" style={{ marginBottom: "18px" }}>
-            Are you a doctor? <Link href={paths.addDoctor()}>Create your profile</Link> or <Link href={paths.claimProfile()}>claim an existing one</Link>. Approved profiles unlock the doctor dashboard on this same account.
+            Are you a doctor? <Link href={paths.addDoctor()}>Create your profile</Link> or <Link href={paths.claimProfile()}>claim an existing one</Link>. Once the council register confirms it, this becomes a doctor account with its own dashboard.
           </div>
         )}
 

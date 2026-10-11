@@ -19,6 +19,26 @@ export function isDoctorNext(next: string | null | undefined): boolean {
   return DOCTOR_FLOWS.has(flowFromNext(next));
 }
 
+/**
+ * The account type a sign-in implies before the person has said anything:
+ * "doctor" on a doctor destination or when the sign-in page's doctor tab
+ * was chosen (`as=doctor`), otherwise "patient". Account setup shows this as
+ * the pre-selected answer and the person confirms or changes it.
+ */
+export function impliedAccountType(next: string | null | undefined, as?: string | null): "patient" | "doctor" {
+  return as === "doctor" || isDoctorNext(next) ? "doctor" : "patient";
+}
+
+/** "Dr", "Dr.", "Doctor" in front of a name — the usual sign a patient account is really a doctor's. */
+export function looksLikeDoctorName(name: string): boolean {
+  return /^\s*(dr|doctor)\b\.?\s+/i.test(name);
+}
+
+/** Where a doctor-type account with no verified profile yet should go: the register search, name filled in. */
+export function unverifiedDoctorHome(name: string | null): string {
+  return doctorDestination("/claim-profile", name);
+}
+
 /** "Dr. Asha K Rao" → ["Asha", "K", "Rao"]. */
 function nameWords(name: string | null): string[] {
   return (name ?? "").replace(/^\s*dr\.?\s+/i, "").trim().split(/\s+/).filter(Boolean);

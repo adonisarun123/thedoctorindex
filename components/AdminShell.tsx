@@ -33,6 +33,7 @@ const GROUPS: Group[] = [
       { href: "/admin/changes", label: "Change requests", countKey: "changes", icon: "edit" },
       { href: "/admin/enrichment", label: "Register matching", countKey: "enrichment_queue", icon: "search", keys: "g m" },
       { href: "/admin/invites", label: "Invites", countKey: "invites", icon: "mail" },
+      { href: "/admin/doctor-accounts", label: "Doctor accounts", icon: "key" },
       { href: "/admin/signups", label: "Stalled signups", icon: "clock" },
       { href: "/admin/calls", label: "Call queue", icon: "phone" },
     ],

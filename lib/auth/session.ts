@@ -37,6 +37,8 @@ export interface SessionUser {
   email: string | null;
   phone: string | null;
   role: "patient" | "doctor" | "staff";
+  /** Declared at sign-up (lib/db/schema.ts users.accountType); role is the verified state. */
+  accountType: "patient" | "doctor" | null;
   displayName: string | null;
   staffRoles: StaffRole[];
   sessionId: string;
@@ -116,6 +118,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       email: users.email,
       phone: users.phone,
       role: users.role,
+      accountType: users.accountType,
       displayName: users.displayName,
       staffRoles: staffMembers.roles,
       staffActive: staffMembers.active,
@@ -138,6 +141,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     email: row.email,
     phone: row.phone,
     role: row.role,
+    accountType: row.accountType === "doctor" || row.accountType === "patient" ? row.accountType : null,
     displayName: row.displayName,
     staffRoles: row.staffActive ? (row.staffRoles ?? []) : [],
     sessionId: row.sessionId,

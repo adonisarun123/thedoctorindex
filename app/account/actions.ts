@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { doctorDestination, isDoctorNext } from "@/lib/auth/doctor-journey";
+import { doctorDestination, impliedAccountType, isDoctorNext, looksLikeDoctorName, unverifiedDoctorHome } from "@/lib/auth/doctor-journey";
 import { normalizeIdentifier } from "@/lib/auth/hash";
 import { getSessionUser } from "@/lib/auth/session";
 import { getGeo } from "@/lib/data/geo";
@@ -51,10 +51,18 @@ export async function saveProfileDetailsAction(_prev: ProfileState, form: FormDa
 
   const localityKey = await localityFromForm(form).catch(() => null);
   const cityTyped = str("placeCity") || str("city");
+  // Who the account is for. Asked once, on first run; the answer decides the
+  // rest of this form and where the person goes next. A patient account whose
+  // name starts with "Dr" is almost always a doctor who picked the wrong box.
+  const first = !user.profileComplete;
+  const typedKind = str("accountType");
+  const accountType: "patient" | "doctor" = first
+    ? typedKind === "doctor" || typedKind === "patient" ? typedKind : impliedAccountType(next)
+    : user.accountType ?? (user.role === "doctor" ? "doctor" : impliedAccountType(next));
+  if (first && accountType === "patient" && looksLikeDoctorName(fullName)) return { error: "That name starts with \"Dr\". If you are a doctor, choose \"A doctor or healthcare professional\" above; if not, enter your name without the title." };
   // A doctor's first run skips the home locality: the practice location comes
   // from the register entry they claim (lib/auth/doctor-journey.ts).
-  const first = !user.profileComplete;
-  const doctorFirstRun = first && isDoctorNext(next);
+  const doctorFirstRun = first && accountType === "doctor";
   // Later edits keep whatever the person chose; a doctor who skipped it is not forced back.
   if (!localityKey && !cityTyped && first && !doctorFirstRun) return { error: "Tell us where you are — choose your state and city." };
   const place = localityKey ? (await getGeo()).locality(localityKey) : null;
@@ -80,15 +88,16 @@ export async function saveProfileDetailsAction(_prev: ProfileState, form: FormDa
         // An empty picker on a later edit leaves the stored place alone.
         ...(localityKey || cityTyped || first ? { localityKey: localityKey ?? null, city: place?.city ?? (cityTyped || null) } : {}),
         marketingOptIn: form.get("marketing") === "on",
-        ...(first ? { termsAcceptedAt: new Date(), profileCompletedAt: new Date() } : {}),
+        ...(first ? { termsAcceptedAt: new Date(), profileCompletedAt: new Date(), accountType } : {}),
       })
       .where(eq(s.users.id, user.id));
   } catch (e) {
     return { error: e instanceof Error && /unique/i.test(e.message) ? "That mobile number or email is already registered to another account." : "Could not save your details. Try again." };
   }
-  await audit({ actorUserId: user.id, actorRole: user.role, action: first ? "user.registered" : "user.profile_updated", entityType: "user", entityId: user.id, after: { locality: localityKey || cityTyped, termsAccepted: first || undefined } });
+  await audit({ actorUserId: user.id, actorRole: user.role, action: first ? "user.registered" : "user.profile_updated", entityType: "user", entityId: user.id, after: { locality: localityKey || cityTyped, termsAccepted: first || undefined, accountType: first ? accountType : undefined } });
   revalidatePath("/account");
-  // A bare claim / create journey lands on "Is this you?" with the name just typed.
-  if (first) redirect(doctorFirstRun ? doctorDestination(next, fullName) : next);
+  // A doctor lands on "Is this you?" with the name just typed — on the
+  // destination they came for when it is a doctor one, else the register search.
+  if (first) redirect(doctorFirstRun ? (isDoctorNext(next) ? doctorDestination(next, fullName) : unverifiedDoctorHome(fullName)) : next);
   return { ok: true, message: "Details saved." };
 }

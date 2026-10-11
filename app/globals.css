@@ -460,7 +460,7 @@ select {
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 15.5px; font-weight: 500; margin-bottom: 5px; }
 .field .hint { font-size: 15px; color: var(--muted); margin-top: 5px; }
-.field input[type="text"], .field input[type="tel"], .field textarea {
+.field input[type="text"], .field input[type="tel"], .field input[type="email"], .field input[type="search"], .field input[type="url"], .field input[type="number"], .field textarea {
   width: 100%; font: inherit; font-size: 17px; padding: 9px 11px;
   border: 1px solid var(--hair-strong); border-radius: var(--r);
   background: var(--surface); color: var(--ink);
@@ -2282,3 +2282,19 @@ main:has(> .admin-shell) { padding-bottom: 0; }
 .tl-d { color: var(--muted); font-size: 12.5px; margin-top: 1px; overflow-wrap: anywhere; }
 .tl-a { color: var(--ink-2); }
 .tl-more { display: inline-block; margin-top: 10px; font-size: 13px; }
+
+/* --- account type: sign-in tabs and the first-run choice -------------------- */
+.acct-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--hair-strong); border-radius: var(--r); overflow: hidden; margin: 14px 0 12px; background: var(--surface); }
+.acct-tabs a { text-align: center; padding: 10px 12px; font-size: 16px; font-weight: 500; color: var(--ink-2); text-decoration: none; }
+.acct-tabs a + a { border-left: 1px solid var(--hair-strong); }
+.acct-tabs a:hover { background: var(--surface-2); text-decoration: none; }
+.acct-tabs a[aria-current="page"] { background: var(--accent); color: var(--accent-on); }
+.acct-kind { border: 0; padding: 0; margin: 0 0 16px; }
+.acct-kind legend { font-size: 15.5px; font-weight: 500; margin-bottom: 8px; padding: 0; }
+.acct-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .acct-opts { grid-template-columns: 1fr; } }
+.acct-opts label { display: grid; grid-template-columns: 18px 1fr; gap: 4px 10px; align-items: start; padding: 12px 14px; border: 1px solid var(--hair-strong); border-radius: var(--r); background: var(--surface); cursor: pointer; }
+.acct-opts label.on { border-color: var(--accent); background: var(--accent-soft); }
+.acct-opts input { accent-color: var(--accent); margin: 3px 0 0; grid-row: 1 / span 2; }
+.acct-opts .acct-t { font-size: 16px; font-weight: 600; color: var(--ink); }
+.acct-opts .acct-d { font-size: 14px; color: var(--ink-2); }
