@@ -8,6 +8,7 @@ import { ConditionDisclaimer } from "@/components/ConditionDisclaimer";
 import { BlogReading } from "@/components/BlogReading";
 import { postsForCondition } from "@/lib/blog/placements";
 import { ConditionDraftBody } from "@/components/ConditionDraftBody";
+import { DoctorRow } from "@/components/DoctorRow";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
 import { anchorId } from "@/lib/blog/types";
@@ -17,6 +18,7 @@ import { articleBySlug } from "@/lib/conditions/articles";
 import { paths as cpaths } from "@/lib/conditions/browse";
 import { getConditionDraft, listConditions } from "@/lib/conditions/data";
 import { FIRST_CONTACT, departmentBySlug } from "@/lib/conditions/departments";
+import { CONDITION_CITY, doctorsForCondition } from "@/lib/conditions/doctors";
 import { articleIndexable, articleReviewed, conditionIndexable, indexableSlugs } from "@/lib/conditions/gate";
 import { SPECIALTIES } from "@/lib/data/taxonomy";
 import { pageMeta } from "@/lib/seo/meta";
@@ -90,6 +92,8 @@ export default async function ConditionPage({ params }: { params: Promise<Params
   const related = (await listConditions())
     .filter((c) => c.departmentSlug === deptSlug && c.slug !== slug && conditionIndexable(c.slug))
     .slice(0, 8);
+
+  const doctors = specialty && dept?.basis !== "none" ? await doctorsForCondition(slug, specialty.key) : [];
 
   const sourceById = new Map(draft.sources.map((s) => [s.id, s]));
   const sourceLabel = (id: string) => {
@@ -251,9 +255,24 @@ export default async function ConditionPage({ params }: { params: Promise<Params
                     : `This condition is usually assessed by ${specialty.aOne}.`}{" "}
                   Every profile shows the doctor’s registration and what has been checked.
                 </p>
+                {doctors.length ? (
+                  <>
+                    <h3 style={{ fontSize: "17px", margin: "16px 0 4px" }}>
+                      {specialty.plural} in {CONDITION_CITY.label}
+                    </h3>
+                    <p style={{ fontSize: "14px", color: "var(--muted)", margin: "0 0 8px" }}>
+                      A few {specialty.plural.toLowerCase()} listed on The Doctor Index. They are shown because of their speciality, not a stated interest in {draft.name}; ask the clinic whether the doctor sees it.
+                    </p>
+                    <div className="rows">
+                      {doctors.map((d) => (
+                        <DoctorRow key={d.slug} doctor={d} />
+                      ))}
+                    </div>
+                  </>
+                ) : null}
                 <div className="quick" style={{ marginTop: 0 }}>
                   <Link className="btn" href={paths.citySpecialty(BENGALURU.state, BENGALURU.city, specialty.slug)} style={{ display: "inline-block" }}>
-                    {specialty.plural} in Bengaluru
+                    All {specialty.plural.toLowerCase()} in {CONDITION_CITY.label}
                   </Link>
                   <Link className="chip" href={paths.specialty(specialty.key)}>
                     {specialty.plural} across India
