@@ -44,7 +44,7 @@ export function ProfileLinks({ slug, origin, name, bookingEnabled }: { slug: str
       {bookingEnabled
         ? row("Book an appointment", book, "Add this as the appointment link on your Google Business Profile so patients can book from Google Search and Maps.")
         : null}
-      {row("Patient review link", review, "Share it with all your patients after their visit — print it, add it to prescriptions, or send it on WhatsApp. Only patients who upload their prescription can review, so every review here is genuine. Never offer anything in return, and do not pick only happy patients.")}
+      {row("Patient review link", review, "Share it with all your patients after their visit — print it, add it to prescriptions, or send it on WhatsApp. Every review is tied to a real, contactable account and read by a moderator; a patient who attaches their prescription or bill earns the review a Verified visit badge. Never offer anything in return, and do not pick only happy patients.")}
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "10px" }}>
         <a className="btn solid" href={`https://wa.me/?text=${encodeURIComponent(waText)}`} target="_blank" rel="noopener">Share review link on WhatsApp</a>
         <button type="button" className="btn quiet" onClick={() => copy(waText, "Message")}>Copy message</button>

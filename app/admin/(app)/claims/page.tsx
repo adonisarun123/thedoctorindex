@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { decideClaimAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
+import { QueueKeys } from "@/components/admin/QueueKeys";
 import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
@@ -27,12 +28,13 @@ export default async function AdminClaims({ searchParams }: { searchParams: Prom
         </div>
         <Link className="btn quiet" href={showAll ? "/admin/claims" : "/admin/claims?all=1"}>{showAll ? "Pending only" : "Show decided"}</Link>
       </div>
+      <QueueKeys />
       {rows.length === 0 ? <div className="panel pad" style={{ color: "var(--muted)" }}>Queue is empty.</div> : null}
       {rows.map((c) => (
-        <div className="qcard" id={c.id} key={c.id}>
+        <div className="qcard qitem" id={c.id} key={c.id} data-queue-item={c.id}>
           <div className="qh">
             <div>
-              <div className="qt"><Link href={`/admin/doctors/${c.doctorId}`}>Dr {c.doctor.name}</Link> {c.doctor.claimed ? <span className="pill warn" style={{ marginLeft: "6px" }}>already claimed</span> : <span className="pill neut" style={{ marginLeft: "6px" }}>unclaimed</span>}</div>
+              <div className="qt"><Link href={`/admin/doctors/${c.doctorId}`} data-open>Dr {c.doctor.name}</Link> {c.doctor.claimed ? <span className="pill warn" style={{ marginLeft: "6px" }}>already claimed</span> : <span className="pill neut" style={{ marginLeft: "6px" }}>unclaimed</span>}</div>
               <div className="qm">claim {c.id.slice(0, 8)} · {toDisplay(c.createdAt)} · by {c.user.email ?? c.user.phone}</div>
             </div>
             <span className={`pill ${c.status === "approved" ? "ok" : c.status === "rejected" ? "warn" : "wait"}`}>{c.status}</span>

@@ -28,3 +28,4 @@ data/private/
 data/condition-drafts/batch-*.json
 data/condition-drafts/manifest.json
 data/condition-drafts/hpo-licence-explanation.html
+.tmp/

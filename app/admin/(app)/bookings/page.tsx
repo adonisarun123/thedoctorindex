@@ -1,10 +1,12 @@
 import Link from "next/link";
 
+import { PatientCell } from "@/components/admin/PatientCell";
 import { requireStaff } from "@/lib/auth/session";
 import { formatIst } from "@/lib/booking/slots";
 import { toDisplay } from "@/lib/db/dates";
 import { displayName } from "@/lib/display-name";
 import { listAppointmentsAdmin } from "@/lib/services/booking";
+import { areaLabel } from "@/lib/services/patients";
 
 export const metadata = { title: "Bookings" };
 
@@ -23,6 +25,9 @@ export default async function AdminBookings({ searchParams }: { searchParams: Pr
   const stale = sp.stale === "1";
   const q = typeof sp.q === "string" ? sp.q.slice(0, 80) : "";
   const rows = await listAppointmentsAdmin({ status, stale, q });
+  // The booking carries the name and mobile shared with the practice; email
+  // and area come from the patient's account, for staff only.
+  const areas = await Promise.all(rows.map((a) => areaLabel(a.patient?.localityKey ?? null, a.patient?.city ?? null)));
   const chip = (href: string, on: boolean, label: string) => (
     <Link className="chip" href={href} style={on ? { borderColor: "var(--accent)", color: "var(--accent)" } : undefined}>{label}</Link>
   );
@@ -45,7 +50,7 @@ export default async function AdminBookings({ searchParams }: { searchParams: Pr
         <thead><tr><th>Ref</th><th>Requested</th><th>Appointment (IST)</th><th>Doctor · clinic</th><th>Patient</th><th>Status</th></tr></thead>
         <tbody>
           {rows.length === 0 ? <tr><td colSpan={6} style={{ color: "var(--muted)" }}>None.</td></tr> : null}
-          {rows.map((a) => {
+          {rows.map((a, i) => {
             const overdue = a.status === "requested" && a.startsAt > new Date() && Date.now() - a.createdAt.getTime() > 24 * 3_600_000;
             return (
               <tr key={a.id}>
@@ -53,7 +58,7 @@ export default async function AdminBookings({ searchParams }: { searchParams: Pr
                 <td className="mono" style={{ fontSize: "12.5px" }}>{toDisplay(a.createdAt)}</td>
                 <td className="mono">{formatIst(a.startsAt)}</td>
                 <td style={{ fontSize: "13px" }}><Link href={`/admin/doctors/${a.doctorId}`}>{displayName(a.doctor)}</Link><div style={{ color: "var(--muted)" }}>{a.practice?.facility.name ?? "—"}</div></td>
-                <td style={{ fontSize: "13px" }}>{a.patientName}{a.forWhom === "other" ? " (for someone else)" : ""}<div className="mono">{a.patientPhone}</div></td>
+                <td><PatientCell id={a.patient?.id} name={a.patientName} phone={a.patientPhone} email={a.patient?.email ?? ""} area={areas[i].area} note={a.forWhom === "other" ? "· for someone else" : undefined} /></td>
                 <td>
                   <span className={`pill ${PILL[a.status] ?? "neut"}`}>{a.status === "requested" ? "awaiting doctor" : a.status.replace("_", " ")}</span>
                   {overdue ? <> <span className="pill warn">stale</span></> : null}

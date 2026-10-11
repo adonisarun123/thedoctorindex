@@ -4,7 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
-import { NEWS_DAILY_MAX, type NewsNumber, type NewsSource, autoGate, istDayStart, newsSlug, storyProblems } from "@/lib/news/format";
+import { NEWS_DAILY_MAX, NEWS_FRESH_DAYS, type NewsNumber, type NewsSource, autoGate, independentSourceCount, istDayStart, newsSlug, storyProblems } from "@/lib/news/format";
 import { audit } from "@/lib/services/audit";
 
 /**
@@ -188,6 +188,36 @@ export async function publishDue(now = new Date()): Promise<StoryRow[]> {
     .limit(slots);
   for (const row of due) await markPublished(row, null, now, "slot");
   return due;
+}
+
+/**
+ * Daily fallback (Arun, 11 Oct 2026): when the afternoon check finds nothing
+ * live today and the buffer is empty, publish the best draft that passed the
+ * claims check, has no editorial problem and is fresh (newest report ≤ 14
+ * days) — even with one source or no TDi profile match. Preference: matched
+ * doctor, then more independent sources, then newest. Staff are emailed and
+ * can withdraw it.
+ */
+export async function publishFallback(now = new Date()): Promise<StoryRow | null> {
+  if ((await publishedTodayCount(now)) > 0) return null;
+  const drafts = await getDb().select().from(s.newsStories).where(eq(s.newsStories.status, "draft")).orderBy(desc(s.newsStories.createdAt)).limit(40);
+  const docs = await doctorsForStories(drafts.map((d) => d.id));
+  const ok = drafts
+    .filter((d) => (d.verification as { ok?: boolean } | null)?.ok === true)
+    .filter((d) => storyProblems({ ...d, numbers: storyNumbers(d), sources: storySources(d) }).length === 0)
+    .filter((d) => {
+      const dates = [d.eventDate, ...storySources(d).map((x) => x.publishedOn)].filter((x): x is string => Boolean(x && /^\d{4}-\d{2}-\d{2}/.test(x)));
+      if (!dates.length) return false;
+      const newest = Math.max(...dates.map((x) => Date.parse(x.slice(0, 10))));
+      return (now.getTime() - newest) / 86_400_000 <= NEWS_FRESH_DAYS;
+    })
+    .map((d) => ({ d, score: (docs.get(d.id)?.some((x) => x.primary) ? 100 : 0) + independentSourceCount(storySources(d)) * 10 + d.createdAt.getTime() / 1e13 }))
+    .sort((a, b) => b.score - a.score);
+  const pick = ok[0]?.d;
+  if (!pick) return null;
+  await getDb().update(s.newsStories).set({ status: "approved", reviewerNote: "Published by the daily fallback: nothing else was live today.", updatedAt: now }).where(eq(s.newsStories.id, pick.id));
+  await markPublished({ ...pick, status: "approved" }, null, now, "fallback");
+  return pick;
 }
 
 /* ------------------------------------------------------------------------- */

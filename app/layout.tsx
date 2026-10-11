@@ -7,6 +7,7 @@ import { Analytics } from "@/components/Analytics";
 import { FunnelTracker } from "@/components/FunnelTracker";
 import { RouteInspector } from "@/components/RouteInspector";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SiteChrome } from "@/components/SiteChrome";
 import { SiteHeader } from "@/components/SiteHeader";
 import { THEME_BOOT_SCRIPT } from "@/components/ThemeToggle";
 import { activeSourceName } from "@/lib/data";
@@ -109,11 +110,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         ) : null}
 
-        <SiteHeader />
+        <SiteChrome>
+          <SiteHeader />
+        </SiteChrome>
 
         <main id="main">{children}</main>
 
-        <SiteFooter />
+        <SiteChrome>
+          <SiteFooter />
+        </SiteChrome>
 
         <Suspense fallback={null}>
           <RouteInspector />

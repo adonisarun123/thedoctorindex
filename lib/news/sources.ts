@@ -179,3 +179,62 @@ export function publisherName(url: string): string {
   };
   return KNOWN[host] ?? host;
 }
+
+/**
+ * Health and doctor news sections of Indian outlets. Their front pages are
+ * read the way a person browsing would: one request per section per run, the
+ * article links and headlines only. This is the discovery path that needs no
+ * search API, so the day never depends on one vendor's credits.
+ */
+export const SECTION_PAGES = [
+  "https://medicaldialogues.in/news/health/doctors",
+  "https://medicaldialogues.in/news/health/hospital-diagnostics",
+  "https://www.thehindu.com/sci-tech/health/",
+  "https://indianexpress.com/section/lifestyle/health/",
+  "https://www.thehansindia.com/life-style/health",
+  "https://health.economictimes.indiatimes.com/news/industry",
+  "https://www.biospectrumindia.com/news/",
+];
+
+/** Article links on a section page: same site, article-shaped path, a headline of 30+ characters. */
+export function extractArticleLinks(html: string, pageUrl: string): Array<{ url: string; title: string }> {
+  const base = new URL(pageUrl);
+  const host = base.hostname.replace(/^www\./, "");
+  const out = new Map<string, string>();
+  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    let url: URL;
+    try {
+      url = new URL(decode(m[1]), base);
+    } catch {
+      continue;
+    }
+    if (url.hostname.replace(/^www\./, "") !== host) continue;
+    const path = url.pathname;
+    // Article URLs carry a long slug or a numeric id; section and tag pages do not.
+    if (!(/\d{4,}/.test(path) || (path.split("/").pop() ?? "").split("-").length >= 6)) continue;
+    if (/\/(tag|tags|topic|author|video|videos|photos|gallery|live)\//i.test(path)) continue;
+    const text = decode(m[2].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+    const title = text.length >= 30 ? text : (path.split("/").filter(Boolean).pop() ?? "").replace(/-\d+$/, "").replace(/[-_]+/g, " ");
+    url.search = "";
+    url.hash = "";
+    const key = url.toString();
+    if (title.length >= 30 && (!out.has(key) || (out.get(key)!.length < title.length && title.length < 200))) out.set(key, title.slice(0, 200));
+  }
+  return Array.from(out, ([url, title]) => ({ url, title }));
+}
+
+export async function sectionHits(pages: string[] = SECTION_PAGES): Promise<Hit[]> {
+  const results = await Promise.allSettled(
+    pages.map(async (page) => {
+      const res = await fetch(page, {
+        headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128 Safari/537.36 TheDoctorIndexNewsdesk/1.0", Accept: "text/html" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!res.ok) return [];
+      const html = await res.text();
+      return extractArticleLinks(html, page).map((l) => ({ url: l.url, title: l.title, snippet: "", source: publisherName(l.url), date: "" }));
+    }),
+  );
+  return results.flatMap((r) => (r.status === "fulfilled" ? r.value : [])).filter((h) => usableUrl(h.url));
+}

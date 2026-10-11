@@ -1,9 +1,10 @@
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { photoAdminAction, addPracticeAdminAction, addQualificationAdminAction, markAllVerifiedAction, mergeDoctorAction, registrationCheckAction, qualificationStateAction, setRegistrationAction, credentialStateAction, setStatusAction, updateDoctorFieldsAction, updatePracticeAdminAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
+import { Timeline } from "@/components/admin/Timeline";
 import { CouncilSelect } from "@/components/CouncilSelect";
 import { RankingBreakdown } from "@/components/RankingBreakdown";
 import { PlacePicker } from "@/components/PlacePicker";
@@ -13,6 +14,7 @@ import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
 import { getDoctorAdmin, recomputeQuality } from "@/lib/services/doctors";
+import { doctorTimeline } from "@/lib/services/doctor-timeline";
 import { doctorAnalytics } from "@/lib/services/events";
 import { certificatesForDoctor } from "@/lib/services/qualification-evidence";
 import { GATES } from "@/lib/seo/gates";
@@ -33,10 +35,10 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
   const sp = await searchParams;
   const d = await getDoctorAdmin(id);
   if (!d) notFound();
-  const [quality, analytics, audit, mergedInto, publicView, certs] = await Promise.all([
+  const [quality, analytics, timeline, mergedInto, publicView, certs] = await Promise.all([
     recomputeQuality(d.id),
     doctorAnalytics(d.id),
-    getDb().query.auditLogs.findMany({ where: eq(s.auditLogs.entityId, d.id), orderBy: [desc(s.auditLogs.createdAt)], limit: 40 }),
+    doctorTimeline(d.id),
     d.mergedIntoId ? getDb().query.doctors.findFirst({ where: eq(s.doctors.id, d.mergedIntoId), columns: { id: true, name: true } }) : Promise.resolve(null),
     getDoctorBySlug(d.slug).catch(() => null),
     certificatesForDoctor(d.id),
@@ -169,18 +171,10 @@ export default async function AdminDoctor({ params, searchParams }: { params: Pr
 
           {publicView ? <RankingBreakdown doctor={publicView} /> : null}
 
-          {/* Audit trail */}
+          {/* Activity: audit rows, checks, claims, enquiries, bookings, reviews and the worker, in one stream */}
           <section className="panel pad">
-            <h3 style={{ marginTop: 0 }}>Audit trail <span style={{ fontWeight: 400, color: "var(--muted)" }}>· last {audit.length}</span></h3>
-            <table className="table" style={{ fontSize: "12.5px" }}>
-              <thead><tr><th>When</th><th>Action</th><th>By</th><th>Reason</th></tr></thead>
-              <tbody>
-                {audit.map((a) => (
-                  <tr key={a.id}><td className="mono">{toDisplay(a.createdAt)}</td><td className="mono">{a.action}</td><td>{a.actorRole ?? "system"}</td><td style={{ color: "var(--muted)" }}>{a.reason ?? ""}</td></tr>
-                ))}
-              </tbody>
-            </table>
-            <Link href={`/admin/audit?entity=${d.id}`} style={{ fontSize: "13px" }}>Full history with diffs →</Link>
+            <h3 style={{ marginTop: 0 }}>Activity <span style={{ fontWeight: 400, color: "var(--muted)" }}>· everything that touched this profile</span></h3>
+            <Timeline events={timeline} more={{ href: `/admin/audit?entity=${d.id}`, label: "Full audit history with diffs →" }} />
           </section>
         </div>
 

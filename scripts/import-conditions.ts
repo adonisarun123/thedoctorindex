@@ -10,6 +10,8 @@ import { revalidateSite } from "./revalidate-site";
 
 import { bodyStrings, cleanCondition, countWords, type RawCondition } from "../lib/conditions/clean";
 import { departmentByName } from "../lib/conditions/departments";
+import { ROUTING_OVERRIDES } from "../lib/conditions/routing-overrides";
+import { SPECIALTIES } from "../lib/data/taxonomy";
 import * as s from "../lib/db/schema";
 
 config({ path: ".env.local" });
@@ -70,7 +72,8 @@ async function main() {
     const strings = bodyStrings(c.sections);
     const wordCount = strings.reduce((n, t) => n + countWords(t), 0);
     const uniqueWordCount = strings.reduce((n, t) => n + ((pages.get(norm(t, raw.condition_name)) ?? 0) >= SHARED_MIN_PAGES ? 0 : countWords(t)), 0);
-    const dept = departmentByName(raw.department)!;
+    const override = ROUTING_OVERRIDES[raw.slug] ? departmentByName(ROUTING_OVERRIDES[raw.slug]) : null;
+    const dept = override ?? departmentByName(raw.department)!;
     return {
       slug: raw.slug,
       sourceId: raw.id,
@@ -79,7 +82,7 @@ async function main() {
       department: dept.name,
       departmentSlug: dept.slug,
       specialtyKey: dept.specialty,
-      clinicianLabel: raw.doctor,
+      clinicianLabel: override?.specialty ? SPECIALTIES[override.specialty].one : raw.doctor,
       additionalDepartments: raw.additional_departments,
       scope: raw.scope,
       sourceCollection: raw.source_collection,

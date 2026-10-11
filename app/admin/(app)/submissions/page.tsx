@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { decideSubmissionAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
+import { QueueKeys } from "@/components/admin/QueueKeys";
 import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
@@ -37,12 +38,13 @@ export default async function AdminSubmissions({ searchParams }: { searchParams:
         <Link className="btn quiet" href={showAll ? "/admin/submissions" : "/admin/submissions?all=1"}>{showAll ? "Open only" : "Show decided"}</Link>
       </div>
 
+      <QueueKeys />
       {rows.length === 0 ? <div className="panel pad" style={{ color: "var(--muted)" }}>Queue is empty.</div> : null}
       {rows.map((r, i) => {
         const p = r.payload as SubmissionPayload;
         const dupe = dupes[i];
         return (
-          <div className="qcard" id={r.id} key={r.id}>
+          <div className="qcard qitem" id={r.id} key={r.id} data-queue-item={r.id}>
             <div className="qh">
               <div>
                 <div className="qt">Dr {p.name} · {SPECIALTIES[p.specialtyKey as keyof typeof SPECIALTIES]?.name ?? p.specialtyKey}</div>

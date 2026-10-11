@@ -8,8 +8,8 @@ import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { type LlmUsage, askJson } from "@/lib/news/llm";
 import { NEWS_BUFFER_MIN, NEWS_CATEGORIES, type NewsNumber, type NewsSource, fingerprint, isCategory, istDay } from "@/lib/news/format";
-import { DISCOVERY_QUERIES, type Hit, type Page, newsSearch, readPage } from "@/lib/news/sources";
-import { bufferCount, createStory, publishDue, publishedTodayCount } from "@/lib/services/news";
+import { DISCOVERY_QUERIES, type Hit, type Page, newsSearch, readPage, sectionHits } from "@/lib/news/sources";
+import { bufferCount, createStory, publishDue, publishFallback, publishedTodayCount } from "@/lib/services/news";
 import { absoluteUrl } from "@/lib/site";
 
 /**
@@ -148,11 +148,11 @@ export async function matchDoctor(name: string, place: string, specialtyKey: str
 /* ------------------------------------------------------------------------- */
 
 async function discover(report: { via: string[] }): Promise<Hit[]> {
-  const all = await Promise.allSettled(DISCOVERY_QUERIES.map((q) => newsSearch(q)));
+  const [all, sections] = await Promise.all([Promise.allSettled(DISCOVERY_QUERIES.map((q) => newsSearch(q))), sectionHits().catch(() => [] as Hit[])]);
   const done = all.filter((r): r is PromiseFulfilledResult<{ hits: Hit[]; via: "serper" | "claude" }> => r.status === "fulfilled");
-  report.via = Array.from(new Set(done.map((r) => r.value.via)));
-  const ok = done.flatMap((r) => r.value.hits);
-  if (!done.length) throw new Error(`Search failed for every query: ${(all[0] as PromiseRejectedResult).reason}`);
+  report.via = Array.from(new Set([...done.map((r) => r.value.via), ...(sections.length ? ["sections"] : [])]));
+  const ok = [...done.flatMap((r) => r.value.hits), ...sections];
+  if (!ok.length && !done.length) throw new Error(`Every discovery route failed: ${(all[0] as PromiseRejectedResult).reason}`);
   const byUrl = new Map<string, Hit>();
   for (const h of ok) if (!byUrl.has(h.url)) byUrl.set(h.url, h);
   return Array.from(byUrl.values());
@@ -160,7 +160,7 @@ async function discover(report: { via: string[] }): Promise<Hit[]> {
 
 async function triage(hits: Hit[], usage: LlmUsage): Promise<Candidate[]> {
   if (!hits.length) return [];
-  const list = hits.map((h, i) => `[${i}] ${h.title} | ${h.source} | ${h.date} | ${h.snippet}`).join("\n");
+  const list = hits.slice(0, 250).map((h, i) => `[${i}] ${h.title} | ${h.source} | ${h.date || "date unknown"} | ${h.snippet}`).join("\n");
   const out = await askJson<{ stories: Candidate[] }>({
     system: SYSTEM_RULES,
     usage,
@@ -169,7 +169,7 @@ async function triage(hits: Hit[], usage: LlmUsage): Promise<Candidate[]> {
 - about one or more named individual medical doctors (physicians, surgeons, dentists) — not hospitals alone, not companies, not non-medical scientists;
 - an achievement or appointment: award, honour, recognition, medical first or rare procedure, published research, election to a professional body, senior appointment, milestone, or a notable life-saving act (e.g. saving a passenger mid-flight);
 - about a doctor practising in India, or an Indian-origin doctor practising abroad.
-Exclude: crime, negligence, disputes, deaths and obituaries, politics, protests, strikes, advertorials and "sponsored" content, events older than 7 days, and anything where the doctor is not named.
+Exclude: crime, negligence, disputes, court cases, deaths and obituaries, politics, protests, strikes, regulation and policy news, advertorials and "sponsored" content, events clearly older than 7 days, and anything where no individual doctor is named or nameable from the headline.
 Score newsworthiness 1–10 for Indian patients and doctors (national award or genuine first = 8–10; local felicitation = 3–4).
 Categories: ${Object.keys(NEWS_CATEGORIES).join(", ")}.
 Return {"stories":[{"items":[indices],"subject":"Dr Full Name","event":"5-8 word description of the event","category":"…","score":n,"where":"india"|"abroad"}]} — best first, at most 8. Return {"stories":[]} if none qualify.
@@ -357,8 +357,22 @@ export async function runNewsPipeline(opts: { publish?: boolean } = {}): Promise
  * Afternoon safety net: fill any empty slot from the buffer, then alert if
  * the day is still empty or the buffer is running low.
  */
-export async function runNewsSafetyNet(): Promise<{ published: number; today: number; buffer: number; review: number; alerted: boolean }> {
-  const published = (await publishDue()).length;
+export async function runNewsSafetyNet(): Promise<{ published: number; fallback: string | null; today: number; buffer: number; review: number; alerted: boolean }> {
+  let published = (await publishDue()).length;
+  let fallback: string | null = null;
+  if ((await publishedTodayCount()) === 0) {
+    // Nothing approved is waiting: look for fresh news once more, then fall back to the best checked draft.
+    await runNewsPipeline({ publish: false }).catch(() => null);
+    published += (await publishDue()).length;
+    if ((await publishedTodayCount()) === 0) {
+      const fb = await publishFallback();
+      if (fb) {
+        published++;
+        fallback = fb.slug;
+        await alertStaff(`Published by fallback: ${fb.headline}`, `Nothing met the auto-publish rule today and nothing was approved, so the daily fallback published the best checked draft:\n\n${fb.headline}\n${absoluteUrl(`/news/${fb.slug}`)}\n\nWhy it was not auto-approved: ${fb.gateNotes.join(" ")}\n\nWithdraw it from ${absoluteUrl("/admin/news?view=published")} if it should not be live.`);
+      }
+    }
+  }
   const today = await publishedTodayCount();
   const buffer = await bufferCount();
   const [r] = await getDb().select({ n: sql<number>`count(*)::int` }).from(s.newsStories).where(eq(s.newsStories.status, "draft"));
@@ -370,14 +384,14 @@ export async function runNewsSafetyNet(): Promise<{ published: number; today: nu
     await alertStaff(
       today === 0 ? "No news story published today" : `News buffer low (${buffer})`,
       [
-        today === 0 ? "Nothing has been published on /news today and the buffer is empty." : `Today: ${today} published. Buffer: ${buffer} (minimum ${NEWS_BUFFER_MIN}).`,
+        today === 0 ? "Nothing has been published on /news today: the buffer is empty and no draft passed the fallback checks (claims check passed, fresh, no editorial problems)." : `Today: ${today} published. Buffer: ${buffer} (minimum ${NEWS_BUFFER_MIN}).`,
         `Stories waiting for your review: ${review}. Approving them refills the buffer.`,
         lastRun ? `Last pipeline run: ${lastRun.ok === false ? `FAILED — ${lastRun.error}` : "ok"}.` : "The pipeline has not run yet.",
         `Review: ${absoluteUrl("/admin/news")}`,
       ].join("\n\n"),
     );
   }
-  return { published, today, buffer, review, alerted };
+  return { published, fallback, today, buffer, review, alerted };
 }
 
 async function alertStaff(subject: string, text: string): Promise<void> {

@@ -77,3 +77,13 @@ test("stale or undated stories need an editor", () => {
 test("a body that narrates its sourcing is flagged", () => {
   assert.ok(storyProblems({ ...good, body: good.body + " The report does not give their hospitals." }).some((p) => p.includes("comments on its sources")));
 });
+
+test("section pages yield article links, not tag or section links", async () => {
+  const { extractArticleLinks } = await import("../../lib/news/sources");
+  const html = `<a href="/news/health/doctors/dr-asha-rao-receives-national-award-for-cardiac-research-180999"><span>Dr Asha Rao receives national award for cardiac research</span></a>
+  <a href="/tag/doctors">Doctors news and more stories here today</a>
+  <a href="https://other.com/a-b-c-d-e-f-g">Some other site story with a long headline here</a>`;
+  const links = extractArticleLinks(html, "https://medicaldialogues.in/news/health/doctors");
+  assert.equal(links.length, 1);
+  assert.ok(links[0].url.endsWith("-180999") && links[0].title.startsWith("Dr Asha Rao"));
+});

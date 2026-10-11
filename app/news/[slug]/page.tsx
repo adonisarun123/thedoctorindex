@@ -202,7 +202,7 @@ export default async function NewsStoryPage({ params }: { params: Promise<Params
             ) : null}
             <div className="railcard">
               <div className="eyebrow">About the Newsdesk</div>
-              <p>Achievements, firsts, research and appointments of Indian doctors, at home and abroad — one or two stories a day, every one sourced.</p>
+              <p>Achievements, firsts, research and appointments of Indian doctors, at home and abroad — one story a day, every one sourced.</p>
               <Link className="plainlink" href={paths.news()}>All news →</Link>
               <a className="plainlink" href="/news/feed.xml">RSS feed</a>
             </div>

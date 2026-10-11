@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
-import { NEWS_DAILY_MAX } from "@/lib/news/format";
 import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, newsdeskLd } from "@/lib/seo/structured-data";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
@@ -45,7 +44,7 @@ export default function NewsAbout() {
         <div className="doc postbody" style={{ maxWidth: "74ch" }}>
           <h2>What we cover</h2>
           <p>
-            Achievements of doctors practising in India and of Indian-origin doctors abroad: awards and honours, medical firsts, published research, recognition by professional bodies, public-health work, milestones and senior appointments. We publish up to {NEWS_DAILY_MAX} stories a day, and none on a day when there is nothing worth publishing.
+            Achievements of doctors practising in India and of Indian-origin doctors abroad: awards and honours, medical firsts, published research, recognition by professional bodies, public-health work, milestones and senior appointments. We publish one story a day.
           </p>
           <h2>Where the facts come from</h2>
           <ul>
@@ -55,7 +54,7 @@ export default function NewsAbout() {
           </ul>
           <h2>When a story needs an editor</h2>
           <p>
-            Stories are researched and drafted with the help of software, including AI. A story is published without an editor reading it first only when all of these hold: at least two independent news organisations or institutions report it; the doctor has been matched to their profile on The Doctor Index; the news was reported within the last two weeks; and the statement check passed. Everything else &mdash; a single-source story, a doctor not on the site, an Indian-origin doctor abroad &mdash; is read and approved by a member of our team before it appears.
+            Stories are researched and drafted with the help of software, including AI. A story is published without an editor reading it first only when all of these hold: at least two independent news organisations or institutions report it; the doctor has been matched to their profile on The Doctor Index; the news was reported within the last two weeks; and the statement check passed. Otherwise a member of our team reads and approves the story first. On a day when no story has been approved by early afternoon, we publish the most recent story that passed the statement check and was reported within the last two weeks, even if it has a single source or the doctor is not listed here; such stories are reviewed by our team the same day and corrected or withdrawn if needed.
           </p>
           <h2>Linking to a doctor&rsquo;s profile</h2>
           <p>

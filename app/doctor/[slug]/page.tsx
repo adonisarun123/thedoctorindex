@@ -250,6 +250,20 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                   <span>{[facilityLabel(primaryPractice), primaryPractice.localityName, primaryPractice.city].filter((v, i, a) => v && a.indexOf(v) === i).join(", ")}</span>
                 </div>
               ) : null}
+              {doctor.rating.count ? (
+                <a className="idband-rating" href="#reviews">
+                  <Stars value={doctor.rating.average} />
+                  <b>{doctor.rating.average.toFixed(1)}</b>
+                  <span>
+                    {doctor.rating.count} patient {doctor.rating.count === 1 ? "review" : "reviews"}
+                  </span>
+                </a>
+              ) : (
+                <Link className="idband-rating none" href={`${paths.doctor(doctor.slug)}/review`}>
+                  <Stars value={0} />
+                  <span>No patient reviews yet · be the first to rate your visit</span>
+                </Link>
+              )}
               <div className="meter" aria-label={`${passed} of ${checks.length} checks passed`}>
                 <div className="meter-head">
                   <span>
@@ -288,6 +302,9 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                     </Link>
                   )}
                 </div>
+                <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/review`}>
+                  Rate your visit
+                </Link>
                 <p>Number shown after sign-in, to keep it off scraper lists.</p>
               </div>
             ) : null}
@@ -367,6 +384,8 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 ) : null}
               </section>
             ) : null}
+
+            <Reviews doctor={doctor} />
 
             <section className="block">
               <div className="section-head" style={{ marginBottom: "12px" }}>
@@ -481,8 +500,6 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 ))}
               </ul>
             </section>
-
-            <Reviews doctor={doctor} />
 
             <Nearby doctor={doctor} nearby={await getNearby(doctor)} />
 
@@ -618,28 +635,30 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
   }
   if (!rating.count && !reviews.length) {
     return (
-      <section className="block">
+      <section className="block" id="reviews">
         <h2>Patient reviews</h2>
         <div className="panel pad revempty">
+          <div className="revempty-stars" aria-hidden="true"><Stars value={0} size={22} /></div>
+          <p className="revempty-lead">Seen {displayName(doctor)}? Rate your visit.</p>
           <p>
-            No reviews yet. {doctor.claimed ? "Be the first to write one." : "Reviews are open on every published profile."} A review describes patient
-            experience — communication, explanation, waiting time and the facility — never clinical outcome, and is published only after its proof of
-            consultation has been checked. <Link href={paths.policy("reviews")}>Review policy</Link>
+            Two minutes: how the consultation went, how clearly things were explained, the wait and the clinic. Your name is never shown. Reviews describe the
+            visit, not clinical outcome, and are read by a moderator before they appear. <Link href={paths.policy("reviews")}>Review policy</Link>
           </p>
-          <Link className="btn" href={`${paths.doctor(doctor.slug)}/review`}>
-            Write a review
+          <Link className="btn solid" href={`${paths.doctor(doctor.slug)}/review`}>
+            Rate your visit
           </Link>
         </div>
       </section>
     );
   }
   return (
-    <section className="block">
+    <section className="block" id="reviews">
       <h2>Patient reviews</h2>
       <div className="revsum">
         <div>
           <div className="big">{rating.count ? rating.average.toFixed(1) : "—"}</div>
-          <div className="of">{rating.count ? `${rating.count} reviews` : "no reviews yet"}</div>
+          <div className="revsum-stars"><Stars value={rating.average} size={18} /></div>
+          <div className="of">{rating.count ? `${rating.count} ${rating.count === 1 ? "review" : "reviews"}` : "no reviews yet"}</div>
         </div>
         <div>
           {[5, 4, 3, 2, 1].map((star) => {
@@ -664,9 +683,11 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
             <div className="top">
               <span className="who">
                 {r.author}{" "}
-                <span className={`badge ${r.evidenceChecked ? "ok" : "neut"}`} style={{ marginLeft: "6px" }}>
-                  {r.evidenceChecked ? "Prescription checked" : "Not prescription-verified"}
-                </span>
+                {r.evidenceChecked ? (
+                  <span className="badge ok" style={{ marginLeft: "6px" }} title="The reviewer's prescription or bill from this doctor was checked by a moderator">
+                    Verified visit
+                  </span>
+                ) : null}
               </span>
               <span className="when">
                 {r.visitMonth} · {r.mode}
@@ -697,15 +718,15 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
       )}
 
       <div className="blockacts">
-        <Link className="btn" href={`${paths.doctor(doctor.slug)}/review`}>
-          Write a review
+        <Link className="btn solid" href={`${paths.doctor(doctor.slug)}/review`}>
+          Rate your visit
         </Link>
         <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/report?about=review`}>
           Report a review
         </Link>
       </div>
       <p className="blocknote">
-        Only patients with a prescription from this doctor can review, and every review is moderated. Reviews describe the visit, not clinical outcome. <Link href={paths.policy("reviews")}>Review policy</Link>
+        Every review is read by a moderator before it appears; &ldquo;Verified visit&rdquo; marks reviews whose prescription or bill from this doctor was checked. Reviews describe the visit, not clinical outcome. <Link href={paths.policy("reviews")}>Review policy</Link>
       </p>
     </section>
   );
@@ -938,5 +959,17 @@ function Nearby({ doctor, nearby }: { doctor: DoctorView; nearby: DoctorView[] }
         Same locality first, then the rest of {doctor.practices[0]?.city || "the city"}; doctors with a registration on record come before those without. Nobody pays to appear here.
       </p>
     </section>
+  );
+}
+
+/** Five stars, filled to the nearest half. Decorative; the number beside it carries the value. */
+function Stars({ value, size = 15 }: { value: number; size?: number }) {
+  const v = Math.max(0, Math.min(5, Math.round(value * 2) / 2));
+  return (
+    <span className="stars" aria-hidden="true" style={{ "--star": `${size}px` } as React.CSSProperties}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <i key={i} className={v >= i ? "full" : v >= i - 0.5 ? "half" : ""} />
+      ))}
+    </span>
   );
 }

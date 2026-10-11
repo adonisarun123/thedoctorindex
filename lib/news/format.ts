@@ -20,8 +20,8 @@ export type NewsCategory = keyof typeof NEWS_CATEGORIES;
 export const isCategory = (c: string): c is NewsCategory => c in NEWS_CATEGORIES;
 
 export const NEWS_DESK = "TDi Newsdesk";
-/** At most this many stories go live per IST calendar day; the rest wait in the buffer. */
-export const NEWS_DAILY_MAX = 2;
+/** Exactly one story a day (Arun, 11 Oct 2026). Further approved stories wait in the buffer for later days. */
+export const NEWS_DAILY_MAX = 1;
 /** Below this many approved stories in the buffer, staff get an alert. */
 export const NEWS_BUFFER_MIN = 3;
 

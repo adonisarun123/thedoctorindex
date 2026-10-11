@@ -671,17 +671,30 @@ export const dbSource: DataSource = {
   async searchDoctors(query: string, place?: Place): Promise<DoctorView[]> {
     const q = query.trim().toLowerCase();
     if (!q) return [];
+    const scope = place && Object.keys(place).length ? sql`and ${inPlaceSubquery(place)}` : sql``;
+    const run = (where: SQL, order: SQL) =>
+      getDb().execute(sql`select d.id from doctors d where d.status = 'published' and ${where} ${scope} order by ${order} limit ${SEARCH_CAP}`) as unknown as Promise<Array<{ id: string }>>;
+
+    // Three indexed paths, cheapest first, instead of one OR over every
+    // published row (which forced a scan of the table plus an unnest per row).
     // "cardiologist", "heart doctor" → cardiology via the taxonomy's synonym list.
     const spec = resolveSpecialtyQuery(q)?.key ?? "";
-    const rows = (await getDb().execute(sql`
-      select d.id from doctors d
-      where d.status = 'published'
-        and (lower(d.name) % ${q} or lower(d.name) like ${"%" + q + "%"} or d.specialty_key like ${"%" + q + "%"} or d.specialty_key = ${spec}
-             or exists (select 1 from unnest(d.subspecialties) x where lower(x) like ${"%" + q + "%"}))
-        ${place && Object.keys(place).length ? sql`and ${inPlaceSubquery(place)}` : sql``}
-      order by (d.specialty_key = ${spec}) desc, d.quality_score desc, similarity(lower(d.name), ${q}) desc
-      limit ${SEARCH_CAP}
-    `)) as unknown as Array<{ id: string }>;
+    let rows: Array<{ id: string }>;
+    if (spec) {
+      rows = await run(sql`d.specialty_key = ${spec}`, sql`d.quality_score desc, d.name asc`);
+    } else {
+      // A name. The gin trigram index on lower(name) serves both operators.
+      const name = q.replace(/^(dr|doctor)\.?\s+/, "");
+      rows = await run(
+        sql`(lower(d.name) % ${name} or lower(d.name) like ${"%" + name + "%"})`,
+        sql`similarity(lower(d.name), ${name}) desc, d.quality_score desc`,
+      );
+    }
+    // Nothing by speciality or name: a sub-speciality or service word ("ivf", "knee").
+    // Rare, so the scan it costs is paid only when the indexed paths found nothing.
+    if (!rows.length && !spec) {
+      rows = await run(sql`(d.specialty_key like ${"%" + q + "%"} or array_to_string(d.subspecialties, ' ') ilike ${"%" + q + "%"})`, sql`d.quality_score desc`);
+    }
     if (!rows.length) return [];
     return viewsByIds(rows.map((r) => r.id), "card");
   },

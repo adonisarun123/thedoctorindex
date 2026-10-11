@@ -259,7 +259,7 @@ export async function listAppointmentsAdmin(f: AdminBookingFilter) {
   }
   return getDb().query.appointments.findMany({
     where: conds.length ? and(...conds) : undefined,
-    with: { doctor: true, practice: { with: { facility: true } } },
+    with: { doctor: true, practice: { with: { facility: true } }, patient: { columns: { id: true, displayName: true, phone: true, email: true, localityKey: true, city: true } } },
     orderBy: [desc(s.appointments.createdAt)],
     limit: 200,
   });
