@@ -8,8 +8,13 @@ import { getDb } from "@/lib/db/client";
  * email and area at /account/setup before it can enquire, book or review
  * (app/account/actions.ts), so these four columns are complete for any
  * account that has done anything; "incomplete" rows signed in and stopped.
- * Doctors and staff are excluded — they have their own queues.
+ * Doctors and staff are excluded — they have their own queues. An account
+ * that said it is a doctor at sign-up (users.account_type) is excluded even
+ * before its profile is verified; those sit on /admin/doctor-accounts.
  */
+
+/** The rows this page is about, as a WHERE fragment on alias `u`. */
+export const PATIENT_ACCOUNT_SQL = sql`u.role = 'patient' and coalesce(u.account_type, 'patient') = 'patient'`;
 export interface PatientRow {
   id: string;
   name: string;
@@ -49,7 +54,7 @@ export async function listPatients(f: PatientFilter = {}): Promise<PatientRow[]>
   const q = f.q?.trim();
   const digits = q ? q.replace(/\D/g, "") : "";
   const limit = Math.min(Math.max(f.limit ?? 500, 1), 5000);
-  const conds = [sql`u.role = 'patient'`];
+  const conds = [PATIENT_ACCOUNT_SQL];
   if (q) {
     const like = `%${q}%`;
     conds.push(
@@ -106,7 +111,7 @@ export async function patientTotals(): Promise<{ total: number; complete: number
            count(*) filter (where exists (select 1 from enquiries e where e.user_id = u.id) or exists (select 1 from appointments a where a.patient_user_id = u.id) or exists (select 1 from reviews r where r.author_user_id = u.id))::int as active,
            count(*) filter (where u.created_at > now() - interval '7 days')::int as last7,
            count(*) filter (where u.marketing_opt_in)::int as opted_in
-    from users u where u.role = 'patient'
+    from users u where ${PATIENT_ACCOUNT_SQL}
   `)) as unknown as Array<{ total: number; complete: number; active: number; last7: number; opted_in: number }>;
   return { total: Number(row?.total ?? 0), complete: Number(row?.complete ?? 0), active: Number(row?.active ?? 0), last7: Number(row?.last7 ?? 0), optedIn: Number(row?.opted_in ?? 0) };
 }

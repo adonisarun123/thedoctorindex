@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { flowFromNext } from "@/lib/funnel";
-import { doctorDestination } from "@/lib/auth/doctor-journey";
+import { doctorDestination, impliedAccountType, unverifiedDoctorHome } from "@/lib/auth/doctor-journey";
 import { requestOtp, verifyOtp } from "@/lib/auth/otp";
 import { createSession, destroySession, getSessionUser } from "@/lib/auth/session";
 import { audit } from "@/lib/services/audit";
@@ -53,7 +53,7 @@ export async function verifyOtpAction(_prev: SignInState, form: FormData): Promi
 async function recordSignupJourney(userId: string, next: string): Promise<void> {
   await getDb()
     .update(users)
-    .set({ signupFlow: flowFromNext(next), signupNext: next.slice(0, 300) })
+    .set({ signupFlow: flowFromNext(next), signupNext: next.slice(0, 300), accountType: impliedAccountType(next) })
     .where(eq(users.id, userId));
 }
 
@@ -63,6 +63,8 @@ export async function homeFor(userId: string): Promise<string> {
   if (u && u.id === userId) {
     if (u.role === "staff" && u.staffRoles.length) return "/admin";
     if (u.role === "doctor") return "/dashboard";
+    // Said they are a doctor, not verified yet: straight to "Is this you?" on the register.
+    if (u.accountType === "doctor") return unverifiedDoctorHome(u.displayName);
   }
   return "/account";
 }

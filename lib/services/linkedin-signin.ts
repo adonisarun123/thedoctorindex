@@ -5,6 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type { LinkedInProfile } from "@/lib/auth/linkedin";
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
+import { impliedAccountType } from "@/lib/auth/doctor-journey";
 import { flowFromNext } from "@/lib/funnel";
 import { storeFile } from "@/lib/services/files";
 
@@ -38,7 +39,7 @@ export async function signInWithLinkedIn(
   if (!userId) {
     const [u] = await db
       .insert(s.users)
-      .values({ email: p.email, displayName: p.name, signupFlow: flowFromNext(next), signupNext: next.slice(0, 300) })
+      .values({ email: p.email, displayName: p.name, signupFlow: flowFromNext(next), signupNext: next.slice(0, 300), accountType: impliedAccountType(next) })
       .returning({ id: s.users.id });
     userId = u.id;
     created = true;

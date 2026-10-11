@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 import { saveProfileDetailsAction } from "@/app/account/actions";
 import { ActionForm } from "@/components/ActionForm";
@@ -22,15 +25,34 @@ export interface ProfileDetailsUser {
  * the account page. The channel used to sign in is fixed; the other is
  * collected here.
  */
-export function ProfileDetailsForm({ user, next, submitLabel, doctor = false }: { user: ProfileDetailsUser; next?: string; submitLabel?: string; doctor?: boolean }) {
+export function ProfileDetailsForm({ user, next, submitLabel, doctor = false, accountType }: { user: ProfileDetailsUser; next?: string; submitLabel?: string; doctor?: boolean; /** Pre-selected answer to "who is this account for?"; the person confirms it on first run. */ accountType?: "patient" | "doctor" | null }) {
   const first = !user.profileComplete;
-  // A doctor's first run asks only what a verification officer needs: name,
-  // mobile, terms. Their practice location comes from the register entry they
-  // claim, so a home locality is optional here and can be added later.
-  const short = doctor && first;
+  // First run asks who the account is for. The answer decides the rest of the
+  // form: a doctor gives only what a verification officer needs (name, mobile,
+  // terms) and goes to the register search next; a patient gives a home area.
+  const [kind, setKind] = useState<"patient" | "doctor">(accountType ?? (doctor ? "doctor" : "patient"));
+  const short = first && kind === "doctor";
+  const label = submitLabel ?? (first ? (short ? "Find my registration" : "Save and continue") : "Save details");
   return (
-    <ActionForm action={saveProfileDetailsAction} submitLabel={submitLabel ?? (first ? "Save and continue" : "Save details")} variant="solid" className="panel pad">
+    <ActionForm action={saveProfileDetailsAction} submitLabel={label} variant="solid" className="panel pad">
       {next ? <input type="hidden" name="next" value={next} /> : null}
+      {first ? (
+        <fieldset className="field acct-kind">
+          <legend>This account is for</legend>
+          <div className="acct-opts">
+            <label className={kind === "patient" ? "on" : ""}>
+              <input type="radio" name="accountType" value="patient" checked={kind === "patient"} onChange={() => setKind("patient")} />
+              <span className="acct-t">A patient</span>
+              <span className="acct-d">Myself or my family — to find doctors, book, enquire and review.</span>
+            </label>
+            <label className={kind === "doctor" ? "on" : ""}>
+              <input type="radio" name="accountType" value="doctor" checked={kind === "doctor"} onChange={() => setKind("doctor")} />
+              <span className="acct-t">A doctor or healthcare professional</span>
+              <span className="acct-d">To claim or create my profile. Verified against the medical council register on the next screen.</span>
+            </label>
+          </div>
+        </fieldset>
+      ) : null}
       <div className="field">
         <label htmlFor="fullName">Full name</label>
         <input id="fullName" name="fullName" type="text" autoComplete="name" required minLength={3} maxLength={80} defaultValue={user.displayName ?? ""} placeholder={short ? "As on your council registration" : "As on your ID"} autoFocus={short} />

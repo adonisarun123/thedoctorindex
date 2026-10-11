@@ -88,7 +88,7 @@ export async function decideSubmission(id: string, decision: "approved" | "rejec
     const created = await createDoctor(input, staffUserId, "staff");
     doctorId = created.id;
     await db.update(s.doctors).set({ photoConsent: Boolean(p.consents?.photo), phoneConsent: Boolean(p.consents?.phone) }).where(eq(s.doctors.id, doctorId));
-    await db.update(s.users).set({ role: "doctor" }).where(and(eq(s.users.id, sub.userId), eq(s.users.role, "patient")));
+    await db.update(s.users).set({ role: "doctor", accountType: "doctor" }).where(and(eq(s.users.id, sub.userId), eq(s.users.role, "patient")));
     // Certificates uploaded at signup join the admin Qualifications queue. createDoctor
     // writes qualifications with sort = their index in the payload.
     const withCert = (p.qualifications ?? []).map((q, i) => ({ i, fileId: q.certificateFileId })).filter((x): x is { i: number; fileId: string } => Boolean(x.fileId));
@@ -147,7 +147,7 @@ export async function decideClaim(id: string, decision: "approved" | "rejected",
   if (decision === "approved") {
     await db.transaction(async (tx) => {
       await tx.update(s.doctors).set({ claimed: true, claimedByUserId: c.userId }).where(eq(s.doctors.id, c.doctorId));
-      await tx.update(s.users).set({ role: "doctor" }).where(and(eq(s.users.id, c.userId), eq(s.users.role, "patient")));
+      await tx.update(s.users).set({ role: "doctor", accountType: "doctor" }).where(and(eq(s.users.id, c.userId), eq(s.users.role, "patient")));
       await tx.insert(s.verificationChecks).values({ doctorId: c.doctorId, kind: "claim", subjectId: c.id, result: "verified", source: c.method, checkedByUserId: staffUserId, note });
       // A competing pending claim on the same profile is closed, never auto-approved.
       await tx.update(s.doctorClaims).set({ status: "rejected", decidedAt: new Date(), decidedByUserId: staffUserId, note: "Another claim on this profile was approved." }).where(and(eq(s.doctorClaims.doctorId, c.doctorId), eq(s.doctorClaims.status, "pending"), sql`${s.doctorClaims.id} <> ${id}`));

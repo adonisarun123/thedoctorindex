@@ -187,7 +187,7 @@ export async function goLiveFromRegister(userId: string, sourceRecordId: number)
     });
   }
 
-  await db.update(s.users).set({ role: "doctor" }).where(and(eq(s.users.id, userId), eq(s.users.role, "patient")));
+  await db.update(s.users).set({ role: "doctor", accountType: "doctor" }).where(and(eq(s.users.id, userId), eq(s.users.role, "patient")));
   await recomputeQuality(doctorId);
   await audit({ actorUserId: userId, actorRole: "doctor", action: created ? "onboard.created_live" : "onboard.claimed_live", entityType: "doctor", entityId: doctorId, after: { registerEntry: r.sourceRecordId, council: r.council, number: r.number, nameFrom: acct.from }, reason: evidence });
   await settleReferralsForDoctor(doctorId);

@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     db.execute(sql`
       select u.id, u.display_name, u.phone, u.email, u.city
       from users u
-      where u.role = 'patient' and (
+      where u.role = 'patient' and coalesce(u.account_type, 'patient') = 'patient' and (
         ${digits.length >= 4 ? sql`regexp_replace(coalesce(u.phone, ''), '[^0-9]', '', 'g') like ${`%${digits}%`}` : sql`false`}
         or u.display_name ilike ${like} or u.email ilike ${like})
       order by u.created_at desc
