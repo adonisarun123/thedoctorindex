@@ -20,7 +20,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
       <div className="dash-head">
         <div>
           <h1>Review moderation</h1>
-          <div className="sub">Highest risk first. Automated checks flag; a person decides. <Link href="/admin/reviews/questions">Edit review questions →</Link> <b>Step 1:</b> open the prescription and record whether it is valid (doctor or practice name and a date that fits the stated visit month). <b>Step 2:</b> publish, redact or reject the text. Publishing is blocked until the proof is validated; a rejected proof rejects the review automatically. The document is deleted overnight once the review is decided.</div>
+          <div className="sub">Highest risk first. Automated checks flag; a person decides. <Link href="/admin/reviews/questions">Edit review questions →</Link> <b>Step 1 (only when a document was uploaded):</b> open it and record whether it is valid (doctor or practice name and a date that fits the stated visit month) — a valid one earns the review the Verified visit badge; a false one rejects the review. <b>Step 2:</b> publish, redact or reject the text. Reviews without a document are judged on the text alone. Documents are deleted overnight once the review is decided.</div>
         </div>
         <div className="quick" style={{ marginTop: 0 }}>
           {(["pending", "published", "redacted", "rejected", "removed"] as const).map((st) => (
@@ -110,8 +110,11 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
               </div>
             ) : null}
 
-            {r.status === "pending" && r.evidence !== "checked" ? (
-              <div className="qm" style={{ marginTop: "10px", color: "var(--pending)" }}>Step 2 unlocks once the proof is recorded as valid. {r.evidence === "none" ? "No document was supplied — reject." : ""}</div>
+            {r.status === "pending" && r.evidence === "supplied" ? (
+              <div className="qm" style={{ marginTop: "10px", color: "var(--pending)" }}>Step 2 unlocks once the uploaded document is recorded as valid or not.</div>
+            ) : null}
+            {r.status === "pending" && r.evidence === "none" ? (
+              <div className="qm" style={{ marginTop: "10px" }}>No document uploaded — judge the text; the review publishes without the Verified visit badge.</div>
             ) : null}
             {r.status === "pending" || status !== "pending" ? (
               <ActionForm action={moderateReviewAction} submitLabel="Apply decision" variant="solid" style={{ marginTop: "10px" }}>

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -535,6 +535,34 @@ export async function resetEnrichmentAction(_p: AdminState, f: FormData): Promis
     const doctorId = str(f, "doctorId");
     await getDb().update(s.doctorEnrichment).set({ nmcStatus: "pending", googleStatus: sql`case when google_status = 'error' then 'pending' else google_status end`, attempts: 0, lastError: null, nmcCandidates: null, updatedAt: new Date() }).where(eq(s.doctorEnrichment.doctorId, doctorId));
     return done("Queued for the next worker run.", ["/admin/enrichment"]);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Bulk decisions on the register-matching queue. Accepting a candidate is
+ * never bulk (each needs a person's judgement); leaving a batch unverified or
+ * queuing it for another worker pass is. One audit row per doctor.
+ */
+export async function bulkEnrichmentAction(_p: AdminState, f: FormData): Promise<AdminState> {
+  try {
+    const u = await requireStaff("verification_officer");
+    const op = str(f, "op");
+    const ids = str(f, "ids").split(",").map((x) => x.trim()).filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 200);
+    if (!ids.length) throw new Error("Nothing selected.");
+    const db = getDb();
+    if (op === "dismiss") {
+      await db.update(s.doctorEnrichment).set({ nmcStatus: "dismissed", nmcCandidates: null, updatedAt: new Date() }).where(inArray(s.doctorEnrichment.doctorId, ids));
+      for (const doctorId of ids) await audit({ actorUserId: u.id, actorRole: "staff", action: "doctor.registration.unmatched", entityType: "doctor", entityId: doctorId, reason: "No register candidate accepted (bulk)" });
+      return done(`${ids.length} left unverified.`, ["/admin/enrichment"]);
+    }
+    if (op === "retry") {
+      await db.update(s.doctorEnrichment).set({ nmcStatus: "pending", googleStatus: sql`case when google_status = 'error' then 'pending' else google_status end`, attempts: 0, lastError: null, nmcCandidates: null, updatedAt: new Date() }).where(inArray(s.doctorEnrichment.doctorId, ids));
+      await audit({ actorUserId: u.id, actorRole: "staff", action: "enrichment.retry", entityType: "doctor", entityId: null, after: { count: ids.length }, reason: "Queued for the next worker run (bulk)" });
+      return done(`${ids.length} queued for the next worker run.`, ["/admin/enrichment"]);
+    }
+    throw new Error("Unknown bulk operation.");
   } catch (e) {
     return fail(e);
   }

@@ -65,7 +65,7 @@ export const POLICIES: Policy[] = [
               </tr>
               <tr>
                 <td>Visit evidence checked</td>
-                <td>The reviewer&rsquo;s private proof of consultation (prescription, bill, appointment record) was validated by a moderator — required for every published review</td>
+                <td>The reviewer&rsquo;s private proof of consultation (prescription, bill, appointment record) was validated by a moderator — shown as &ldquo;Verified visit&rdquo; on that review. Optional: reviews without it are published after moderation without the badge</td>
                 <td>Not an endorsement of the review&rsquo;s opinion</td>
               </tr>
             </tbody>
@@ -204,16 +204,21 @@ export const POLICIES: Policy[] = [
           <li>No ratings or review text imported from any other platform.</li>
           <li>No self-reviews by doctors or staff, no competitor reviews, no incentives, no review gating. Doctors may share their review link with all of their patients, not a chosen few.</li>
           <li>
-            Every review must be supported by the prescription from the visit (or, where none was given, a
-            bill or appointment confirmation from the same doctor). A moderator checks the document before
-            anything is published; a review whose proof is not valid is not published. The document is
-            private, seen by one moderator, and deleted as soon as the review is decided — in any case within
-            30 days of upload. We keep only the record that the check happened.
+            A reviewer may attach the prescription from the visit (or a bill or appointment confirmation from
+            the same doctor). A moderator checks the document before the review is published; a review whose
+            document checks out carries the &ldquo;Verified visit&rdquo; badge, and a review whose document is
+            found to be false is rejected. The document is private, seen by one moderator, and deleted as soon
+            as the review is decided — in any case within 30 days of upload. We keep only the record that the
+            check happened.
           </li>
-          <li>Every policy-compliant, evidence-checked review is published, positive or negative.</li>
+          <li>
+            Reviews without a document are published too, after the same moderation, without the badge. Every
+            review is tied to a real, contactable account (name, mobile and email), one review per person per doctor.
+          </li>
+          <li>Every policy-compliant review is published, positive or negative.</li>
           <li>No doctor can pay to remove a review or suppress criticism.</li>
           <li>
-            &ldquo;Prescription checked&rdquo; therefore appears on every published review; the date of the check
+            &ldquo;Verified visit&rdquo; appears only on reviews whose document was checked; the date of the check
             is recorded.
           </li>
           <li>Doctors may post one reply and must not reveal or confirm any health information in it.</li>
@@ -394,7 +399,7 @@ export const POLICIES: Policy[] = [
             </thead>
             <tbody>
               <tr><td>Doctors</td><td>Name, registration, qualifications, practice details, contact for OTP, identity evidence</td><td>Verifying and publishing a professional profile</td><td>While the profile exists, then 3 years for audit</td></tr>
-              <tr><td>Reviewers</td><td>Name, mobile and email, review content, private proof of consultation (required)</td><td>Publishing first-hand reviews and validating evidence</td><td>Proof deleted once the review is decided (at most 30 days after upload); review while published</td></tr>
+              <tr><td>Reviewers</td><td>Name, mobile and email, review content, private proof of consultation (optional)</td><td>Publishing first-hand reviews and validating evidence</td><td>Proof deleted once the review is decided (at most 30 days after upload); review while published</td></tr>
               <tr><td>Visitors</td><td>Pages viewed, contact actions taken</td><td>Improving discovery and measuring whether people reach a doctor</td><td>Aggregated after 13 months</td></tr>
               <tr><td>Visitors who search</td><td>The words of a search, and the reading of it described under <a href="#search">Search, voice and AI</a></td><td>Showing the right doctors, and the emergency notice where it applies</td><td>Not linked to you; a search&rsquo;s AI reading is reused for up to 30 days</td></tr>
             </tbody>

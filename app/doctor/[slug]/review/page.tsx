@@ -18,7 +18,7 @@ type Search = Record<string, string | string[] | undefined>;
 const KIND = "review" as const;
 const TITLE = "Write a review";
 const EYEBROW = "Patient reviews";
-const INTRO = "Only patients with a prescription from this doctor can review. Rate the visit, add a comment if you like, and a moderator checks your prescription before the review appears.";
+const INTRO = "Rate the visit and add a comment if you like. A moderator reads every review before it appears. Attach your prescription or bill if you have it and the review carries a Verified visit badge.";
 const NEEDS_SIGN_IN = true;
 
 export const dynamic = "force-dynamic";
@@ -87,7 +87,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
             <div className="panel pad">
               <div className="eyebrow" style={{ marginBottom: "10px" }}>Step 1 of 2 · Sign in</div>
               <p style={{ fontSize: "14.5px", color: "var(--ink-2)", marginBottom: "16px" }}>
-                Create your patient account with a one-time code. One account, one review per doctor. Your contact details and prescription are never shown on the site.
+                Create your patient account with a one-time code. One account, one review per doctor. Your contact details, and any document you attach, are never shown on the site.
               </p>
               <OtpSignIn next={here} label="Continue" />
             </div>

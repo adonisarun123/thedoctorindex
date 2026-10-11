@@ -145,8 +145,8 @@ function ReviewFields({ signedIn, questions }: { signedIn: boolean; questions: R
     <>
       <div className="eyebrow" style={{ marginBottom: "10px" }}>{signedIn ? "Your experience" : "Sign in first"}</div>
       <div className="notice" style={{ marginBottom: "18px" }}>
-        <b>Only patients can review, and every review is checked.</b> Upload the prescription from your visit. A moderator
-        confirms it is from this doctor, then deletes it. Your review goes live after that check.
+        <b>Two minutes, and your name is never shown.</b> Rate the visit and add a line if you like. A person reads every review
+        before it appears. Add your prescription or bill if you have it and the review carries a <b>Verified visit</b> badge.
       </div>
 
       <div className="field">
@@ -203,12 +203,12 @@ function ReviewFields({ signedIn, questions }: { signedIn: boolean; questions: R
       </div>
 
       <div className="field">
-        <label htmlFor="evidence">Prescription from this visit (required, private)</label>
-        <input id="evidence" name="evidence" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required />
+        <label htmlFor="evidence">Prescription or bill from this visit (optional, private) — earns the Verified visit badge</label>
+        <input id="evidence" name="evidence" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" />
         <div className="hint">
-          A photo or PDF of the prescription showing the doctor&rsquo;s name and the date. You may cover the medicines and any
-          diagnosis. If you did not get a prescription, a bill or appointment confirmation from this doctor works. One moderator
-          sees it; it is deleted as soon as your review is decided and is never published.
+          A photo or PDF showing the doctor&rsquo;s name and the date; cover the medicines and any diagnosis. A bill or appointment
+          confirmation works too. One moderator sees it, it is deleted as soon as your review is decided, and it is never published.
+          Skip it and your review still goes up after moderation, without the badge.
         </div>
       </div>
 

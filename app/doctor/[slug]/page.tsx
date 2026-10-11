@@ -683,9 +683,11 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
             <div className="top">
               <span className="who">
                 {r.author}{" "}
-                <span className={`badge ${r.evidenceChecked ? "ok" : "neut"}`} style={{ marginLeft: "6px" }}>
-                  {r.evidenceChecked ? "Prescription checked" : "Not prescription-verified"}
-                </span>
+                {r.evidenceChecked ? (
+                  <span className="badge ok" style={{ marginLeft: "6px" }} title="The reviewer's prescription or bill from this doctor was checked by a moderator">
+                    Verified visit
+                  </span>
+                ) : null}
               </span>
               <span className="when">
                 {r.visitMonth} · {r.mode}
@@ -724,7 +726,7 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
         </Link>
       </div>
       <p className="blocknote">
-        Only patients with a prescription from this doctor can review, and every review is moderated. Reviews describe the visit, not clinical outcome. <Link href={paths.policy("reviews")}>Review policy</Link>
+        Every review is read by a moderator before it appears; &ldquo;Verified visit&rdquo; marks reviews whose prescription or bill from this doctor was checked. Reviews describe the visit, not clinical outcome. <Link href={paths.policy("reviews")}>Review policy</Link>
       </p>
     </section>
   );

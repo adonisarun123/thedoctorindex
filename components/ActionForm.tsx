@@ -1,6 +1,8 @@
 "use client";
 
-import { startTransition, useActionState } from "react";
+import { startTransition, useActionState, useEffect } from "react";
+
+import { toast } from "@/components/admin/Toaster";
 
 export interface FormState {
   ok?: boolean;
@@ -24,6 +26,7 @@ export function ActionForm({
   confirm,
   inline = false,
   resetOnSuccess = false,
+  submitKey,
 }: {
   action: (prev: FormState, form: FormData) => Promise<FormState>;
   children?: React.ReactNode;
@@ -34,9 +37,18 @@ export function ActionForm({
   confirm?: string;
   inline?: boolean;
   resetOnSuccess?: boolean;
+  /** Keyboard shortcut shown on the button and wired by components/admin/QueueKeys.tsx. */
+  submitKey?: string;
 }) {
   const [state, act, pending] = useActionState<FormState, FormData>(action, {});
   const cls = variant === "solid" ? "btn solid" : variant === "outline" ? "btn" : "btn quiet";
+  // In the console the result also lands as a toast, so a decision made at
+  // the bottom of a long card is confirmed where the eye is.
+  useEffect(() => {
+    if (!document.querySelector(".admin-shell")) return;
+    if (state.error) toast(state.error, "err");
+    else if (state.ok && state.message) toast(state.message, state.queued ? "info" : "ok");
+  }, [state]);
 
   return (
     <form
@@ -57,11 +69,12 @@ export function ActionForm({
     >
       {children}
       <div style={inline ? { display: "inline-flex", gap: "8px", alignItems: "center", flexWrap: "wrap" } : { display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", marginTop: children ? "12px" : 0 }}>
-        <button type="submit" className={cls} disabled={pending}>
+        <button type="submit" className={cls} disabled={pending} data-key={submitKey}>
           {pending ? "Working…" : submitLabel}
+          {submitKey ? <kbd className="btn-kbd" aria-hidden="true">{submitKey}</kbd> : null}
         </button>
         {state.error ? <span className="notice alert" style={{ fontSize: "12.5px", padding: "6px 10px" }}>{state.error}</span> : null}
-        {state.ok && state.message ? <span className={`notice ${state.queued ? "" : "good"}`} style={{ fontSize: "12.5px", padding: "6px 10px" }}>{state.message}</span> : null}
+        {state.ok && state.message ? <span className={`notice af-ok ${state.queued ? "" : "good"}`} style={{ fontSize: "12.5px", padding: "6px 10px" }}>{state.message}</span> : null}
       </div>
     </form>
   );

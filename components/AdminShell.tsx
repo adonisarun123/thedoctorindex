@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { signOutAction } from "@/app/sign-in/actions";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CommandPalette, type NavEntry } from "@/components/admin/CommandPalette";
+import { EnhanceTables } from "@/components/admin/EnhanceTables";
+import { Shortcuts } from "@/components/admin/Shortcuts";
+import { Toaster } from "@/components/admin/Toaster";
 
 /* ---------------------------------------------------------------------------
    The admin console shell: a grouped sidebar, a slim top bar, the page.
@@ -14,20 +18,20 @@ import { ThemeToggle } from "@/components/ThemeToggle";
    lib/admin queueCounts() and only render when non-zero.
 --------------------------------------------------------------------------- */
 
-type Item = { href: string; label: string; countKey?: string; superOnly?: boolean; icon: IconName };
+type Item = { href: string; label: string; countKey?: string; superOnly?: boolean; icon: IconName; keys?: string };
 type Group = { label: string; items: Item[] };
 
 const GROUPS: Group[] = [
-  { label: "", items: [{ href: "/admin", label: "Overview", icon: "home" }] },
+  { label: "", items: [{ href: "/admin", label: "Overview", icon: "home", keys: "g o" }] },
   {
     label: "Doctors",
     items: [
-      { href: "/admin/doctors", label: "All doctors", icon: "users" },
+      { href: "/admin/doctors", label: "All doctors", icon: "users", keys: "g d" },
       { href: "/admin/submissions", label: "New profiles", countKey: "submissions", icon: "plus" },
-      { href: "/admin/claims", label: "Claims", countKey: "claims", icon: "shield" },
+      { href: "/admin/claims", label: "Claims", countKey: "claims", icon: "shield", keys: "g c" },
       { href: "/admin/qualifications", label: "Certificates", countKey: "qualifications", icon: "award" },
       { href: "/admin/changes", label: "Change requests", countKey: "changes", icon: "edit" },
-      { href: "/admin/enrichment", label: "Register matching", countKey: "enrichment_queue", icon: "search" },
+      { href: "/admin/enrichment", label: "Register matching", countKey: "enrichment_queue", icon: "search", keys: "g m" },
       { href: "/admin/invites", label: "Invites", countKey: "invites", icon: "mail" },
       { href: "/admin/signups", label: "Stalled signups", icon: "clock" },
       { href: "/admin/calls", label: "Call queue", icon: "phone" },
@@ -36,10 +40,10 @@ const GROUPS: Group[] = [
   {
     label: "Patients",
     items: [
-      { href: "/admin/patients", label: "Patients", icon: "heart" },
-      { href: "/admin/enquiries", label: "Enquiries", countKey: "enquiries", icon: "inbox" },
-      { href: "/admin/bookings", label: "Bookings", countKey: "bookings_stale", superOnly: true, icon: "calendar" },
-      { href: "/admin/reviews", label: "Reviews", countKey: "reviews", icon: "star" },
+      { href: "/admin/patients", label: "Patients", icon: "heart", keys: "g p" },
+      { href: "/admin/enquiries", label: "Enquiries", countKey: "enquiries", icon: "inbox", keys: "g e" },
+      { href: "/admin/bookings", label: "Bookings", countKey: "bookings_stale", superOnly: true, icon: "calendar", keys: "g b" },
+      { href: "/admin/reviews", label: "Reviews", countKey: "reviews", icon: "star", keys: "g r" },
       { href: "/admin/reports", label: "Reports & corrections", countKey: "reports", icon: "flag" },
     ],
   },
@@ -47,7 +51,7 @@ const GROUPS: Group[] = [
     label: "Content",
     items: [
       { href: "/admin/articles", label: "Doctor articles", countKey: "articles", icon: "file" },
-      { href: "/admin/news", label: "Newsroom", countKey: "news", icon: "news" },
+      { href: "/admin/news", label: "Newsroom", countKey: "news", icon: "news", keys: "g n" },
       { href: "/admin/condition-drafts", label: "Condition drafts", icon: "book" },
       { href: "/admin/seo", label: "SEO routes", icon: "globe" },
       { href: "/admin/taxonomy", label: "Taxonomy", icon: "tag" },
@@ -57,7 +61,7 @@ const GROUPS: Group[] = [
     label: "Growth & system",
     items: [
       { href: "/admin/tribe", label: "Tribe rewards", countKey: "tribe", icon: "gift" },
-      { href: "/admin/audit", label: "Audit log", icon: "list" },
+      { href: "/admin/audit", label: "Audit log", icon: "list", keys: "g a" },
       { href: "/admin/staff", label: "Staff", icon: "key" },
       { href: "/admin/security", label: "Security", icon: "lock" },
     ],
@@ -68,11 +72,15 @@ export function AdminShell({ email, roles, counts, children }: { email: string; 
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [pathname]);
+  const [palette, setPalette] = useState(false);
+  useEffect(() => { setOpen(false); setPalette(false); }, [pathname]);
+  const openPalette = useCallback(() => setPalette(true), []);
+  const closePalette = useCallback(() => setPalette(false), []);
 
   const isActive = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href));
-  const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((it) => !it.superOnly || roles.includes("super_admin")) }));
+  const groups = useMemo(() => GROUPS.map((g) => ({ ...g, items: g.items.filter((it) => !it.superOnly || roles.includes("super_admin")) })), [roles]);
   const current = groups.flatMap((g) => g.items.map((it) => ({ ...it, group: g.label }))).find((it) => isActive(it.href));
+  const navEntries = useMemo<NavEntry[]>(() => groups.flatMap((g) => g.items.map((it) => ({ href: it.href, label: it.label, group: g.label || "Overview", keys: it.keys }))), [groups]);
   const initial = (email.trim()[0] ?? "?").toUpperCase();
 
   return (
@@ -141,12 +149,19 @@ export function AdminShell({ email, roles, counts, children }: { email: string; 
             <input name="q" type="search" placeholder="Find a doctor by name, slug or registration" aria-label="Find a doctor" autoComplete="off" />
           </form>
           <div className="adm-top-acts">
+            <button type="button" className="adm-kbtn" onClick={openPalette} aria-label="Open command palette">
+              <Icon name="search" /><span>Search</span><kbd>⌘K</kbd>
+            </button>
             <ThemeToggle />
             <Link href="/admin/doctors/new" className="btn solid adm-new">New profile</Link>
           </div>
         </header>
         <div className="adm-body">{children}</div>
       </div>
+      <CommandPalette nav={navEntries} open={palette} onClose={closePalette} />
+      <Shortcuts nav={navEntries} onPalette={openPalette} />
+      <Toaster />
+      <EnhanceTables />
     </div>
   );
 }

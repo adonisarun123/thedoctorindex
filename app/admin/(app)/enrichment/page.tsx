@@ -1,8 +1,10 @@
 import { desc, inArray, sql } from "drizzle-orm";
 import Link from "next/link";
 
-import { acceptRegisterCandidateAction, dismissEnrichmentAction, resetEnrichmentAction } from "@/app/admin/actions";
+import { acceptRegisterCandidateAction, bulkEnrichmentAction, dismissEnrichmentAction, resetEnrichmentAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
+import { QueueKeys } from "@/components/admin/QueueKeys";
+import { absoluteUrl, paths } from "@/lib/site";
 import { getDb } from "@/lib/db/client";
 import { toDisplay } from "@/lib/db/dates";
 import * as s from "@/lib/db/schema";
@@ -22,6 +24,33 @@ interface CandidateRow {
   university: string | null;
   place: string | null;
   removed: boolean;
+}
+
+/**
+ * Ranks register candidates against what the profile already says, so the
+ * officer's eye lands on the probable match first. Signals, each worth a
+ * point: the council is the state the doctor practises in; the register
+ * year sits before (or at) the year the doctor started practising; the
+ * register's place names the practice city or state; the number on file
+ * already equals this candidate's. A struck-off entry scores nothing. The
+ * score is a hint, never a decision — a person still picks.
+ */
+function rankCandidates(cands: CandidateRow[], ctx: { state: string | null; city: string | null; practiceStartYear: number | null; onFile: string | null }) {
+  const norm = (v: string | null | undefined) => (v ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const scored = cands.map((c) => {
+    const why: string[] = [];
+    if (c.removed) return { c, score: -1, why: ["struck off"] };
+    if (ctx.state && c.council.toLowerCase().includes(ctx.state.toLowerCase())) why.push(`${ctx.state} council`);
+    if (ctx.practiceStartYear && c.year && c.year <= ctx.practiceStartYear && c.year >= ctx.practiceStartYear - 15) why.push(`registered ${c.year}, practising since ${ctx.practiceStartYear}`);
+    const place = (c.place ?? "").toLowerCase();
+    if (place && ((ctx.city && place.includes(ctx.city.toLowerCase())) || (ctx.state && place.includes(ctx.state.toLowerCase())))) why.push("place matches");
+    if (ctx.onFile && norm(c.registrationNo) === norm(ctx.onFile)) why.push("number already on file");
+    return { c, score: why.length, why };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored[0];
+  const likely = top && top.score >= 2 && (scored.length === 1 || top.score > (scored[1]?.score ?? 0)) ? top.c : null;
+  return { scored, likely };
 }
 
 /**
@@ -97,6 +126,19 @@ export default async function AdminEnrichment({ searchParams }: { searchParams: 
         ))}
       </div>
 
+      {rows.length ? (
+        <p className="queue-help">
+          <kbd>j</kbd><kbd>k</kbd> move · <kbd>1</kbd>–<kbd>9</kbd> accept that candidate · <kbd>d</kbd> leave unverified · <kbd>r</kbd> retry · <kbd>x</kbd> select for bulk · <kbd>o</kbd> open doctor · <kbd>?</kbd> all shortcuts
+        </p>
+      ) : null}
+      <QueueKeys
+        bulkAction={bulkEnrichmentAction}
+        noun="profiles"
+        ops={[
+          { op: "dismiss", label: "Leave unverified", confirm: "Leave {n} profiles unverified? Their candidates are discarded." },
+          { op: "retry", label: "Retry on next run" },
+        ]}
+      />
       {rows.length === 0 ? <div className="panel pad" style={{ color: "var(--muted)" }}>Nothing here.</div> : null}
       {rows.map((r) => {
         const d = r.doctor;
@@ -105,12 +147,16 @@ export default async function AdminEnrichment({ searchParams }: { searchParams: 
         const loc = practice?.facility.locality;
         const reg = d.registrations.find((x) => x.isPrimary) ?? d.registrations[0];
         const candidates = (r.nmcCandidates as CandidateRow[] | null) ?? [];
+        const { scored, likely } = rankCandidates(candidates, { state: loc?.state ?? null, city: loc?.city ?? null, practiceStartYear: d.practiceStartYear, onFile: reg?.number ?? null });
         return (
-          <div className="qcard" id={r.doctorId} key={r.doctorId}>
+          <div className="qcard qitem" id={r.doctorId} key={r.doctorId} data-queue-item={r.doctorId} data-public-url={absoluteUrl(paths.doctor(d.slug))}>
             <div className="qh">
-              <div>
+              <div className="qsel">
+                <input type="checkbox" className="q-select" aria-label={`Select Dr ${d.name}`} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="qt">
-                  <Link href={`/admin/doctors/${d.id}`}>Dr {d.name}</Link> · {sp?.name ?? d.specialtyKey}
+                  <Link href={`/admin/doctors/${d.id}`} data-open>Dr {d.name}</Link> · {sp?.name ?? d.specialtyKey}
                 </div>
                 <div className="qm">
                   {practice ? `${practice.facility.name}, ${practice.facility.address}` : "no practice"}{loc ? ` · ${loc.name}, ${loc.city}, ${loc.state}` : ""}
@@ -125,16 +171,21 @@ export default async function AdminEnrichment({ searchParams }: { searchParams: 
               <table className="table" style={{ marginBottom: "10px" }}>
                 <thead><tr><th>Register name</th><th>Council · number</th><th>Year</th><th>Degree · university</th><th>Place</th><th /></tr></thead>
                 <tbody>
-                  {candidates.map((c) => (
-                    <tr key={`${c.council}|${c.registrationNo}`}>
-                      <td>{c.name}{c.removed ? <span className="pill warn" style={{ marginLeft: "6px" }}>struck off</span> : null}</td>
+                  {scored.map(({ c, why }, ci) => (
+                    <tr key={`${c.council}|${c.registrationNo}`} className={likely === c ? "is-likely" : undefined}>
+                      <td>
+                        {c.name}
+                        {c.removed ? <span className="pill warn" style={{ marginLeft: "6px" }}>struck off</span> : null}
+                        {likely === c ? <span className="pill ok" style={{ marginLeft: "6px" }} title={why.join(" · ")}>likely</span> : null}
+                        {why.length && !c.removed ? <div className="qwhy">{why.join(" · ")}</div> : null}
+                      </td>
                       <td className="mono" style={{ fontSize: "12px" }}>{c.council} · {c.registrationNo}</td>
                       <td className="mono">{c.year ?? "—"}</td>
                       <td style={{ fontSize: "13px" }}>{c.degree ?? "—"}{c.university ? ` · ${c.university}` : ""}</td>
                       <td style={{ fontSize: "13px" }}>{c.place ?? "—"}</td>
                       <td>
                         {c.removed ? null : (
-                          <ActionForm action={acceptRegisterCandidateAction} submitLabel="This one" confirm={`Record ${c.council} ${c.registrationNo} (${c.name}) as Dr ${d.name}'s verified registration?`}>
+                          <ActionForm action={acceptRegisterCandidateAction} submitLabel="This one" submitKey={ci < 9 ? String(ci + 1) : undefined} variant={likely === c ? "solid" : "outline"} confirm={`Record ${c.council} ${c.registrationNo} (${c.name}) as Dr ${d.name}'s verified registration?`}>
                             <input type="hidden" name="doctorId" value={d.id} />
                             <input type="hidden" name="registrationNo" value={c.registrationNo} />
                             <input type="hidden" name="council" value={c.council} />
@@ -149,10 +200,10 @@ export default async function AdminEnrichment({ searchParams }: { searchParams: 
               </table>
             ) : null}
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-              <ActionForm action={dismissEnrichmentAction} submitLabel="None of these — leave unverified">
+              <ActionForm action={dismissEnrichmentAction} submitLabel="None of these — leave unverified" variant="quiet" submitKey="d">
                 <input type="hidden" name="doctorId" value={d.id} />
               </ActionForm>
-              <ActionForm action={resetEnrichmentAction} submitLabel="Retry on next run">
+              <ActionForm action={resetEnrichmentAction} submitLabel="Retry on next run" variant="quiet" submitKey="r">
                 <input type="hidden" name="doctorId" value={d.id} />
               </ActionForm>
             </div>
