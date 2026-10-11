@@ -96,7 +96,7 @@ export default async function NewsHub({ searchParams }: { searchParams: Search }
         ) : null}
 
         {!lead ? (
-          <p className="newsempty">The first stories are on their way. The Newsdesk publishes one or two a day.</p>
+          <p className="newsempty">The first stories are on their way. The Newsdesk publishes one story a day.</p>
         ) : (
           <>
             <Link className="newslead" href={paths.newsStory(lead.slug)}>

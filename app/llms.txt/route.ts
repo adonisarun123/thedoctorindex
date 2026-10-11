@@ -85,8 +85,8 @@ ${POSTS.map((p) => `- [${p.title}](${absoluteUrl(paths.blogPost(p.slug))}): ${p.
 
 ## News — TDi Newsdesk
 
-Achievements, firsts, research and appointments of Indian doctors at home and abroad, one or two
-stories a day, each citing its sources and linking the doctor's verified profile where one exists.
+Achievements, firsts, research and appointments of Indian doctors at home and abroad, one story a
+day, each citing its sources and linking the doctor's verified profile where one exists.
 [Index](${absoluteUrl(paths.news())}) · [Standards](${absoluteUrl(paths.newsAbout())}) · [RSS](${absoluteUrl("/news/feed.xml")})
 
 ## Registers — how to check a registration, by issuing body

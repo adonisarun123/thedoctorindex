@@ -43,7 +43,7 @@ export default async function AdminNews({ searchParams }: { searchParams: Promis
         <div>
           <h1>Newsroom</h1>
           <div className="sub">
-            Auto-publish needs 2+ independent sources, a matched TDi profile and a passed claims check. Up to {NEWS_DAILY_MAX} stories go live per IST day from the buffer. Check before approving: every highlight and number appears in a source; no superlatives in our voice; no patient-identifying detail; the right profile is linked.
+            Auto-publish needs 2+ independent sources, a matched TDi profile and a passed claims check. {NEWS_DAILY_MAX} story goes live per IST day from the buffer. If nothing is live by 2 pm, the best claims-checked fresh draft is published as a fallback. Check before approving: every highlight and number appears in a source; no superlatives in our voice; no patient-identifying detail; the right profile is linked.
           </div>
         </div>
         <ActionForm action={publishDueAction} submitLabel="Fill today's slots now" variant="quiet" />
