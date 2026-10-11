@@ -2,8 +2,10 @@ import Link from "next/link";
 
 import { enquiryStatusAdminAction } from "@/app/admin/actions";
 import { ActionForm } from "@/components/ActionForm";
+import { PatientCell } from "@/components/admin/PatientCell";
 import { toDisplay } from "@/lib/db/dates";
 import { listEnquiries } from "@/lib/services/cases";
+import { areaLabel } from "@/lib/services/patients";
 import { requireStaff } from "@/lib/auth/session";
 
 export const metadata = { title: "Enquiries" };
@@ -13,6 +15,15 @@ export default async function AdminEnquiries({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const status = typeof sp.status === "string" ? (sp.status as "new" | "sent" | "contacted" | "closed") : undefined;
   const rows = await listEnquiries({ status });
+  // Name, mobile, email and area come from the account; the stored contact
+  // line ("Name · mobile") is the fallback for enquiries without one.
+  const patients = await Promise.all(
+    rows.map(async (e) => {
+      const u = e.user;
+      const [name = "", phone = ""] = u ? [u.displayName ?? "", u.phone ?? ""] : e.contact.split(" · ");
+      return { id: u?.id ?? null, name, phone, email: u?.email ?? "", area: u ? (await areaLabel(u.localityKey, u.city)).area : "" };
+    }),
+  );
   return (
     <>
       <div className="dash-head">
@@ -23,14 +34,14 @@ export default async function AdminEnquiries({ searchParams }: { searchParams: P
         </div>
       </div>
       <table className="table">
-        <thead><tr><th>Received</th><th>Doctor · practice</th><th>Contact</th><th>Preferred</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Received</th><th>Doctor · practice</th><th>Patient</th><th>Preferred</th><th>Status</th><th></th></tr></thead>
         <tbody>
           {rows.length === 0 ? <tr><td colSpan={6} style={{ color: "var(--muted)" }}>None.</td></tr> : null}
-          {rows.map((e) => (
+          {rows.map((e, i) => (
             <tr key={e.id} id={e.id}>
               <td className="mono">{toDisplay(e.createdAt)}</td>
               <td style={{ fontSize: "13px" }}><Link href={`/admin/doctors/${e.doctorId}`}>Dr {e.doctor.name}</Link><div style={{ color: "var(--muted)" }}>{e.practice?.facility.name ?? "—"}</div></td>
-              <td className="mono">{e.contact}</td>
+              <td><PatientCell {...patients[i]} note={e.forWhom === "other" ? "· for someone else" : undefined} /></td>
               <td style={{ fontSize: "13px" }}>{e.preferredDay ?? "—"}{e.note ? <div style={{ color: "var(--muted)" }}>{e.note}</div> : null}</td>
               <td><span className={`pill ${e.status === "new" ? "wait" : e.status === "closed" ? "neut" : "ok"}`}>{e.status}</span></td>
               <td>

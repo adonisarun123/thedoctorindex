@@ -90,5 +90,5 @@ export async function listEnquiries(opts: { doctorId?: string; status?: "new" | 
   const conds = [];
   if (opts.doctorId) conds.push(eq(s.enquiries.doctorId, opts.doctorId));
   if (opts.status) conds.push(eq(s.enquiries.status, opts.status));
-  return getDb().query.enquiries.findMany({ where: conds.length ? and(...conds) : undefined, with: { doctor: true, practice: { with: { facility: true } } }, orderBy: [desc(s.enquiries.createdAt)], limit: 200 });
+  return getDb().query.enquiries.findMany({ where: conds.length ? and(...conds) : undefined, with: { doctor: true, practice: { with: { facility: true } }, user: { columns: { id: true, displayName: true, phone: true, email: true, localityKey: true, city: true } } }, orderBy: [desc(s.enquiries.createdAt)], limit: 200 });
 }

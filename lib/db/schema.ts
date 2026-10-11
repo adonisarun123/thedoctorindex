@@ -427,18 +427,22 @@ export const medicalRegistrations = pgTable(
   (t) => [uniqueIndex("registration_council_number_uq").on(t.councilNormalized, t.numberNormalized)],
 );
 
-export const doctorQualifications = pgTable("doctor_qualifications", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
-  degree: text("degree").notNull(),
-  institution: text("institution").notNull(),
-  university: text("university"),
-  year: integer("year"),
-  country: text("country").notNull().default("IN"),
-  state: verificationState("state").notNull().default("submitted"),
-  checkedOn: date("checked_on"),
-  sort: integer("sort").notNull().default(0),
-});
+export const doctorQualifications = pgTable(
+  "doctor_qualifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    degree: text("degree").notNull(),
+    institution: text("institution").notNull(),
+    university: text("university"),
+    year: integer("year"),
+    country: text("country").notNull().default("IN"),
+    state: verificationState("state").notNull().default("submitted"),
+    checkedOn: date("checked_on"),
+    sort: integer("sort").notNull().default(0),
+  },
+  (t) => [index("doctor_qualifications_doctor_idx").on(t.doctorId)],
+);
 
 /**
  * A certificate the doctor uploaded for one qualification, course or
@@ -465,7 +469,9 @@ export const qualificationEvidence = pgTable(
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
   },
-  (t) => [index("qualification_evidence_status_idx").on(t.status, t.createdAt), index("qualification_evidence_qual_idx").on(t.qualificationId)],
+  (t) => [
+    index("qualification_evidence_doctor_idx").on(t.doctorId),
+    index("qualification_evidence_status_idx").on(t.status, t.createdAt), index("qualification_evidence_qual_idx").on(t.qualificationId)],
 );
 
 /**
@@ -500,15 +506,19 @@ export const doctorCredentials = pgTable(
   (t) => [index("doctor_credentials_doctor_idx").on(t.doctorId, t.kind)],
 );
 
-export const doctorExperience = pgTable("doctor_experience", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
-  role: text("role").notNull(),
-  place: text("place").notNull(),
-  fromYear: integer("from_year").notNull(),
-  toYear: integer("to_year"),
-  sort: integer("sort").notNull().default(0),
-});
+export const doctorExperience = pgTable(
+  "doctor_experience",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    place: text("place").notNull(),
+    fromYear: integer("from_year").notNull(),
+    toYear: integer("to_year"),
+    sort: integer("sort").notNull().default(0),
+  },
+  (t) => [index("doctor_experience_doctor_idx").on(t.doctorId)],
+);
 
 /* ------------------------------------------------------------------------- */
 /* Practices                                                                 */
@@ -650,22 +660,27 @@ export const reviews = pgTable(
     moderationReason: text("moderation_reason"),
   },
   (t) => [
+    index("reviews_author_idx").on(t.authorUserId),
     index("reviews_doctor_status_idx").on(t.doctorId, t.status),
     uniqueIndex("reviews_one_per_author_doctor_uq").on(t.doctorId, t.authorUserId),
   ],
 );
 
-export const reviewEvidence = pgTable("review_evidence", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  reviewId: uuid("review_id").notNull().references(() => reviews.id, { onDelete: "cascade" }),
-  fileId: uuid("file_id").notNull().references(() => files.id),
-  note: text("note"),
-  validatedByUserId: uuid("validated_by_user_id").references(() => users.id),
-  validatedAt: timestamp("validated_at", { withTimezone: true }),
-  outcome: evidenceStatus("outcome").notNull().default("supplied"),
-  /** Set to the moderation time once the review is decided; the nightly maintenance run deletes the file bytes after that. */
-  purgeAfter: timestamp("purge_after", { withTimezone: true }),
-});
+export const reviewEvidence = pgTable(
+  "review_evidence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reviewId: uuid("review_id").notNull().references(() => reviews.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id").notNull().references(() => files.id),
+    note: text("note"),
+    validatedByUserId: uuid("validated_by_user_id").references(() => users.id),
+    validatedAt: timestamp("validated_at", { withTimezone: true }),
+    outcome: evidenceStatus("outcome").notNull().default("supplied"),
+    /** Set to the moderation time once the review is decided; the nightly maintenance run deletes the file bytes after that. */
+    purgeAfter: timestamp("purge_after", { withTimezone: true }),
+  },
+  (t) => [index("review_evidence_review_idx").on(t.reviewId)],
+);
 
 /**
  * The questionnaire a reviewer answers. Core questions (specialtyKey null) are
@@ -746,6 +761,7 @@ export const appointments = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("appointments_practice_idx").on(t.practiceId),
     uniqueIndex("appointments_ref_uq").on(t.ref),
     index("appointments_doctor_start_idx").on(t.doctorId, t.startsAt),
     index("appointments_patient_idx").on(t.patientUserId, t.startsAt),
@@ -779,17 +795,21 @@ export const bookingNotifyEmails = pgTable(
   ],
 );
 
-export const doctorResponses = pgTable("doctor_responses", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  reviewId: uuid("review_id").notNull().references(() => reviews.id, { onDelete: "cascade" }).unique(),
-  doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
-  text: text("text").notNull(),
-  status: responseStatus("status").notNull().default("pending"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  moderatedAt: timestamp("moderated_at", { withTimezone: true }),
-  moderatedByUserId: uuid("moderated_by_user_id").references(() => users.id),
-  moderationReason: text("moderation_reason"),
-});
+export const doctorResponses = pgTable(
+  "doctor_responses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reviewId: uuid("review_id").notNull().references(() => reviews.id, { onDelete: "cascade" }).unique(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    status: responseStatus("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    moderatedAt: timestamp("moderated_at", { withTimezone: true }),
+    moderatedByUserId: uuid("moderated_by_user_id").references(() => users.id),
+    moderationReason: text("moderation_reason"),
+  },
+  (t) => [index("doctor_responses_doctor_idx").on(t.doctorId)],
+);
 
 export const reviewReports = pgTable("review_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -807,38 +827,46 @@ export const reviewReports = pgTable("review_reports", {
   resolution: text("resolution"),
 });
 
-export const profileReports = pgTable("profile_reports", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
-  reporterUserId: uuid("reporter_user_id").references(() => users.id),
-  reason: text("reason").notNull(),
-  detail: text("detail"),
-  contact: text("contact"),
-  priority: casePriority("priority").notNull().default("normal"),
-  status: caseStatus("status").notNull().default("open"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  assessedAt: timestamp("assessed_at", { withTimezone: true }),
-  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
-  resolvedByUserId: uuid("resolved_by_user_id").references(() => users.id),
-  resolution: text("resolution"),
-});
+export const profileReports = pgTable(
+  "profile_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    reporterUserId: uuid("reporter_user_id").references(() => users.id),
+    reason: text("reason").notNull(),
+    detail: text("detail"),
+    contact: text("contact"),
+    priority: casePriority("priority").notNull().default("normal"),
+    status: caseStatus("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    assessedAt: timestamp("assessed_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedByUserId: uuid("resolved_by_user_id").references(() => users.id),
+    resolution: text("resolution"),
+  },
+  (t) => [index("profile_reports_doctor_idx").on(t.doctorId)],
+);
 
-export const corrections = pgTable("corrections", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
-  submittedByUserId: uuid("submitted_by_user_id").references(() => users.id),
-  field: text("field").notNull(),
-  currentValue: text("current_value"),
-  proposedValue: text("proposed_value").notNull(),
-  sourceNote: text("source_note"),
-  isDoctorOrStaff: boolean("is_doctor_or_staff").notNull().default(false),
-  contact: text("contact"),
-  status: correctionStatus("status").notNull().default("open"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  decidedAt: timestamp("decided_at", { withTimezone: true }),
-  decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
-  note: text("note"),
-});
+export const corrections = pgTable(
+  "corrections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    submittedByUserId: uuid("submitted_by_user_id").references(() => users.id),
+    field: text("field").notNull(),
+    currentValue: text("current_value"),
+    proposedValue: text("proposed_value").notNull(),
+    sourceNote: text("source_note"),
+    isDoctorOrStaff: boolean("is_doctor_or_staff").notNull().default(false),
+    contact: text("contact"),
+    status: correctionStatus("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+    note: text("note"),
+  },
+  (t) => [index("corrections_doctor_idx").on(t.doctorId)],
+);
 
 export const enquiries = pgTable(
   "enquiries",
@@ -856,41 +884,51 @@ export const enquiries = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("enquiries_doctor_idx").on(t.doctorId, t.createdAt)],
+  (t) => [
+    index("enquiries_user_idx").on(t.userId),
+    index("enquiries_doctor_idx").on(t.doctorId, t.createdAt)],
 );
 
 /* ------------------------------------------------------------------------- */
 /* Claims, submissions, change requests, verification                        */
 /* ------------------------------------------------------------------------- */
 
-export const doctorSubmissions = pgTable("doctor_submissions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id),
-  council: text("council").notNull(),
-  registrationNumber: text("registration_number").notNull(),
-  /** The submitted profile as a snapshot; approval turns it into rows. */
-  payload: jsonb("payload").notNull(),
-  status: submissionStatus("status").notNull().default("submitted"),
-  doctorId: uuid("doctor_id").references(() => doctors.id),
-  reviewerNote: text("reviewer_note"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  decidedAt: timestamp("decided_at", { withTimezone: true }),
-  decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
-});
+export const doctorSubmissions = pgTable(
+  "doctor_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    council: text("council").notNull(),
+    registrationNumber: text("registration_number").notNull(),
+    /** The submitted profile as a snapshot; approval turns it into rows. */
+    payload: jsonb("payload").notNull(),
+    status: submissionStatus("status").notNull().default("submitted"),
+    doctorId: uuid("doctor_id").references(() => doctors.id),
+    reviewerNote: text("reviewer_note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+  },
+  (t) => [index("doctor_submissions_doctor_idx").on(t.doctorId)],
+);
 
-export const doctorClaims = pgTable("doctor_claims", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").notNull().references(() => users.id),
-  registrationNumber: text("registration_number").notNull(),
-  method: claimMethod("method").notNull(),
-  evidenceFileId: uuid("evidence_file_id").references(() => files.id),
-  status: claimStatus("status").notNull().default("pending"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  decidedAt: timestamp("decided_at", { withTimezone: true }),
-  decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
-  note: text("note"),
-});
+export const doctorClaims = pgTable(
+  "doctor_claims",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id").notNull().references(() => doctors.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    registrationNumber: text("registration_number").notNull(),
+    method: claimMethod("method").notNull(),
+    evidenceFileId: uuid("evidence_file_id").references(() => files.id),
+    status: claimStatus("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+    note: text("note"),
+  },
+  (t) => [index("doctor_claims_doctor_idx").on(t.doctorId)],
+);
 
 export const profileChangeRequests = pgTable(
   "profile_change_requests",
@@ -1323,6 +1361,7 @@ export const availabilityRulesRelations = relations(availabilityRules, ({ one })
 export const enquiriesRelations = relations(enquiries, ({ one }) => ({
   doctor: one(doctors, { fields: [enquiries.doctorId], references: [doctors.id] }),
   practice: one(doctorPractices, { fields: [enquiries.practiceId], references: [doctorPractices.id] }),
+  user: one(users, { fields: [enquiries.userId], references: [users.id] }),
 }));
 export const doctorSubmissionsRelations = relations(doctorSubmissions, ({ one }) => ({
   user: one(users, { fields: [doctorSubmissions.userId], references: [users.id] }),
