@@ -6,13 +6,14 @@ import type { ConditionArticle } from "@/lib/conditions/article";
  *
  * Original articles (lib/conditions/articles) are indexable. Decision of
  * 3 Oct 2026 (Arun): index them before clinical sign-off, each carrying a
- * visible "not yet reviewed by a doctor" disclaimer (ConditionDisclaimer),
+ * visible "not yet clinically reviewed" disclaimer (ConditionDisclaimer),
  * rather than wait for a reviewer. Set INDEX_UNREVIEWED_ARTICLES to false to
  * return to review-gated indexing.
  *
  * Review is a separate claim and stays strict: `articleReviewed` is true only
- * for a named reviewer with a registration number and a date. Only that turns
- * on the "Medically reviewed" row and reviewedBy / lastReviewed in markup.
+ * for a named reviewer with a registration number and a date (applied from
+ * lib/conditions/review-signoff.ts). Only that turns on the review row and
+ * reviewedBy / lastReviewed in markup.
  *
  * Compiled source drafts are never indexable: 61% of their words are shared
  * across 5+ drafts and the rest is verbatim MedlinePlus / Orphanet text.

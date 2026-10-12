@@ -69,7 +69,8 @@ remove it by claiming the profile.
 
 Plain-language pages on common conditions written for patients in India, each linking the
 speciality that treats it and the doctors listed for it. They are informational and carry a
-disclaimer; where a page has been reviewed by a registered doctor, the reviewer is named on it.
+disclaimer; where a page has been reviewed by a registered clinician (doctor or nurse), the
+reviewer, their council and registration number are named on it, with the review date.
 [Index](${absoluteUrl("/conditions")})
 
 ## Editorial

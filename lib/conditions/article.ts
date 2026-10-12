@@ -13,15 +13,27 @@ import type { SpecialtyKey } from "@/lib/types";
  */
 
 export interface ClinicalReviewer {
-  /** As registered, e.g. "Dr Ananya Rao". */
+  /** As registered, e.g. "Dr Ananya Rao" — or "Nalina Shanthi" for a nurse: never "Dr" for anyone who is not one. */
   name: string;
-  /** Highest relevant qualification, e.g. "MD (General Medicine)". */
+  /** Highest relevant qualification, e.g. "MD (General Medicine)" or "Registered Nurse". */
   qualification: string;
   /** Council and number exactly as on the register. */
   council: string;
   registration: string;
+  /**
+   * What kind of registered professional reviewed the text. Decides the
+   * wording ("Medically reviewed" is reserved for a doctor; a nurse's review
+   * is shown as "Clinically reviewed") and the Person markup. Defaults to
+   * doctor.
+   */
+  profession?: "doctor" | "nurse";
   /** Their profile on the directory, when they have one. */
   doctorSlug?: string;
+}
+
+/** Wording for the review row, by profession. */
+export function reviewLabel(r: Pick<ClinicalReviewer, "profession">): string {
+  return r.profession === "nurse" ? "Clinically reviewed" : "Medically reviewed";
 }
 
 export interface ConditionArticle {
@@ -46,8 +58,9 @@ export interface ConditionArticle {
   writtenOn: string;
   updatedOn: string;
   /**
-   * Null until a named registered doctor has read and signed off this exact
-   * text. Never fill this with a role, a placeholder or "on file".
+   * Null until a named registered doctor or nurse has read and signed off
+   * this exact text. Never fill this with a role, a placeholder or "on file".
+   * Site-wide sign-offs are applied from lib/conditions/review-signoff.ts.
    */
   reviewer: ClinicalReviewer | null;
   /** "" until reviewed. A date without a reviewer is rejected by the tests. */

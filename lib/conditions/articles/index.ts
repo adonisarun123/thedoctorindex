@@ -1,3 +1,4 @@
+import { applySignoffs } from "@/lib/conditions/review-signoff";
 import type { ConditionArticle } from "@/lib/conditions/article";
 
 import { article as abscess } from "@/lib/conditions/articles/abscess";
@@ -201,7 +202,7 @@ import { article as warts } from "@/lib/conditions/articles/warts";
 import { article as whoopingCough } from "@/lib/conditions/articles/whooping-cough";
 import { article as yeastInfections } from "@/lib/conditions/articles/yeast-infections";
 
-export const ARTICLES: ConditionArticle[] = [
+const WRITTEN: ConditionArticle[] = [
   abscess,
   acne,
   acuteBronchitis,
@@ -403,6 +404,9 @@ export const ARTICLES: ConditionArticle[] = [
   whoopingCough,
   yeastInfections,
 ];
+
+/** Every original article, with clinical sign-offs from review-signoff.ts applied. */
+export const ARTICLES: ConditionArticle[] = WRITTEN.map(applySignoffs);
 
 const BY_SLUG = new Map(ARTICLES.map((a) => [a.slug, a]));
 
