@@ -75,7 +75,7 @@ export async function runMaintenance(actorUserId: string | null = null): Promise
     where d.status = 'published' and (p.confirmed_on is not null or f.confirmed_on is not null or p.fee_checked_on is not null)
   `)) as unknown as Array<{ id: string }>;
   for (const d of published) await recomputeQuality(d.id);
-  const seoRoutes = await recomputeSeoRoutes();
+  const seoRoutes = (await recomputeSeoRoutes()).routes;
 
   // Tell the IndexNow engines which profiles changed. Google reads the sitemaps' lastmod instead.
   const changed = (await db.execute(sql`

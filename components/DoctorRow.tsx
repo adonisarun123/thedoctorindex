@@ -39,7 +39,8 @@ export function DoctorRow({ doctor, distance = null }: { doctor: DoctorView; dis
           ) : null}
           {practice ? (
             <>
-              {practice.facility}, {practice.localityName} ·{" "}
+              {/* An unnamed clinic is filed under its locality's name; "Secunderabad, Secunderabad" says it twice. */}
+              {practice.facility.trim().toLowerCase() === practice.localityName.trim().toLowerCase() ? practice.localityName : `${practice.facility}, ${practice.localityName}`} ·{" "}
               {practice.feeInr !== null ? inr(practice.feeInr) : "Fee not confirmed"} ·{" "}
             </>
           ) : (

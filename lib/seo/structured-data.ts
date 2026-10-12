@@ -586,7 +586,7 @@ export interface ConditionLdInput {
     tests: string[];
     treatments: string[];
     /** Present only when a named clinician signed the article off. */
-    reviewed: null | { name: string; on: string; qualification: string };
+    reviewed: null | { name: string; on: string; qualification: string; profession: "doctor" | "nurse" };
   };
 }
 
@@ -616,7 +616,7 @@ export function conditionLd(c: ConditionLdInput): Json {
     ...(a && a.treatments.length ? { possibleTreatment: a.treatments.map((name) => ({ "@type": "MedicalTherapy", name })) } : {}),
   };
   const reviewed = a?.reviewed
-    ? { lastReviewed: isoDate(a.reviewed.on) ?? a.reviewed.on, reviewedBy: { "@type": "Person", name: a.reviewed.name, hasCredential: { "@type": "EducationalOccupationalCredential", name: a.reviewed.qualification } } }
+    ? { lastReviewed: isoDate(a.reviewed.on) ?? a.reviewed.on, reviewedBy: { "@type": "Person", name: a.reviewed.name, jobTitle: a.reviewed.profession === "nurse" ? "Registered Nurse" : "Physician", hasCredential: { "@type": "EducationalOccupationalCredential", name: a.reviewed.qualification } } }
     : {};
   return {
     "@context": "https://schema.org",

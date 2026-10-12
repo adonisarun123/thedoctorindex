@@ -13,6 +13,7 @@ import { SupplyPanel } from "@/components/SupplyPanel";
 import { AREA_ARTICLE_MIN, areaSpecialtyLower, areaTitle, buildAreaArticle, isAreaGuide } from "@/lib/content/area-article";
 import { concentrationSentence, councilSentence, countPhrase, gapSentence, listingFaq, placementSentence, qualificationSentence, subspecialtySentence, supplyFacts, verificationSentence } from "@/lib/content/supply";
 import { getGeo } from "@/lib/data/geo";
+import { isCitywideLocality } from "@/lib/geo-names";
 import { nearestKm, parseNear, sortByDistance } from "@/lib/geo";
 import { sortBy } from "@/lib/ranking";
 import { GATES } from "@/lib/seo/gates";
@@ -53,7 +54,10 @@ export async function ListingView({
   routeMeta: RouteMetaData;
 }) {
   const geo = await getGeo();
-  const cityLocalities = geo.localitiesIn(city.slug).filter((l) => l.stateSlug === city.stateSlug);
+  // Real neighbourhoods only: a city-wide "locality" row (Indore in Indore)
+  // has no page of its own, so it is never linked, counted as an area or
+  // offered as a nearby area. Its doctors are still on this page.
+  const cityLocalities = geo.localitiesIn(city.slug).filter((l) => l.stateSlug === city.stateSlug && !isCitywideLocality(l));
   const localityKeySet = new Set(cityLocalities.map((l) => l.key));
   const filters = parseFilters(searchParams, (k) => localityKeySet.has(k));
   const sortParam = (Array.isArray(searchParams.sort) ? searchParams.sort[0] : searchParams.sort) ?? "relevance";
@@ -124,10 +128,11 @@ export async function ListingView({
   const localityMix = locality
     ? []
     : cityLocalities.map((l) => ({ name: l.name, n: localityCounts[l.key] ?? 0 })).filter((e) => e.n > 0).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
-  const localityTotal = localityMix.reduce((a, e) => a + e.n, 0);
+  // Share of every record on the page, not of the ones that name a locality:
+  // on a page of 78 where 5 name one, "together 100%" would be the wrong fact.
   const supplySentences = [
     placementSentence(profile, countPhrase(profile.total, specialty.one, specialty.plural), placeName),
-    locality ? null : concentrationSentence(localityMix, localityTotal, { singular: "locality", plural: "localities" }, city.name),
+    locality ? null : concentrationSentence(localityMix, profile.total, { singular: "locality", plural: "localities" }, city.name, `recorded against ${city.name} as a whole`),
     verificationSentence(profile),
     qualificationSentence(profile),
     councilSentence(profile),
@@ -151,7 +156,7 @@ export async function ListingView({
 
       <div className="wrap">
         <div className="listing">
-          <FilterRail languages={allLanguages(scoped)} localities={cityLocalities.map((l) => ({ key: l.key, name: l.name }))} cityName={city.name} />
+          <FilterRail languages={allLanguages(scoped)} localities={cityLocalities.filter((l) => locality || (localityCounts[l.key] ?? 0) > 0).map((l) => ({ key: l.key, name: l.name }))} cityName={city.name} />
 
           <div>
 

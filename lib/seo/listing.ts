@@ -1,4 +1,5 @@
 import { getGeo } from "@/lib/data/geo";
+import { isCitywideLocality } from "@/lib/geo-names";
 import { specialtyBySlug } from "@/lib/data/taxonomy";
 import { paths } from "@/lib/site";
 import type { City, Locality, Specialty } from "@/lib/types";
@@ -10,6 +11,9 @@ import type { City, Locality, Specialty } from "@/lib/types";
  *
  *   1 segment  → /doctors/karnataka/bengaluru/cardiologists
  *   2 segments → /doctors/karnataka/bengaluru/indiranagar/cardiologists
+ *
+ * A city-wide "locality" (Indore in Indore) resolves to the city listing with
+ * `redirect` set: the page 301s there, so the duplicate URL never renders.
  *
  * State, city and locality all come from the geography registry, so a URL
  * exists exactly when the place exists as data.
@@ -26,6 +30,8 @@ export interface ResolvedListing {
   locality: Locality | null;
   canonicalPath: string;
   placeName: string;
+  /** Set when the requested URL is a duplicate of `canonicalPath` and must 301 there. */
+  redirect?: true;
 }
 
 export async function resolveListing(params: ListingParams): Promise<ResolvedListing | null> {
@@ -42,6 +48,7 @@ export async function resolveListing(params: ListingParams): Promise<ResolvedLis
     const locality = geo.localityBySlug(state, citySlug, segments[0]);
     const specialty = specialtyBySlug(segments[1]);
     if (!locality || !specialty) return null;
+    if (isCitywideLocality(locality)) return { specialty, city, locality: null, canonicalPath: paths.citySpecialty(state, citySlug, specialty.slug), placeName: city.name, redirect: true };
     return { specialty, city, locality, canonicalPath: paths.localitySpecialty(state, citySlug, locality.slug, specialty.slug), placeName: `${locality.name}, ${city.name}` };
   }
   return null;

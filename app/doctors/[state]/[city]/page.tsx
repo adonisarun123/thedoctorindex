@@ -9,6 +9,7 @@ import { countsByCity, countsByLocalitySpecialty, countsBySpecialty, supplyProfi
 import { SupplyPanel } from "@/components/SupplyPanel";
 import { concentrationSentence, councilSentence, countPhrase, gapSentence, placementSentence, qualificationSentence, singletonSentence, supplyFacts, verificationSentence } from "@/lib/content/supply";
 import { getGeo } from "@/lib/data/geo";
+import { isCitywideLocality } from "@/lib/geo-names";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
 import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
@@ -63,7 +64,8 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
   const [countBySpecialty, listedBySpecialty, perLocality, t, profile, pubCity] = await Promise.all([countsBySpecialty(place), countsBySpecialty(place, "published"), countsByLocalitySpecialty(city, "eligible"), totals(place), supplyProfile(place, undefined, "published"), countsByCity(undefined, "published")]);
   const verified = t.indexable;
   const openSpecialties = SPECIALTY_KEYS.filter((k) => (listedBySpecialty[k] ?? 0) > 0).sort((a, b) => (countBySpecialty[b] ?? 0) - (countBySpecialty[a] ?? 0) || (listedBySpecialty[b] ?? 0) - (listedBySpecialty[a] ?? 0));
-  const localities = geo.localitiesIn(city).filter((l) => l.stateSlug === state);
+  // Real neighbourhoods only; a city-wide "locality" row is this page under another name.
+  const localities = geo.localitiesIn(city).filter((l) => l.stateSlug === state && !isCitywideLocality(l));
   const localityInfo = new Map<string, { n: number; qualifying: string[] }>();
   for (const l of localities) localityInfo.set(l.key, { n: 0, qualifying: [] });
   for (const r of perLocality) {
@@ -93,17 +95,16 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
   /*
    * Measured composition. Every figure below comes from the same pool the
    * counts on this page already agree on, so the prose cannot drift from the
-   * numbers beside it. The locality distribution is totalled from its own rows
-   * rather than from `t.published`, so its percentage stays internally
-   * consistent whatever the index mode counts.
+   * numbers beside it. The locality share is of every record in the city, so
+   * a city where few records name a neighbourhood says so instead of
+   * reporting the few as the whole.
    */
   const specialtyMix = openSpecialties.map((k) => ({ name: SPECIALTIES[k].plural, n: listedBySpecialty[k] ?? 0 })).filter((e) => e.n > 0);
   const localityMix = sortedLocalities.map((l) => ({ name: l.name, n: localityInfo.get(l.key)?.n ?? 0 })).filter((e) => e.n > 0);
-  const localityTotal = localityMix.reduce((a, e) => a + e.n, 0);
   const supplySentences = [
     placementSentence(profile, countPhrase(profile.total, "doctor", "doctors"), c.name),
     concentrationSentence(specialtyMix, profile.total, { singular: "speciality", plural: "specialities" }),
-    concentrationSentence(localityMix, localityTotal, { singular: "locality", plural: "localities" }, c.name),
+    concentrationSentence(localityMix, profile.total, { singular: "locality", plural: "localities" }, c.name, `recorded against ${c.name} as a whole`),
     singletonSentence(localityMix, { singular: "locality", plural: "localities" }),
     verificationSentence(profile),
     qualificationSentence(profile),

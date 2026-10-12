@@ -151,3 +151,26 @@ for (const a of ARTICLES) {
 test("article slugs are unique", () => {
   assert.equal(new Set(ARTICLES.map((a) => a.slug)).size, ARTICLES.length);
 });
+
+test("sign-offs are applied from one file, name a nurse as a nurse, and never invent a date", async () => {
+  const { ARTICLES } = await import("../../lib/conditions/articles");
+  const { SIGNOFFS, applySignoffs } = await import("../../lib/conditions/review-signoff");
+  const { reviewLabel } = await import("../../lib/conditions/article");
+  for (const s of SIGNOFFS) {
+    assert.ok(s.reviewer.name.trim() && s.reviewer.registration.trim() && s.on.trim());
+    assert.ok(!/^dr\b/i.test(s.reviewer.name) || s.reviewer.profession !== "nurse", "a nurse is never styled Dr");
+    for (const slug of s.slugs) assert.ok(ARTICLES.some((a) => a.slug === slug), `sign-off names an article that does not exist: ${slug}`);
+  }
+  const signed = ARTICLES.filter((a) => articleReviewed(a));
+  assert.ok(signed.length > 0);
+  const nurse = signed.find((a) => a.reviewer?.profession === "nurse")!;
+  assert.equal(reviewLabel(nurse.reviewer!), "Clinically reviewed");
+  assert.equal(reviewLabel({ profession: "doctor" }), "Medically reviewed");
+  assert.equal(reviewLabel({}), "Medically reviewed");
+  // An article that names its own reviewer keeps it.
+  const own = applySignoffs({ ...signed[0], reviewer: { name: "Dr A", qualification: "MD", council: "KMC", registration: "1" }, reviewedOn: "01 Oct 2026" });
+  assert.equal(own.reviewer?.name, "Dr A");
+  // An article no sign-off names stays unreviewed.
+  const none = applySignoffs({ ...signed[0], slug: "no-such-article", reviewer: null, reviewedOn: "" });
+  assert.equal(none.reviewer, null);
+});

@@ -308,7 +308,7 @@ export const POLICIES: Policy[] = [
     title: "Editorial and medical review policy",
     summary:
       "Who writes and reviews health content on this site, how sources are handled, and what we will not publish.",
-    updatedOn: "07 Oct 2026",
+    updatedOn: "12 Oct 2026",
     body: (
       <>
         <p>
@@ -318,8 +318,8 @@ export const POLICIES: Policy[] = [
         <h2>Authorship and review</h2>
         <ul>
           <li>Health guides and condition articles are researched and written by The Doctor Index editorial team from the sources each page lists.</li>
-          <li>A page says it is medically reviewed only when a named registered medical practitioner has read and signed off that text. The reviewer&rsquo;s name, qualification, registration number and the review date are then shown on the page.</li>
-          <li>Pages that no doctor has reviewed yet say so at the top and carry a full medical disclaimer. They are published so that readers can understand a condition and find the right specialist; they are not medical advice.</li>
+          <li>A page says it is reviewed only when a named registered clinician has read and signed off that text. A doctor&rsquo;s review is shown as &ldquo;Medically reviewed&rdquo;; a registered nurse&rsquo;s as &ldquo;Clinically reviewed&rdquo; &mdash; never the one for the other. The reviewer&rsquo;s name, qualification, council, registration number and the review date are then shown on the page.</li>
+          <li>Pages that no clinician has reviewed yet say so at the top and carry a full medical disclaimer. They are published so that readers can understand a condition and find the right specialist; they are not medical advice.</li>
           <li>Every page shows when it was written and last updated. Reviewed pages are re-reviewed at least every 12 months, and sooner when guidance changes.</li>
         </ul>
         <h2>Sources</h2>

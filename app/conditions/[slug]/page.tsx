@@ -13,7 +13,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { RouteMeta } from "@/components/RouteMeta";
 import { anchorId } from "@/lib/blog/types";
 import { plain } from "@/lib/content/text";
-import { articleWordCount } from "@/lib/conditions/article";
+import { articleWordCount, reviewLabel } from "@/lib/conditions/article";
 import { articleBySlug } from "@/lib/conditions/articles";
 import { paths as cpaths } from "@/lib/conditions/browse";
 import { getConditionDraft, listConditions } from "@/lib/conditions/data";
@@ -126,7 +126,7 @@ export default async function ConditionPage({ params }: { params: Promise<Params
           symptoms: article.symptoms,
           tests: article.tests,
           treatments: article.treatments,
-          reviewed: reviewed && article.reviewer ? { name: article.reviewer.name, on: article.reviewedOn, qualification: article.reviewer.qualification } : null,
+          reviewed: reviewed && article.reviewer ? { name: article.reviewer.name, on: article.reviewedOn, qualification: article.reviewer.qualification, profession: article.reviewer.profession ?? "doctor" } : null,
         }
       : null,
   });
@@ -201,7 +201,7 @@ export default async function ConditionPage({ params }: { params: Promise<Params
               <div className="rrow">
                 <span className="dot ok" />
                 <div>
-                  <div className="lbl">Medically reviewed</div>
+                  <div className="lbl">{reviewLabel(article.reviewer)}</div>
                   <div className="src">
                     {article.reviewer.doctorSlug ? <Link href={paths.doctor(article.reviewer.doctorSlug)}>{article.reviewer.name}</Link> : article.reviewer.name}, {article.reviewer.qualification} · {article.reviewer.council} {article.reviewer.registration}
                   </div>
@@ -212,8 +212,8 @@ export default async function ConditionPage({ params }: { params: Promise<Params
               <div className="rrow">
                 <span className="dot" />
                 <div>
-                  <div className="lbl">Not medically reviewed</div>
-                  <div className="src">No registered doctor has reviewed this page. Use it to decide who to see and what to ask — not to diagnose or treat.</div>
+                  <div className="lbl">Not clinically reviewed</div>
+                  <div className="src">No registered doctor or nurse has reviewed this page. Use it to decide who to see and what to ask — not to diagnose or treat.</div>
                 </div>
                 <span className="when">—</span>
               </div>

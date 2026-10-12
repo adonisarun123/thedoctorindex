@@ -54,7 +54,7 @@ export function SupplyPanel({
               <dt>{f.label}</dt>
               <dd>
                 <span className="v">{f.value}</span>
-                {f.note ? <span className="note">{f.note}</span> : null}
+                {f.note ? <> <span className="note">{f.note}</span></> : null}
               </dd>
             </div>
           ))}

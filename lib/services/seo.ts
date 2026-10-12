@@ -1,10 +1,13 @@
 import "server-only";
 
-import { desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { env } from "@/lib/env";
+import { dbSource } from "@/lib/data/db-source";
 import { getDb } from "@/lib/db/client";
+import { isCitywideLocality } from "@/lib/geo-names";
 import * as s from "@/lib/db/schema";
+import { buildSeoRoutes } from "@/lib/seo/routes";
 import { audit } from "@/lib/services/audit";
 
 /**
@@ -12,61 +15,65 @@ import { audit } from "@/lib/services/audit";
  * force a route in or out of the index with a recorded reason. The public
  * routes still apply the gate functions directly — this table is the
  * operational view and the override source.
+ *
+ * The counts come from the same queries, over the same "eligible" pool, that
+ * the sitemap and the listing pages use (lib/seo/sitemap.ts), so a route is
+ * "index" here exactly when the page carries index,follow. The table is read
+ * straight from the database, not through the hourly data cache, because a
+ * recompute is asked for precisely when the supply has just changed.
  */
-export async function recomputeSeoRoutes(): Promise<number> {
+export async function recomputeSeoRoutes(): Promise<{ routes: number; indexable: number; removed: number }> {
   const db = getDb();
-  const specialties = await db.select().from(s.specialties).where(eq(s.specialties.active, true));
-  const localities = await db.select().from(s.localities).where(eq(s.localities.active, true));
-  const bySlug = new Map(specialties.map((sp) => [sp.key, sp]));
-  const locByKey = new Map(localities.map((l) => [l.key, l]));
+  const [specialties, localities, national, city, locality] = await Promise.all([
+    db.select({ key: s.specialties.key, slug: s.specialties.slug }).from(s.specialties).where(eq(s.specialties.active, true)),
+    db.select({ key: s.localities.key, slug: s.localities.slug, name: s.localities.name, city: s.localities.city, citySlug: s.localities.citySlug, stateSlug: s.localities.stateSlug }).from(s.localities).where(eq(s.localities.active, true)),
+    dbSource.countsBySpecialty(undefined, "eligible"),
+    dbSource.countsByCitySpecialty("eligible"),
+    dbSource.countsByLocalityAll("eligible"),
+  ]);
 
-  // One GROUP BY over the indexable predicate gives every (locality, speciality)
-  // count; city and national counts roll up from it in memory.
-  const rows = (await db.execute(sql`
-    select f.locality_key as lk, d.specialty_key as sk, count(distinct d.id)::int as c
-    from doctors d
-    join doctor_practices p on p.doctor_id = d.id and p.active
-    join facilities f on f.id = p.facility_id
-    where d.status = 'published' and d.quality_score >= ${env.gates.profileQuality}
-      and coalesce(p.confirmed_on, f.confirmed_on) >= (current_date - ${env.freshness.deindexAfterDays}::int)
-    group by f.locality_key, d.specialty_key
-  `)) as unknown as Array<{ lk: string; sk: string; c: number }>;
+  // A city-wide "locality" (Indore in Indore) has no page of its own — its URL
+  // 301s to the city listing — so it gets no route either.
+  const placeLocalities = localities.filter((l) => !isCitywideLocality(l));
+  const rows = buildSeoRoutes({ national, city, locality }, specialties, placeLocalities, {
+    national: env.gates.nationalSpecialty,
+    city: env.gates.citySpecialty,
+    locality: env.gates.localitySpecialty,
+  });
 
-  const national = new Map<string, number>();
-  const city = new Map<string, number>();
-  let n = 0;
-  for (const r of rows) {
-    const loc = locByKey.get(r.lk);
-    const sp = bySlug.get(r.sk);
-    if (!loc || !sp) continue;
-    national.set(r.sk, (national.get(r.sk) ?? 0) + Number(r.c));
-    const ck = `${loc.stateSlug}/${loc.citySlug}/${r.sk}`;
-    city.set(ck, (city.get(ck) ?? 0) + Number(r.c));
-    if (Number(r.c) >= 1) {
-      await upsert({ kind: "locality", specialtyKey: sp.key, localityKey: loc.key, path: `/doctors/${loc.stateSlug}/${loc.citySlug}/${loc.slug}/${sp.slug}`, count: Number(r.c), gate: env.gates.localitySpecialty });
-      n++;
-    }
+  const now = new Date();
+  for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+    const batch = rows.slice(i, i + UPSERT_BATCH);
+    await db
+      .insert(s.seoRoutes)
+      .values(batch.map((r) => ({ kind: r.kind, specialtyKey: r.specialtyKey, localityKey: r.localityKey, path: r.path, indexableCount: r.indexableCount, computedIndexable: r.computedIndexable, updatedAt: now })))
+      .onConflictDoUpdate({
+        target: s.seoRoutes.path,
+        set: {
+          kind: sql`excluded.kind`,
+          specialtyKey: sql`excluded.specialty_key`,
+          localityKey: sql`excluded.locality_key`,
+          indexableCount: sql`excluded.indexable_count`,
+          computedIndexable: sql`excluded.computed_indexable`,
+          updatedAt: now,
+        },
+      });
   }
-  for (const sp of specialties) {
-    await upsert({ kind: "national", specialtyKey: sp.key, localityKey: null, path: `/specialties/${sp.key}`, count: national.get(sp.key) ?? 0, gate: env.gates.nationalSpecialty });
-    n++;
-  }
-  for (const [ck, c] of city) {
-    const [stateSlug, citySlug, sk] = ck.split("/");
-    const sp = bySlug.get(sk);
-    if (!sp) continue;
-    await upsert({ kind: "city", specialtyKey: sp.key, localityKey: null, path: `/doctors/${stateSlug}/${citySlug}/${sp.slug}`, count: c, gate: env.gates.citySpecialty });
-    n++;
-  }
-  return n;
+
+  // A route the supply no longer produces (a locality renamed, a speciality
+  // retired, a city emptied) leaves the table — unless staff recorded an
+  // override on it, which is a decision to keep visible until they clear it.
+  const removed = await db
+    .delete(s.seoRoutes)
+    .where(and(lt(s.seoRoutes.updatedAt, now), isNull(s.seoRoutes.override)))
+    .returning({ path: s.seoRoutes.path });
+
+  overrideCache = null;
+  return { routes: rows.length, indexable: rows.filter((r) => r.computedIndexable).length, removed: removed.length };
 }
 
-async function upsert(r: { kind: "national" | "city" | "locality"; specialtyKey: string; localityKey: string | null; path: string; count: number; gate: number }) {
-  await getDb()
-    .insert(s.seoRoutes)
-    .values({ kind: r.kind, specialtyKey: r.specialtyKey, localityKey: r.localityKey, path: r.path, indexableCount: r.count, computedIndexable: r.count >= r.gate })
-    .onConflictDoUpdate({ target: s.seoRoutes.path, set: { indexableCount: r.count, computedIndexable: r.count >= r.gate, updatedAt: new Date() } });
-}
+/** Rows per INSERT. 12,000 routes in 24 statements rather than 12,000. */
+const UPSERT_BATCH = 500;
 
 export async function setSeoOverride(path: string, override: "force_index" | "force_noindex" | null, staffUserId: string, note?: string) {
   const db = getDb();
@@ -115,6 +122,89 @@ export async function routeOverride(path: string): Promise<"force_index" | "forc
   return (await routeOverrides()).get(path) ?? null;
 }
 
-export async function listSeoRoutes() {
-  return getDb().query.seoRoutes.findMany({ with: { specialty: true, locality: true }, orderBy: [s.seoRoutes.kind, desc(s.seoRoutes.indexableCount)] });
+export interface SeoRouteFilter {
+  kind?: "national" | "city" | "locality";
+  /** Matched against the path and the locality name, case-insensitively. */
+  q?: string;
+  /** Effective decision after overrides. */
+  status?: "index" | "noindex" | "overridden";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SeoRouteSummary {
+  total: number;
+  indexable: number;
+  overridden: number;
+  byKind: Record<"national" | "city" | "locality", { total: number; indexable: number }>;
+  states: number;
+  cities: number;
+  updatedAt: Date | null;
+}
+
+const EFFECTIVE = sql<boolean>`case ${s.seoRoutes.override} when 'force_index' then true when 'force_noindex' then false else ${s.seoRoutes.computedIndexable} end`;
+
+function routeWhere(f: SeoRouteFilter) {
+  const parts = [];
+  if (f.kind) parts.push(eq(s.seoRoutes.kind, f.kind));
+  if (f.q) {
+    const like = `%${f.q.trim().replace(/[%_]/g, "\\$&")}%`;
+    parts.push(or(ilike(s.seoRoutes.path, like), sql`exists (select 1 from localities l where l.key = ${s.seoRoutes.localityKey} and l.name ilike ${like})`));
+  }
+  if (f.status === "index") parts.push(sql`${EFFECTIVE}`);
+  if (f.status === "noindex") parts.push(sql`not ${EFFECTIVE}`);
+  if (f.status === "overridden") parts.push(isNotNull(s.seoRoutes.override));
+  return parts.length ? and(...parts) : undefined;
+}
+
+export const SEO_ROUTES_PAGE = 100;
+
+/**
+ * One page of the allowlist. The table holds every listing route on the site
+ * (12,000+ once it counts the nationwide supply), so it is filtered and paged
+ * rather than rendered whole.
+ */
+export async function listSeoRoutes(f: SeoRouteFilter = {}) {
+  const pageSize = f.pageSize ?? SEO_ROUTES_PAGE;
+  const page = Math.max(1, f.page ?? 1);
+  const where = routeWhere(f);
+  const db = getDb();
+  const [rows, [{ n }]] = await Promise.all([
+    db.query.seoRoutes.findMany({
+      where,
+      with: { specialty: true, locality: true },
+      orderBy: [asc(s.seoRoutes.kind), desc(s.seoRoutes.indexableCount), asc(s.seoRoutes.path)],
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    }),
+    db.select({ n: sql<number>`count(*)::int` }).from(s.seoRoutes).where(where),
+  ]);
+  return { rows, total: Number(n), page, pageSize, pages: Math.max(1, Math.ceil(Number(n) / pageSize)) };
+}
+
+export async function seoRouteSummary(): Promise<SeoRouteSummary> {
+  const db = getDb();
+  const [kinds, [geo]] = await Promise.all([
+    db
+      .select({ kind: s.seoRoutes.kind, total: sql<number>`count(*)::int`, indexable: sql<number>`count(*) filter (where ${EFFECTIVE})::int`, overridden: sql<number>`count(*) filter (where ${s.seoRoutes.override} is not null)::int`, updatedAt: sql<Date | null>`max(${s.seoRoutes.updatedAt})` })
+      .from(s.seoRoutes)
+      .groupBy(s.seoRoutes.kind),
+    db.execute(sql`
+      select count(distinct split_part(path, '/', 3))::int as states, count(distinct split_part(path, '/', 3) || '/' || split_part(path, '/', 4))::int as cities
+      from seo_routes where kind = 'city'
+    `) as unknown as Promise<Array<{ states: number; cities: number }>>,
+  ]);
+  const byKind = { national: { total: 0, indexable: 0 }, city: { total: 0, indexable: 0 }, locality: { total: 0, indexable: 0 } };
+  let total = 0;
+  let indexable = 0;
+  let overridden = 0;
+  let updatedAt: Date | null = null;
+  for (const k of kinds) {
+    byKind[k.kind] = { total: Number(k.total), indexable: Number(k.indexable) };
+    total += Number(k.total);
+    indexable += Number(k.indexable);
+    overridden += Number(k.overridden);
+    if (k.updatedAt && (!updatedAt || new Date(k.updatedAt) > updatedAt)) updatedAt = new Date(k.updatedAt);
+  }
+  return { total, indexable, overridden, byKind, states: Number(geo?.states ?? 0), cities: Number(geo?.cities ?? 0), updatedAt };
 }

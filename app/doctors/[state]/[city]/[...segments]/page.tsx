@@ -49,6 +49,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const resolved = await resolve(await params);
   if (!resolved) return { title: "Page not found", robots: { index: false, follow: false } };
+  if (resolved.redirect) return { title: "Redirecting", robots: { index: false, follow: false } };
 
   const sp = await searchParams;
   const { specialty, city, locality, canonicalPath, placeName } = resolved;
@@ -125,6 +126,10 @@ export default async function ListingPage({
     }
     notFound();
   }
+
+  // A city-wide "locality" URL (/…/indore/indore/dentists) is the city page
+  // under another name; it moves there permanently rather than rendering twice.
+  if (resolved.redirect) permanentRedirect(resolved.canonicalPath);
 
   const sp = await searchParams;
   const { specialty, city, locality, canonicalPath, placeName } = resolved;

@@ -7,6 +7,7 @@ import { GUIDES } from "@/lib/data/guides";
 import { POLICIES } from "@/lib/data/policies";
 import { QUALIFICATIONS } from "@/lib/qualifications";
 import { REGISTERS } from "@/lib/registers";
+import { isCitywideLocality } from "@/lib/geo-names";
 import { countsByCity, countsByCitySpecialty, countsByLocalityAll, countsBySpecialty, countsByState, listIndexableSlugs } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
@@ -153,7 +154,7 @@ export async function directoryEntries(): Promise<SitemapEntry[]> {
     const specialty = SPECIALTIES[r.specialty];
     if (!specialty || !r.localityKey) continue;
     const loc = geo.locality(r.localityKey);
-    if (!loc || loc.stateSlug !== r.stateSlug || loc.citySlug !== r.citySlug) continue;
+    if (!loc || loc.stateSlug !== r.stateSlug || loc.citySlug !== r.citySlug || isCitywideLocality(loc)) continue;
     const path = paths.localitySpecialty(r.stateSlug, r.citySlug, loc.slug, specialty.slug);
     if (keep(path, listingGate("locality", r.n, Boolean(specialty.guide)))) entries.push({ loc: absoluteUrl(path) });
   }
