@@ -127,12 +127,23 @@ export function concentrationSentence(
    * describes the share of the whole.
    */
   exclude?: string,
+  /**
+   * Where the records that name no entry went, e.g. "recorded against
+   * Hyderabad as a whole". Used when the named entries are a minority: "the
+   * best-supplied localities are Secunderabad (4) and Somajiguda (1)" on a
+   * page of 78 is true and misleading at once, so the sentence says what the
+   * other 73 are instead.
+   */
+  restLabel?: string,
 ): string | null {
   const shown = entries.filter((e) => e.n > 0 && (!exclude || e.name.toLowerCase() !== exclude.toLowerCase())).slice(0, 3);
   if (shown.length < 2 || total <= 0) return null;
   const covered = shown.reduce((a, e) => a + e.n, 0);
   const pct = share(covered, total);
   const phrases = shown.map((e) => `${e.name} (${fmt(e.n)})`);
+  if (covered * 2 < total && restLabel) {
+    return `${fmt(covered)} of the ${fmt(total)} records name a ${noun.singular}: ${list(phrases)}. The rest are ${restLabel}.`;
+  }
   const tail = pct ? ` — together ${pct} of the records here` : "";
   return `The best-supplied ${noun.plural} are ${list(phrases)}${tail}.`;
 }
@@ -269,9 +280,14 @@ export function listingFaq(
 
   const locs = localities.filter((l) => l.n > 0 && (!excludeLocality || l.name.toLowerCase() !== excludeLocality.toLowerCase())).slice(0, 5);
   if (locs.length >= 2) {
+    const named = localities.filter((l) => l.n > 0 && (!excludeLocality || l.name.toLowerCase() !== excludeLocality.toLowerCase())).reduce((a, l) => a + l.n, 0);
+    const phrases = list(locs.map((l) => `${l.name} (${fmt(l.n)})`));
+    // "Most records cluster in Secunderabad (4)" on a page of 78 is not a
+    // cluster. Say how many name a locality at all before naming them.
+    const lead = named * 2 < p.total ? `${fmt(named)} of the ${fmt(p.total)} records name a locality: ${phrases}. The rest are recorded against ${placeName} as a whole.` : `Most records cluster in ${phrases}.`;
     out.push({
       q: `Where in ${placeName} do they practise?`,
-      a: `Most records cluster in ${list(locs.map((l) => `${l.name} (${fmt(l.n)})`))}. A locality page opens for browsing once enough ${plural} practise there.`,
+      a: `${lead} A locality page opens for browsing once enough ${plural} practise there.`,
     });
   }
 

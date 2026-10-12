@@ -95,17 +95,16 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
   /*
    * Measured composition. Every figure below comes from the same pool the
    * counts on this page already agree on, so the prose cannot drift from the
-   * numbers beside it. The locality distribution is totalled from its own rows
-   * rather than from `t.published`, so its percentage stays internally
-   * consistent whatever the index mode counts.
+   * numbers beside it. The locality share is of every record in the city, so
+   * a city where few records name a neighbourhood says so instead of
+   * reporting the few as the whole.
    */
   const specialtyMix = openSpecialties.map((k) => ({ name: SPECIALTIES[k].plural, n: listedBySpecialty[k] ?? 0 })).filter((e) => e.n > 0);
   const localityMix = sortedLocalities.map((l) => ({ name: l.name, n: localityInfo.get(l.key)?.n ?? 0 })).filter((e) => e.n > 0);
-  const localityTotal = localityMix.reduce((a, e) => a + e.n, 0);
   const supplySentences = [
     placementSentence(profile, countPhrase(profile.total, "doctor", "doctors"), c.name),
     concentrationSentence(specialtyMix, profile.total, { singular: "speciality", plural: "specialities" }),
-    concentrationSentence(localityMix, localityTotal, { singular: "locality", plural: "localities" }, c.name),
+    concentrationSentence(localityMix, profile.total, { singular: "locality", plural: "localities" }, c.name, `recorded against ${c.name} as a whole`),
     singletonSentence(localityMix, { singular: "locality", plural: "localities" }),
     verificationSentence(profile),
     qualificationSentence(profile),

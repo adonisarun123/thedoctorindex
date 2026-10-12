@@ -136,6 +136,20 @@ test("a distribution needs at least two entries to be described", () => {
   const keptFaq = listingFaq({ ...indore }, { one: "General physician", plural: "General physicians" }, "Indore", withCityBucket, "Indore")
     .find((f) => f.q.startsWith("Where in"))!;
   assert.ok(!keptFaq.a.includes("Indore (1,236)"));
+
+  // Hyderabad cardiologists, 12 Oct 2026: 5 of 78 records named a locality and
+  // the page said "Most records cluster in Secunderabad (4)". A minority is
+  // reported as a minority, with where the rest went.
+  const thinMix = [{ name: "Hyderabad", n: 73 }, { name: "Secunderabad", n: 4 }, { name: "Somajiguda", n: 1 }];
+  const thinSentence = concentrationSentence(thinMix, 78, noun, "Hyderabad", "recorded against Hyderabad as a whole")!;
+  assert.ok(thinSentence.startsWith("5 of the 78 records name a locality: Secunderabad (4) and Somajiguda (1)."), thinSentence);
+  assert.ok(thinSentence.endsWith("The rest are recorded against Hyderabad as a whole."));
+  const thinFaq = listingFaq({ ...indore, total: 78 }, { one: "Cardiologist", plural: "Cardiologists" }, "Hyderabad", thinMix, "Hyderabad").find((f) => f.q.startsWith("Where in"))!;
+  assert.ok(thinFaq.a.startsWith("5 of the 78 records name a locality"), thinFaq.a);
+  assert.ok(!thinFaq.a.includes("Most records cluster"));
+  // A real majority keeps the plain wording.
+  const majority = listingFaq({ ...indore, total: 10 }, { one: "Cardiologist", plural: "Cardiologists" }, "Hyderabad", [{ name: "Secunderabad", n: 6 }, { name: "Somajiguda", n: 2 }]).find((f) => f.q.startsWith("Where in"))!;
+  assert.ok(majority.a.startsWith("Most records cluster in Secunderabad (6) and Somajiguda (2)."));
   assert.equal(singletonSentence([{ name: "a", n: 1 }], noun), null);
   assert.equal(
     singletonSentence([{ name: "a", n: 1 }, { name: "b", n: 1 }, { name: "c", n: 4 }, { name: "d", n: 9 }], noun),
