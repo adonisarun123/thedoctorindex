@@ -60,7 +60,7 @@ function qualificationLd(q: QualificationEntry, p: QualificationProfile) {
     author: { "@type": "Organization", name: SITE.name, url: absoluteUrl("/about") },
     publisher: { "@type": "Organization", name: SITE.name, url: SITE.origin },
     about: { "@type": "EducationalOccupationalCredential", name: q.name, alternateName: q.abbr, credentialCategory: q.kind === "diploma" ? "diploma" : q.kind === "membership" || q.kind === "fellowship" ? "certificate" : "degree", recognizedBy: { "@type": "Organization", name: q.awardedBy } },
-    ...(p.total ? { mentions: { "@type": "Dataset", name: `Profiles on ${SITE.name} recording ${q.abbr}`, description: `${fmt(p.total)} published doctors, ${fmt(p.checked)} with the qualification checked against the awarding body.` } } : {}),
+    ...(p.total ? { mentions: { "@type": "Dataset", name: `Profiles on ${SITE.name} recording ${q.abbr}`, description: `${fmt(p.total)} published doctors, ${fmt(p.checked)} with the qualification checked against the awarding body.`, creator: { "@type": "Organization", name: SITE.name, url: SITE.origin }, license: absoluteUrl(paths.policy("terms")), isAccessibleForFree: true, url } } : {}),
   };
 }
 

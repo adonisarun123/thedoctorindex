@@ -65,7 +65,7 @@ function registerLd(r: RegisterEntry, profile: RegisterProfile) {
     author: { "@type": "Organization", name: SITE.name, url: absoluteUrl("/about") },
     publisher: { "@type": "Organization", name: SITE.name, url: SITE.origin },
     about,
-    ...(profile.total ? { mentions: { "@type": "Dataset", name: `Profiles on ${SITE.name} citing the ${r.name}`, description: `${fmt(profile.total)} published profiles, ${fmt(profile.registerChecked)} checked against a register.` } } : {}),
+    ...(profile.total ? { mentions: { "@type": "Dataset", name: `Profiles on ${SITE.name} citing the ${r.name}`, description: `${fmt(profile.total)} published profiles, ${fmt(profile.registerChecked)} checked against a register.`, creator: { "@type": "Organization", name: SITE.name, url: SITE.origin }, license: absoluteUrl(paths.policy("terms")), isAccessibleForFree: true, url } } : {}),
   };
 }
 
