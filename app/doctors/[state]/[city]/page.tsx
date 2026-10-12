@@ -9,6 +9,7 @@ import { countsByCity, countsByLocalitySpecialty, countsBySpecialty, supplyProfi
 import { SupplyPanel } from "@/components/SupplyPanel";
 import { concentrationSentence, councilSentence, countPhrase, gapSentence, placementSentence, qualificationSentence, singletonSentence, supplyFacts, verificationSentence } from "@/lib/content/supply";
 import { getGeo } from "@/lib/data/geo";
+import { isCitywideLocality } from "@/lib/geo-names";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { GATES } from "@/lib/seo/gates";
 import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
@@ -63,7 +64,8 @@ export default async function CityPage({ params }: { params: Promise<Params> }) 
   const [countBySpecialty, listedBySpecialty, perLocality, t, profile, pubCity] = await Promise.all([countsBySpecialty(place), countsBySpecialty(place, "published"), countsByLocalitySpecialty(city, "eligible"), totals(place), supplyProfile(place, undefined, "published"), countsByCity(undefined, "published")]);
   const verified = t.indexable;
   const openSpecialties = SPECIALTY_KEYS.filter((k) => (listedBySpecialty[k] ?? 0) > 0).sort((a, b) => (countBySpecialty[b] ?? 0) - (countBySpecialty[a] ?? 0) || (listedBySpecialty[b] ?? 0) - (listedBySpecialty[a] ?? 0));
-  const localities = geo.localitiesIn(city).filter((l) => l.stateSlug === state);
+  // Real neighbourhoods only; a city-wide "locality" row is this page under another name.
+  const localities = geo.localitiesIn(city).filter((l) => l.stateSlug === state && !isCitywideLocality(l));
   const localityInfo = new Map<string, { n: number; qualifying: string[] }>();
   for (const l of localities) localityInfo.set(l.key, { n: 0, qualifying: [] });
   for (const r of perLocality) {

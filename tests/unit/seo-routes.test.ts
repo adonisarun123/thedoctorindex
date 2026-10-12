@@ -90,3 +90,10 @@ test("a path is emitted once even if the counts repeat it", () => {
   );
   assert.equal(rows.filter((r) => r.kind === "city").length, 1);
 });
+
+test("a city-wide locality is recognised by slug or by name", async () => {
+  const { isCitywideLocality } = await import("../../lib/geo-names");
+  assert.equal(isCitywideLocality({ slug: "indore", name: "Indore", citySlug: "indore", city: "Indore" }), true);
+  assert.equal(isCitywideLocality({ slug: "central", name: " indore ", citySlug: "indore", city: "Indore" }), true);
+  assert.equal(isCitywideLocality({ slug: "vijay-nagar", name: "Vijay Nagar", citySlug: "indore", city: "Indore" }), false);
+});

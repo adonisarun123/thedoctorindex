@@ -5,6 +5,7 @@ import { and, asc, desc, eq, ilike, isNotNull, isNull, lt, or, sql } from "drizz
 import { env } from "@/lib/env";
 import { dbSource } from "@/lib/data/db-source";
 import { getDb } from "@/lib/db/client";
+import { isCitywideLocality } from "@/lib/geo-names";
 import * as s from "@/lib/db/schema";
 import { buildSeoRoutes } from "@/lib/seo/routes";
 import { audit } from "@/lib/services/audit";
@@ -25,13 +26,16 @@ export async function recomputeSeoRoutes(): Promise<{ routes: number; indexable:
   const db = getDb();
   const [specialties, localities, national, city, locality] = await Promise.all([
     db.select({ key: s.specialties.key, slug: s.specialties.slug }).from(s.specialties).where(eq(s.specialties.active, true)),
-    db.select({ key: s.localities.key, slug: s.localities.slug, citySlug: s.localities.citySlug, stateSlug: s.localities.stateSlug }).from(s.localities).where(eq(s.localities.active, true)),
+    db.select({ key: s.localities.key, slug: s.localities.slug, name: s.localities.name, city: s.localities.city, citySlug: s.localities.citySlug, stateSlug: s.localities.stateSlug }).from(s.localities).where(eq(s.localities.active, true)),
     dbSource.countsBySpecialty(undefined, "eligible"),
     dbSource.countsByCitySpecialty("eligible"),
     dbSource.countsByLocalityAll("eligible"),
   ]);
 
-  const rows = buildSeoRoutes({ national, city, locality }, specialties, localities, {
+  // A city-wide "locality" (Indore in Indore) has no page of its own — its URL
+  // 301s to the city listing — so it gets no route either.
+  const placeLocalities = localities.filter((l) => !isCitywideLocality(l));
+  const rows = buildSeoRoutes({ national, city, locality }, specialties, placeLocalities, {
     national: env.gates.nationalSpecialty,
     city: env.gates.citySpecialty,
     locality: env.gates.localitySpecialty,

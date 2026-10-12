@@ -1,5 +1,8 @@
 import { displayName } from "@/lib/display-name";
+import { isCitywideLocality } from "@/lib/geo-names";
 import type { DoctorView, Locality, Specialty } from "@/lib/types";
+
+export { isCitywideLocality };
 
 /**
  * Area articles: "Orthopaedic surgeons in HSR Layout".
@@ -101,15 +104,6 @@ export interface AreaArticle {
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-IN")} ${n === 1 ? one : many}`;
-
-/**
- * Some imported records place doctors in a "locality" that is the whole city
- * (Indore in Indore). That page repeats the city page, so it gets no article
- * and no place in the area hub.
- */
-export function isCitywideLocality(locality: Pick<Locality, "slug" | "name" | "citySlug" | "city">): boolean {
-  return locality.slug === locality.citySlug || locality.name.trim().toLowerCase() === locality.city.trim().toLowerCase();
-}
 
 export function buildAreaArticle(doctors: DoctorView[], specialty: Specialty, locality: Locality): AreaArticle | null {
   if (!isAreaGuide(locality, specialty, doctors.length)) return null;

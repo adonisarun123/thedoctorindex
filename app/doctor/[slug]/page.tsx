@@ -19,6 +19,7 @@ import { QrShare } from "@/components/QrShare";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
 import { canonicalDoctorPath, countIndexable, countsByLocality, countsBySpecialty, getAtFacility, getDoctorBySlug, getNearby, totals } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
+import { isCitywideLocality } from "@/lib/geo-names";
 import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { hasDate, registrationLabel, registrationSource, registrationState } from "@/lib/verification";
 import { GATES, profileGate } from "@/lib/seo/gates";
@@ -99,7 +100,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
   const localityKey = doctor.localities[0];
   const localityCount = localityKey ? await countIndexable(doctor.specialty, { localityKey }, "published") : 0;
   const localityCrumb =
-    primary?.localitySlug && primary.localityName && primary.localityName !== primary.city && localityCount >= GATES.localitySpecialty
+    primary?.localitySlug && primary.localityName && !isCitywideLocality({ slug: primary.localitySlug, name: primary.localityName, citySlug: primary.citySlug, city: primary.city }) && localityCount >= GATES.localitySpecialty
       ? [{ name: primary.localityName, path: paths.localitySpecialty(primary.stateSlug, primary.citySlug, primary.localitySlug, specialty.slug) }]
       : [];
 
@@ -873,7 +874,7 @@ async function InTheArea({ doctor }: { doctor: DoctorView }) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
     .map(([key, n]) => ({ loc: geo.locality(key), n }))
-    .filter((x): x is { loc: NonNullable<ReturnType<typeof geo.locality>>; n: number } => Boolean(x.loc));
+    .filter((x): x is { loc: NonNullable<ReturnType<typeof geo.locality>>; n: number } => Boolean(x.loc) && !isCitywideLocality(x.loc!));
 
   // Other specialities in this city, same gate as the city × speciality page.
   const specialtyLinks = SPECIALTY_KEYS.filter((k) => k !== doctor.specialty && (bySpecialty[k] ?? 0) >= GATES.citySpecialty)

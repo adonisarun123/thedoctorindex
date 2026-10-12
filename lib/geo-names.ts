@@ -50,3 +50,15 @@ const METRO_CITY_SLUGS = new Set([
 export function isMetroCity(citySlug: string): boolean {
   return METRO_CITY_SLUGS.has(citySlug);
 }
+
+/**
+ * Some imported records place doctors in a "locality" that is the whole city
+ * (Indore in Indore; 443 of them on 12 Oct 2026, holding 17,170 doctors).
+ * A page for that locality repeats the city page, so it is a duplicate, not
+ * a place: no route, no sitemap entry, no link, no area guide, and the URL
+ * itself 301s to the city page. The practices keep the locality key — the
+ * data is right, there is just no second page for it.
+ */
+export function isCitywideLocality(locality: { slug: string; name: string; citySlug: string; city: string }): boolean {
+  return locality.slug === locality.citySlug || locality.name.trim().toLowerCase() === locality.city.trim().toLowerCase();
+}
