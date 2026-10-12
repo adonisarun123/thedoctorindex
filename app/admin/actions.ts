@@ -440,8 +440,8 @@ export async function photoAdminAction(_p: AdminState, f: FormData): Promise<Adm
 /* SEO */
 export async function recomputeSeoAction(): Promise<void> {
   const u = await requireStaff("content_editor", "verification_officer");
-  const n = await recomputeSeoRoutes();
-  await audit({ actorUserId: u.id, actorRole: "staff", action: "seo_routes.recomputed", entityType: "seo_route", after: { routes: n } });
+  const r = await recomputeSeoRoutes();
+  await audit({ actorUserId: u.id, actorRole: "staff", action: "seo_routes.recomputed", entityType: "seo_route", after: r });
   revalidatePath("/admin/seo");
 }
 export async function seoOverrideAction(_p: AdminState, f: FormData): Promise<AdminState> {
