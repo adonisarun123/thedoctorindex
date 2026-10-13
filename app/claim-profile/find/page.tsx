@@ -30,12 +30,14 @@ const qs = (o: Record<string, string>) => new URLSearchParams(o).toString();
  * click (components/GoLiveButton → lib/services/instant-onboard.ts). Signed out,
  * the same button sends them through sign-in and back to these results.
  */
-function actionFor(hit: RegisterHit, signedIn: boolean, back: string) {
+function actionFor(hit: RegisterHit, signedIn: boolean, back: string, picked: boolean) {
   const a = hit.action;
+  // Signed out, the entry chosen is remembered in `pick` so that after
+  // sign-in the person lands on it, confirmed and ready, not on a list.
   const goLive = (note: string) =>
     signedIn
-      ? { cta: <GoLiveButton entry={hit.id} label="This is me — go live" />, note }
-      : { cta: <RegisterResultCta href={`/sign-in?${qs({ next: back })}`} kind={`${a.kind}:sign-in`} label="This is me — sign in to go live" />, note };
+      ? { cta: <GoLiveButton entry={hit.id} label={picked ? "Confirm — this is me, go live" : "This is me — go live"} />, note: picked ? `Welcome back. ${note}` : note }
+      : { cta: <RegisterResultCta href={`/sign-in?${qs({ next: `${back}&pick=${hit.id}`, as: "doctor" })}`} kind={`${a.kind}:sign-in`} label="This is me — sign in to go live" />, note };
   switch (a.kind) {
     case "claim-published":
       return goLive("We already hold a profile for this registration. Confirm it is you and it is yours.");
@@ -63,6 +65,7 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
   const user = await getSessionUser();
   const signedIn = Boolean(user?.profileComplete);
   const back = `/claim-profile/find?${qs(state ? { q, state } : { q })}`;
+  const pick = Number(typeof sp.pick === "string" ? sp.pick : "") || 0;
 
   let hits: RegisterHit[] = [];
   let limited = false;
@@ -73,6 +76,8 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
     if (rl.ok) hits = await searchRegister(parsed, state || null);
     else limited = true;
   }
+  // The entry chosen before sign-in comes first.
+  if (pick && hits.some((h) => h.id === pick)) hits = [...hits.filter((h) => h.id === pick), ...hits.filter((h) => h.id !== pick)];
 
   const searchForm = (
           <form className="panel pad" method="get" action="/claim-profile/find" style={{ marginBottom: "18px" }}>
@@ -111,8 +116,10 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
           <h1 style={{ margin: "10px 0 6px" }}>{hits.length ? "Is this you?" : "Find your registration"}</h1>
           <p style={{ color: "var(--ink-2)", fontSize: "15px", marginBottom: "22px", maxWidth: "58ch" }}>
             {hits.length
-              ? "These entries in the medical council register match. Pick yours and your verified profile goes live straight away — photo, clinic and bio can come later."
-              : "Search the medical council register by your registration number or your name as the council records it. Pick your entry and your verified profile goes live straight away."}
+              ? signedIn && pick && hits[0]?.id === pick
+                ? "You're signed in. Confirm the entry you chose and your verified profile goes live straight away — photo, clinic and bio can come later."
+                : "These entries in the medical council register match. Pick yours and your verified profile goes live straight away — photo, clinic and bio can come later. No account needed to look."
+              : "Search the medical council register by your registration number or your name as the council records it — no sign-in needed to look. Pick your entry, sign in once, and your verified profile goes live straight away."}
           </p>
           {hits.length ? null : searchForm}
 
@@ -123,9 +130,10 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
           {hits.length > 0 ? (
             <div style={{ display: "grid", gap: "12px" }}>
               {hits.map((hit) => {
-                const { cta, note } = actionFor(hit, signedIn, back);
+                const picked = signedIn && pick === hit.id;
+                const { cta, note } = actionFor(hit, signedIn, back, picked);
                 return (
-                  <div className="panel pad" key={hit.id}>
+                  <div className="panel pad" key={hit.id} style={picked ? { borderColor: "var(--accent)", boxShadow: "0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent)" } : undefined}>
                     <div style={{ fontWeight: 600, fontSize: "16px" }}>{hit.name}</div>
                     <div className="mono" style={{ fontSize: "13px", color: "var(--ink-2)", margin: "4px 0 8px" }}>{hit.council} · {hit.number}</div>
                     <div style={{ fontSize: "14px", color: "var(--ink-2)" }}>

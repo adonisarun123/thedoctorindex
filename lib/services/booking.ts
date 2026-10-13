@@ -24,10 +24,11 @@ const SUPERLATIVE = /\b(best|no\.?\s*1|top|most trusted)\b/i;
 export async function bookingRequirementsFor(doctorId: string): Promise<{ requirements: Requirement[]; unlocked: boolean; enabled: boolean }> {
   const d = await getDb().query.doctors.findFirst({
     where: eq(s.doctors.id, doctorId),
-    with: { registrations: true, practices: { where: (p, { eq }) => eq(p.active, true) } },
+    with: { registrations: true, practices: { where: (p, { eq }) => eq(p.active, true) }, claimedBy: { columns: { phone: true } } },
   });
   if (!d) throw new Error("doctor not found");
   const requirements = bookingRequirements({
+    accountPhone: Boolean(d.claimedBy?.phone),
     registrationVerified: d.registrations.some((r) => r.checkedOn),
     practices: d.practices.length,
     practicesWithFee: d.practices.filter((p) => p.feeInr !== null).length,

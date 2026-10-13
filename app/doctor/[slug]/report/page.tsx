@@ -70,10 +70,13 @@ export default async function Page({ params, searchParams }: { params: Promise<P
       />
       <div className="wrap">
         <div className="flow">
-          <span className="eyebrow">{EYEBROW}</span>
-          <h1 style={{ margin: "10px 0 6px" }}>{TITLE}</h1>
+          <span className="eyebrow">{about === "takedown" ? "For the doctor on this page" : EYEBROW}</span>
+          <h1 style={{ margin: "10px 0 6px" }}>{about === "takedown" ? "Take this page down" : TITLE}</h1>
           <p style={{ color: "var(--ink-2)", fontSize: "15px", marginBottom: "22px", maxWidth: "58ch" }}>
-            {displayName(doctor)}, {specialty.one.toLowerCase()}. {INTRO}
+            {displayName(doctor)}, {specialty.one.toLowerCase()}.{" "}
+            {about === "takedown"
+              ? "This profile was compiled from public sources. If it is about you and you would rather not be listed, say so here; a verification officer confirms it is you and unpublishes it."
+              : INTRO}
           </p>
           {!doctor.dbId ? (
             <div className="notice" style={{ marginBottom: "16px" }}>

@@ -580,6 +580,9 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                 <Link className="btn solid" href={claimHref}>
                   Claim this profile
                 </Link>
+                <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "10px 0 0" }}>
+                  Would rather not be listed? <Link href={`${paths.doctor(doctor.slug)}/report?about=takedown`}>Ask for this page to be taken down</Link> — no account needed.
+                </p>
               </div>
             )}
 

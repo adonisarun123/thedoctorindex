@@ -23,6 +23,8 @@ export interface UnlockFacts {
   services: number;
   languages: number;
   modes: number;
+  /** The doctor's account has a mobile number: asked here, not at sign-up, because bookings are where a practice must be reachable. */
+  accountPhone: boolean;
 }
 
 export interface Requirement {
@@ -47,6 +49,7 @@ export function bookingRequirements(f: UnlockFacts): Requirement[] {
     { key: "about", label: "Professional introduction", detail: f.aboutChars >= 80 && !f.aboutHasSuperlative ? "Done" : "2–4 factual sentences, 80+ characters, no superlatives", done: f.aboutChars >= 80 && !f.aboutHasSuperlative, href: "/dashboard/profile" },
     { key: "services", label: "At least 3 services", detail: `${f.services} listed`, done: f.services >= 3, href: "/dashboard/profile" },
     { key: "languages", label: "Languages and consultation modes", detail: f.languages && f.modes ? "Done" : "Add the languages you consult in", done: f.languages > 0 && f.modes > 0, href: "/dashboard/profile" },
+    { key: "phone", label: "A mobile number on your account", detail: f.accountPhone ? "On record" : "So we can reach you about bookings; never shown to patients", done: f.accountPhone, href: "/account" },
   ];
 }
 

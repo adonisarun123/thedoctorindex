@@ -15,7 +15,9 @@ export const metadata: Metadata = {
  * here on success; the conversion itself fires once from the sessionStorage
  * stash (lib/conversions.ts), so refreshes and direct visits do not count.
  */
-export default function ClaimThankYouPage() {
+export default async function ClaimThankYouPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const verified = typeof sp.verified === "string" ? sp.verified.slice(0, 80) : "";
   return (
     <>
       <RouteMeta
@@ -34,9 +36,11 @@ export default function ClaimThankYouPage() {
       <div className="wrap">
         <div className="flow">
           <span className="eyebrow">For doctors</span>
-          <h1 style={{ margin: "10px 0 6px" }}>Thank you — claim received</h1>
+          <h1 style={{ margin: "10px 0 6px" }}>{verified ? "Verified — the profile is yours" : "Thank you — claim received"}</h1>
           <p style={{ color: "var(--ink-2)", fontSize: "15px", marginBottom: "22px", maxWidth: "58ch" }}>
-            A verification officer confirms control through the method you chose. Target is 2 business days, and you will be told either way.
+            {verified
+              ? `Your ${verified} email address confirmed the claim on the spot — no document, no wait. Your dashboard is open: add a photo, check your practices and switch on bookings when you are ready.`
+              : "A verification officer confirms control through the method you chose. Target is 2 business days, and you will be told either way."}
           </p>
           <ConversionThankYou kind="claim" />
         </div>

@@ -5,6 +5,7 @@ import { findByRegistration, getDoctorBySlug } from "@/lib/data";
 import { track } from "@/lib/services/events";
 import { storeFile } from "@/lib/services/files";
 import { createClaim } from "@/lib/services/workflow";
+import { autoVerifyWorkEmailClaim } from "@/lib/services/claim-autoverify";
 import { recordReferral } from "@/lib/services/tribe";
 import { displayName } from "@/lib/display-name";
 import { claimSource } from "@/lib/claim-source";
@@ -16,6 +17,8 @@ export interface ClaimState {
   /** Enumerated cause, for analytics (lib/funnel.ts). Never shown. */
   code?: string;
   doctorName?: string;
+  /** The claim was verified on the spot by a hospital-domain sign-in email. */
+  autoVerified?: string;
 }
 
 export async function claimAction(_prev: ClaimState, form: FormData): Promise<ClaimState> {
@@ -46,12 +49,15 @@ export async function claimAction(_prev: ClaimState, form: FormData): Promise<Cl
       const stored = await storeFile({ bucket: "private", filename: file.name, mime: file.type, bytes: Buffer.from(await file.arrayBuffer()), uploadedByUserId: user.id });
       evidenceFileId = stored.id;
     }
-    await createClaim(user.id, doctor.dbId, registration, method, evidenceFileId, council || undefined);
+    const claim = await createClaim(user.id, doctor.dbId, registration, method, evidenceFileId, council || undefined);
+    // Hospital-email tier: a claim by work email is approved at once when the
+    // sign-in email, the profile's hospital and the account name all agree.
+    const auto = method === "work_email" ? await autoVerifyWorkEmailClaim(claim.id) : null;
     const src = claimSource(form.get("src"));
     await track("claim_started", { doctorId: doctor.dbId, query: src ? `src:${src}` : null });
     // Grow Your Tribe: credit the colleague whose invite link brought this doctor here, if any.
     await recordReferral({ refereeUserId: user.id, doctorId: doctor.dbId, kind: "claim" });
-    return { ok: true, doctorName: displayName(doctor) };
+    return { ok: true, doctorName: displayName(doctor), autoVerified: auto?.kind === "approved" ? auto.hospital : undefined };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Something went wrong.";
     return { error: message, code: workflowErrorCode(message) };

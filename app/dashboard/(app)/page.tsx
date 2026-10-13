@@ -12,6 +12,7 @@ import { progressFor, TRIBE } from "@/lib/tribe";
 import { QrShare } from "@/components/QrShare";
 import { EmbedBadge } from "@/components/EmbedBadge";
 import { ProfileLinks } from "@/components/ProfileLinks";
+import { TierBar, type Tier } from "@/components/TierBar";
 import { bookingRequirementsFor, listPendingRequests } from "@/lib/services/booking";
 import { BookingRequestCard } from "@/components/BookingRequestCard";
 import { badgeSnippet } from "@/lib/tdi/badge";
@@ -46,6 +47,9 @@ export default async function DashboardOverview() {
   const pending = changes.filter((c) => c.status === "pending");
   const live = doctor.lifecycle === "published";
   const max = Math.max(1, ...analytics.views);
+  const regVerified = registrationState(doctor) === "verified";
+  const tier: Tier = booking.enabled ? "bookable" : regVerified ? "verified" : "listed";
+  const missing = booking.requirements.filter((r) => !r.done).map((r) => r.label.toLowerCase());
 
   return (
     <>
@@ -89,6 +93,14 @@ export default async function DashboardOverview() {
             />
           </div>
         </div>
+      ) : null}
+
+      {live ? (
+        <TierBar
+          tier={tier}
+          verifiedHint={regVerified ? "Registration matched in the council register." : "Your registration is awaiting its register check."}
+          bookableHint={booking.enabled ? "Patients can book from your profile and Google." : booking.unlocked ? "Unlocked — set your hours and switch booking on." : `${bookingDone} of ${booking.requirements.length} done · next: ${missing[0] ?? "switch booking on"}.`}
+        />
       ) : null}
 
       {live ? (

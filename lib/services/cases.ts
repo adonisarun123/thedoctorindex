@@ -20,7 +20,8 @@ export async function reportProfile(doctorId: string, reporterUserId: string | n
   const db = getDb();
   const rl = await rateLimit(`report:${reporterUserId ?? ip ?? "anon"}`, Number(process.env.RATE_LIMIT_REPORT ?? 5), 3600);
   if (!rl.ok) throw new Error("Too many reports from this account. Try again later.");
-  const priority = /impersonat|deceased|safety|threat/i.test(reason) ? "safety" : /retired|wrong/i.test(reason) ? "high" : "normal";
+  // A doctor asking for their own page to come down is an identity case: first look within 4 hours.
+  const priority = /impersonat|deceased|safety|threat|about me/i.test(reason) ? "safety" : /retired|wrong/i.test(reason) ? "high" : "normal";
   const [row] = await db.insert(s.profileReports).values({ doctorId, reporterUserId, reason, detail, contact, priority }).returning();
   await audit({ actorUserId: reporterUserId, action: "profile.reported", entityType: "doctor", entityId: doctorId, after: { reportId: row.id, reason, priority } });
   return row;

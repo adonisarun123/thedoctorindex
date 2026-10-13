@@ -297,10 +297,18 @@ function ReviewerDetails({ phoneKnown, emailKnown }: { phoneKnown: boolean; emai
 
 function ReportFields({ about, reviews }: { about?: string; reviews: Array<{ id: string; author: string; visitMonth: string }> }) {
   const isReview = about === "review";
+  // "takedown": the doctor on the page wants it unpublished. No account needed;
+  // a verification officer confirms with them directly and takes it down.
+  const takedown = about === "takedown";
   return (
     <>
       <input type="hidden" name="about" value={isReview ? "review" : "profile"} />
-      <div className="eyebrow" style={{ marginBottom: "10px" }}>{isReview ? "Report a review" : "Report this profile"}</div>
+      <div className="eyebrow" style={{ marginBottom: "10px" }}>{isReview ? "Report a review" : takedown ? "This page is about you" : "Report this profile"}</div>
+      {takedown ? (
+        <div className="notice" style={{ marginBottom: "16px" }}>
+          <b>You do not need an account for this.</b> Tell us how to reach you and a verification officer confirms it is you — usually by calling the practice number on the register or on this page — and unpublishes the profile. Identity reports get a first look within 4 hours. If you would rather keep the page and correct it, claiming it takes one confirmation against the council register.
+        </div>
+      ) : null}
       {isReview ? (
         <div className="field">
           <label htmlFor="reviewId">Which review?</label>
@@ -316,7 +324,7 @@ function ReportFields({ about, reviews }: { about?: string; reviews: Array<{ id:
       ) : null}
       <div className="field">
         <label htmlFor="reason">What is wrong?</label>
-        <select id="reason" name="reason" required defaultValue="">
+        <select id="reason" name="reason" required defaultValue={takedown ? "This page is about me — unpublish it" : ""}>
           <option value="" disabled>Choose one</option>
           {isReview ? (
             <>
@@ -333,7 +341,14 @@ function ReportFields({ about, reviews }: { about?: string; reviews: Array<{ id:
               <option>The doctor is deceased</option>
               <option>Registration or qualification details are wrong</option>
               <option>The practice address or contact is wrong</option>
-              <option>This page is about me and I want it reviewed</option>
+              {takedown ? (
+                <>
+                  <option>This page is about me — unpublish it</option>
+                  <option>This page is about me — correct it (I will claim it)</option>
+                </>
+              ) : (
+                <option>This page is about me and I want it reviewed</option>
+              )}
             </>
           )}
         </select>
@@ -344,8 +359,8 @@ function ReportFields({ about, reviews }: { about?: string; reviews: Array<{ id:
         <textarea id="detail" name="detail" placeholder="What you saw, and anything that helps us verify it." />
       </div>
       <div className="field">
-        <label htmlFor="contact">How can we reach you? (optional)</label>
-        <input id="contact" name="contact" type="text" placeholder="Email or mobile — for follow-up only, never published" />
+        <label htmlFor="contact">How can we reach you?{takedown ? "" : " (optional)"}</label>
+        <input id="contact" name="contact" type="text" required={takedown} placeholder={takedown ? "Your mobile or email — an officer calls or writes to confirm it is you" : "Email or mobile — for follow-up only, never published"} />
       </div>
     </>
   );

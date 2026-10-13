@@ -30,6 +30,20 @@ export default function ForDoctorsPage() {
           <Link href={paths.whyThisSite()}>Why this site exists, and what it changes for you →</Link>
         </p>
 
+        {/* The register first, the account second: a doctor sees their own entry before being asked to sign in. */}
+        <form className="panel pad" method="get" action="/claim-profile/find" style={{ marginTop: "22px", maxWidth: "640px" }}>
+          <div className="eyebrow" style={{ marginBottom: "8px" }}>Start here · no sign-in needed to look</div>
+          <h2 style={{ margin: "0 0 6px", fontSize: "20px" }}>Find yourself in the medical council register</h2>
+          <p style={{ fontSize: "14px", color: "var(--ink-2)", margin: "0 0 12px" }}>
+            Type your name as the council records it, or your registration number. Pick your entry, sign in once with Google, LinkedIn or a code, and your verified profile is live — photo, clinic and bio whenever you like.
+          </p>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <input name="q" type="text" required minLength={3} maxLength={80} placeholder="Anil Kumar Rao  ·  KMC-58412" aria-label="Your name or registration number" style={{ flex: "1 1 260px" }} />
+            <button type="submit" className="btn solid">Search the register</button>
+          </div>
+          <div className="hint" style={{ marginTop: "8px" }}>Dentists, AYUSH practitioners and physiotherapists: your registers are not searchable here yet — <Link href="/add-doctor?manual=1&src=for-doctors">create your profile with your council and number</Link>.</div>
+        </form>
+
         <div className="tiles" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginTop: "26px" }}>
           <div className="tile" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div className="l">Already have a profile?</div>
@@ -40,14 +54,14 @@ export default function ForDoctorsPage() {
           <div className="tile" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div className="l">Not listed yet?</div>
             <h3 style={{ margin: 0 }}>Create your profile</h3>
-            <p style={{ fontSize: "13.5px", color: "var(--ink-2)", margin: 0, flex: 1 }}>Starts with your council and registration number so nobody can create a page in your name. A verification officer matches it in the register within two business days.</p>
-            <Link className="btn" href={paths.addDoctor()}>Add your profile</Link>
+            <p style={{ fontSize: "13.5px", color: "var(--ink-2)", margin: 0, flex: 1 }}>Find your entry in the council register above and it becomes your profile the moment you confirm it. Not on the medical register? The full form takes a few minutes and a verification officer checks it.</p>
+            <Link className="btn" href="/claim-profile/find">Find my registration</Link>
           </div>
           <div className="tile" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div className="l">Found yourself already listed?</div>
             <h3 style={{ margin: 0 }}>Claim the existing profile</h3>
-            <p style={{ fontSize: "13.5px", color: "var(--ink-2)", margin: 0, flex: 1 }}>Some profiles are compiled from permitted public sources. Prove control — an OTP to the practice number on file, a hospital email, or a document — and it is yours.</p>
-            <Link className="btn" href={paths.claimProfile()}>Claim a profile</Link>
+            <p style={{ fontSize: "13.5px", color: "var(--ink-2)", margin: 0, flex: 1 }}>Some profiles are compiled from permitted public sources. Pick your register entry above and the profile is yours on confirmation; an email at your hospital&rsquo;s domain verifies a claim on the spot too.</p>
+            <Link className="btn" href="/claim-profile/find">Claim my profile</Link>
           </div>
         </div>
 

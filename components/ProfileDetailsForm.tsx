@@ -60,13 +60,13 @@ export function ProfileDetailsForm({ user, next, submitLabel, doctor = false, ac
       </div>
       <div className="two">
         <div className="field">
-          <label htmlFor="phone">Mobile number</label>
+          <label htmlFor="phone">Mobile number{short ? " (optional)" : ""}</label>
           {user.phone && !user.email ? (
             <input id="phone" type="tel" value={user.phone} readOnly className="mono" aria-describedby="phone-hint" />
           ) : (
-            <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required defaultValue={user.phone ?? ""} placeholder="+91 98765 43210" />
+            <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required={!short} defaultValue={user.phone ?? ""} placeholder={short ? "Optional for now" : "+91 98765 43210"} />
           )}
-          <div className="hint" id="phone-hint">{user.phone && !user.email ? "You signed in with this number." : short ? "Only for a verification officer to reach you. Never shown publicly." : "Practices reach you here. Indian mobile numbers only."}</div>
+          <div className="hint" id="phone-hint">{user.phone && !user.email ? "You signed in with this number." : short ? "Optional. Asked when you switch on appointment booking, so patients' practices can reach you. Never shown publicly." : "Practices reach you here. Indian mobile numbers only."}</div>
         </div>
         <div className="field">
           <label htmlFor="email">Email address</label>

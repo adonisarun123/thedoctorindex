@@ -1315,6 +1315,7 @@ export const nmcRegisterQualifications = pgTable(
 
 export const doctorsRelations = relations(doctors, ({ one, many }) => ({
   specialty: one(specialties, { fields: [doctors.specialtyKey], references: [specialties.key] }),
+  claimedBy: one(users, { fields: [doctors.claimedByUserId], references: [users.id] }),
   registrations: many(medicalRegistrations),
   qualifications: many(doctorQualifications),
   experience: many(doctorExperience),

@@ -74,7 +74,8 @@ export default async function DoctorFreeProfileLanding({ searchParams }: { searc
   // Counted server-side, so the funnel per channel (report:growth) does not
   // depend on the visitor accepting cookies. No identity is stored.
   await track("doctor_lp_viewed", { path: "/for-doctors/free-profile", query: `src:${src}` });
-  const createHref = `/add-doctor?src=${encodeURIComponent(src)}`;
+  // "Create" goes through the council register: the entry becomes the profile on one confirmation.
+  const createHref = `/claim-profile/find?src=${encodeURIComponent(src)}`;
 
   return (
     <>
@@ -147,22 +148,22 @@ export default async function DoctorFreeProfileLanding({ searchParams }: { searc
             <li>
               <span className="lp-num">1</span>
               <div>
-                <h3>Find or create</h3>
-                <p>Search your name above. If you are listed, tap <b>This is me</b>. If not, create a profile starting with your registration number.</p>
+                <h3>Find yourself</h3>
+                <p>Search your name above, or your entry in the medical council register. Tap <b>This is me</b> — no sign-in needed to look.</p>
               </div>
             </li>
             <li>
               <span className="lp-num">2</span>
               <div>
-                <h3>Sign in with a one-time code</h3>
-                <p>{SMS ? "Sent to your email or mobile." : "Sent to your email."} No password to remember. Your contact details are never published.</p>
+                <h3>Sign in once</h3>
+                <p>Google, LinkedIn or a one-time code {SMS ? "to your email or mobile" : "to your email"}. No password, no mobile number needed yet. Your contact details are never published.</p>
               </div>
             </li>
             <li>
               <span className="lp-num">3</span>
               <div>
-                <h3>We verify, you go live</h3>
-                <p>A verification officer checks your registration against the register and confirms control. Target: two business days.</p>
+                <h3>Confirm, and you are live</h3>
+                <p>Your council entry is the verification: confirm it is yours and the profile goes live with the register details locked in. Photo, clinic and bio whenever you like; bookings unlock once the profile is complete.</p>
               </div>
             </li>
           </ol>
