@@ -458,9 +458,11 @@ export const POLICIES: Policy[] = [
         </p>
         <h2 id="cookies">Cookies and analytics</h2>
         <p>
-          The site sets one cookie of its own that it needs to work: <code>tdi_consent</code>, which
-          remembers whether you allowed analytics, for 180 days. Signing in sets a session cookie, only
-          if you sign in.
+          The site sets cookies of its own only where it needs them to work: <code>tdi_consent</code>, which
+          remembers whether you allowed analytics, for 180 days; a session cookie, only if you sign in; and
+          <code>tdi_d</code>, a random browser id set when you submit a review and kept for a year, used solely to
+          notice several reviews of one doctor coming from one browser in a day. It identifies the browser, not
+          you; only a hash of it is stored, and it is never used for analytics or advertising.
         </p>
         <p>
           With your permission, we use Google Analytics to count visits and see which pages help people

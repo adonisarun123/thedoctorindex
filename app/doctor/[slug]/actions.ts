@@ -1,7 +1,9 @@
 "use server";
 
-import { headers } from "next/headers";
+import { randomBytes } from "node:crypto";
+import { cookies, headers } from "next/headers";
 
+import { sha256 } from "@/lib/auth/hash";
 import { getSessionUser } from "@/lib/auth/session";
 import { getDoctorBySlug } from "@/lib/data";
 import { createEnquiry, reportProfile, submitCorrection } from "@/lib/services/cases";
@@ -20,6 +22,30 @@ export interface ActionState {
 async function ip(): Promise<string | null> {
   const h = await headers();
   return h.get("x-forwarded-for")?.split(",")[0] ?? null;
+}
+
+/**
+ * A first-party device id for the review velocity check (reviews.device_hash):
+ * set on the first review from a browser, kept for a year, httpOnly, never
+ * read for anything else. A strictly-necessary fraud-prevention cookie — it
+ * carries no identity and is not used for analytics or advertising. Only its
+ * hash is stored. A clinic desk seeding reviews from one browser across
+ * several accounts shares it; incognito windows do not, which is what the
+ * IP hash is for.
+ */
+const DEVICE_COOKIE = "tdi_d";
+async function deviceHash(): Promise<string | null> {
+  try {
+    const jar = await cookies();
+    let id = jar.get(DEVICE_COOKIE)?.value ?? null;
+    if (!id || !/^[a-f0-9]{32}$/.test(id)) {
+      id = randomBytes(16).toString("hex");
+      jar.set(DEVICE_COOKIE, id, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 365 * 86_400 });
+    }
+    return sha256(id, process.env.CONTACT_HASH_PEPPER ?? "tdi").slice(0, 32);
+  } catch {
+    return null;
+  }
 }
 
 async function doctorOr404(slug: string) {
@@ -63,7 +89,7 @@ export async function submitReviewAction(_prev: ActionState, form: FormData): Pr
         bookingRef: String(form.get("booking") ?? "").trim() || null,
       },
       evidence,
-      { ip: await ip() },
+      { ip: await ip(), deviceHash: await deviceHash() },
     );
     await track("review_submitted", { doctorId: doctor.dbId, query: res.verifiedByBooking ? "verified:booking" : null });
     const verified = res.verifiedByBooking ? " It is tied to your TDi booking, so it carries the Verified visit badge." : "";
