@@ -29,8 +29,11 @@ export type ConversionName =
   | "doctor_profile_submitted"; // new profile submitted for verification (primary conversion)
 
 const ADS_ID = process.env.NEXT_PUBLIC_GADS_ID ?? "AW-18482115489";
+// Google Ads conversion action "Doctor profile claimed" (created 13 Oct 2026),
+// value 1.0 INR per Google's event snippet. Fired on claim-form success rather
+// than on a page load, because the claim has no dedicated thank-you page.
 const ADS_LABELS: Partial<Record<ConversionName, string>> = {
-  doctor_claim_submitted: process.env.NEXT_PUBLIC_GADS_CLAIM_LABEL ?? "",
+  doctor_claim_submitted: process.env.NEXT_PUBLIC_GADS_CLAIM_LABEL ?? "54-uCNvmyoodEKHn-uxE",
   doctor_profile_submitted: process.env.NEXT_PUBLIC_GADS_PROFILE_LABEL ?? "",
   doctor_lp_claim_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "",
   doctor_lp_create_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "",
@@ -48,6 +51,6 @@ export function sendConversion(name: ConversionName, params: { src?: string | nu
   gtag("event", name, p);
   const label = ADS_LABELS[name];
   if (/^AW-\d+$/.test(ADS_ID) && label) {
-    gtag("event", "conversion", { send_to: `${ADS_ID}/${label}` });
+    gtag("event", "conversion", { send_to: `${ADS_ID}/${label}`, value: 1.0, currency: "INR" });
   }
 }
