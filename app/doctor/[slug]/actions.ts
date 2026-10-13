@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getDoctorBySlug } from "@/lib/data";
 import { createEnquiry, reportProfile, submitCorrection } from "@/lib/services/cases";
 import { track } from "@/lib/services/events";
+import { completeRegistration } from "@/lib/services/registration";
 import { reportReview, submitReview } from "@/lib/services/reviews";
 import { questionsForSpecialty } from "@/lib/reviews/questions";
 import { parseRatings } from "@/lib/reviews/score";
@@ -29,9 +30,16 @@ async function doctorOr404(slug: string) {
 
 export async function submitReviewAction(_prev: ActionState, form: FormData): Promise<ActionState> {
   try {
-    const user = await getSessionUser();
+    let user = await getSessionUser();
     if (!user) return { error: "Sign in to write a review." };
-    if (!user.profileComplete) return { error: "Complete your account details first (name, mobile, email)." };
+    // First review on a new account: name, contact and area are on this same
+    // form, saved before the review — no separate setup step.
+    if (!user.profileComplete) {
+      const reg = await completeRegistration(user, form, { forceAccountType: user.accountType ?? "patient" });
+      if ("error" in reg) return { error: reg.error };
+      user = (await getSessionUser()) ?? user;
+      if (!user.profileComplete) return { error: "Could not save your details. Try again." };
+    }
     const doctor = await doctorOr404(String(form.get("slug")));
     const file = form.get("evidence");
     let evidence: { filename: string; mime: string; bytes: Buffer } | null = null;
@@ -51,17 +59,20 @@ export async function submitReviewAction(_prev: ActionState, form: FormData): Pr
         }),
         text: String(form.get("text") ?? ""),
         attestation: form.get("attest") === "on",
+        anonymous: form.get("anonymous") === "on",
+        bookingRef: String(form.get("booking") ?? "").trim() || null,
       },
       evidence,
       { ip: await ip() },
     );
-    await track("review_submitted", { doctorId: doctor.dbId });
+    await track("review_submitted", { doctorId: doctor.dbId, query: res.verifiedByBooking ? "verified:booking" : null });
+    const verified = res.verifiedByBooking ? " It is tied to your TDi booking, so it carries the Verified visit badge." : "";
     return {
       ok: true,
       message:
         res.risk.flags.length > 0
-          ? `Submitted for moderation. Automated checks flagged ${res.risk.flags.length} item(s) for a person to look at; that is normal and does not mean rejection.`
-          : "Submitted for moderation. A person reads every review before it appears, usually within 48 hours.",
+          ? `Submitted for moderation.${verified} Automated checks flagged ${res.risk.flags.length} item(s) for a person to look at; that is normal and does not mean rejection.`
+          : `Submitted for moderation.${verified} A person reads every review before it appears, usually within 48 hours.`,
     };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Something went wrong." };

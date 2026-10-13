@@ -6,6 +6,7 @@ import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { audit } from "@/lib/services/audit";
 import { notifyPatient, notifyPractice } from "@/lib/services/booking-notify";
+import { sendReviewInvite, suppressReviewInvite } from "@/lib/services/review-invites";
 import { newBookingRef, normaliseBookingRef } from "@/lib/booking/ref";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { displayName } from "@/lib/display-name";
@@ -189,6 +190,10 @@ export async function decideAppointment(doctorId: string, actorUserId: string, a
     await notifyPatient(appointmentId, decision === "cancelled" ? "cancelled_by_practice" : decision, note?.trim() || null);
     await notifyPractice(appointmentId, decision === "cancelled" ? "cancelled_by_practice" : decision);
   }
+  // The review ask follows the visit: at once when the practice marks it
+  // done, never for a no-show or a booking that did not happen.
+  if (decision === "completed") await sendReviewInvite(appointmentId).catch((e) => console.error("[review-invite]", e instanceof Error ? e.message : e));
+  if (decision === "no_show" || decision === "declined" || decision === "cancelled") await suppressReviewInvite(appointmentId);
 }
 
 export async function cancelByPatient(userId: string, appointmentId: string) {
@@ -200,6 +205,7 @@ export async function cancelByPatient(userId: string, appointmentId: string) {
   await audit({ actorUserId: userId, actorRole: "patient", action: "appointment.cancelled_by_patient", entityType: "appointment", entityId: appointmentId });
   await notifyPatient(appointmentId, "cancelled_by_patient");
   await notifyPractice(appointmentId, "cancelled_by_patient");
+  await suppressReviewInvite(appointmentId);
 }
 
 export async function listDoctorAppointments(doctorId: string) {

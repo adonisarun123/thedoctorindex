@@ -768,6 +768,7 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
   }
   const dimRows = [...dims.values()].filter((d) => d.n > 0).sort((a, b) => a.sort - b.sort).slice(0, 6);
   const verified = reviews.filter((r) => r.evidenceChecked).length;
+  const booked = reviews.filter((r) => r.fromBooking).length;
 
   return (
     <section className="block revblock" id="reviews" aria-labelledby="reviews-h">
@@ -784,6 +785,7 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
           <div className="of">
             {rating.count ? `${rating.count} ${rating.count === 1 ? "review" : "reviews"}` : "no reviews yet"}
             {verified ? ` · ${verified} verified ${verified === 1 ? "visit" : "visits"}` : ""}
+            {booked ? ` · ${booked} from TDi ${booked === 1 ? "booking" : "bookings"}` : ""}
           </div>
         </div>
         <div className="revsum-dist">
@@ -827,7 +829,7 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
                   </span>
                   {r.author}
                   {r.evidenceChecked ? (
-                    <span className="badge ok" title="The reviewer's prescription or bill from this doctor was checked by a moderator">
+                    <span className="badge ok" title={r.fromBooking ? "This visit was booked through The Doctor Index and took place" : "The reviewer's prescription or bill from this doctor was checked by a moderator"}>
                       Verified visit
                     </span>
                   ) : null}
@@ -877,7 +879,7 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
         </div>
       </div>
       <p className="blocknote">
-        Every review is read by a moderator before it appears; &ldquo;Verified visit&rdquo; marks reviews whose prescription or bill from this doctor was checked. Reviews describe the visit, not clinical outcome. <Link href={paths.policy("reviews")}>Review policy</Link>
+        Every review is read by a moderator before it appears; &ldquo;Verified visit&rdquo; marks reviews tied to an appointment booked through The Doctor Index or whose prescription or bill from this doctor was checked. The site asks every patient who books, and no one is offered anything for a review. Reviews describe the visit, not clinical outcome. <Link href={paths.policy("reviews")}>Review policy</Link>
       </p>
     </section>
   );

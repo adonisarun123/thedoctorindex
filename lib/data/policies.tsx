@@ -65,7 +65,7 @@ export const POLICIES: Policy[] = [
               </tr>
               <tr>
                 <td>Visit evidence checked</td>
-                <td>The reviewer&rsquo;s private proof of consultation (prescription, bill, appointment record) was validated by a moderator — shown as &ldquo;Verified visit&rdquo; on that review. Optional: reviews without it are published after moderation without the badge</td>
+                <td>The visit was booked through The Doctor Index and took place, or the reviewer&rsquo;s private proof of consultation (prescription, bill, appointment record) was validated by a moderator — shown as &ldquo;Verified visit&rdquo; on that review. Optional: reviews without either are published after moderation without the badge</td>
                 <td>Not an endorsement of the review&rsquo;s opinion</td>
               </tr>
             </tbody>
@@ -188,11 +188,11 @@ export const POLICIES: Policy[] = [
     title: "Review policy",
     summary:
       "What patients may write, what doctors may reply, what we refuse to sell, and our internal moderation targets.",
-    updatedOn: "2 Oct 2026",
+    updatedOn: "13 Oct 2026",
     body: (
       <>
         <p>
-          Only patients can review a doctor here, and only after a visit. Reviewers create an account,
+          Only patients can review a doctor here, and only after a visit. Reviewers sign in with a one-time code or Google, give their name, contact and area once (on the review form itself, never published),
           rate the visit from 1 to 5 stars on set questions — knowledge, explanation, services and care,
           courtesy of doctor and staff, hygiene, waiting time, plus questions specific to the speciality —
           and may add an optional comment. Any question that does not apply can be marked N/A.
@@ -204,7 +204,13 @@ export const POLICIES: Policy[] = [
           <li>No ratings or review text imported from any other platform.</li>
           <li>No self-reviews by doctors or staff, no competitor reviews, no incentives, no review gating. Doctors may share their review link with all of their patients, not a chosen few.</li>
           <li>
-            A reviewer may attach the prescription from the visit (or a bill or appointment confirmation from
+            <b>The site asks, not the doctor.</b> Every patient who books an appointment through The Doctor Index is emailed once, after the visit, with a link to review it — every patient, not a selection. A review written from that link is tied to the booking and carries the &ldquo;Verified visit&rdquo; badge on the site&rsquo;s own record of the appointment, with nothing to upload. Appointments marked as no-shows or cancelled are never asked.
+          </li>
+          <li>
+            Reviewers appear as their first name and surname initial (&ldquo;Anita S.&rdquo;) unless they choose to be shown as &ldquo;Reviewer A.S.&rdquo; instead. A moderator always sees the account; the doctor never sees a full name, mobile or email.
+          </li>
+          <li>
+            A reviewer without a booking may attach the prescription from the visit (or a bill or appointment confirmation from
             the same doctor). A moderator checks the document before the review is published; a review whose
             document checks out carries the &ldquo;Verified visit&rdquo; badge, and a review whose document is
             found to be false is rejected. The document is private, seen by one moderator, and deleted as soon
@@ -218,10 +224,11 @@ export const POLICIES: Policy[] = [
           <li>Every policy-compliant review is published, positive or negative.</li>
           <li>No doctor can pay to remove a review or suppress criticism.</li>
           <li>
-            &ldquo;Verified visit&rdquo; appears only on reviews whose document was checked; the date of the check
+            &ldquo;Verified visit&rdquo; appears only on reviews tied to a booking that took place or whose document was checked; the booking reference or the date of the check
             is recorded.
           </li>
-          <li>Doctors may post one reply and must not reveal or confirm any health information in it.</li>
+          <li>Doctors may post one reply and must not reveal or confirm any health information in it. A doctor may also dispute a review; the dispute is decided by a moderator other than the one who published it, and the review stays visible unless it breaches this policy.</li>
+          <li>Three or more reviews for one doctor from the same device or network address in a day are held for a person to look at before any of them is published.</li>
           <li>
             Allegations of malpractice, criminal conduct, fraud or threats go to a trained escalation
             queue, not to ordinary moderation.

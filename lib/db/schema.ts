@@ -659,6 +659,15 @@ export const reviews = pgTable(
     publishedText: text("published_text"),
     status: reviewStatus("status").notNull().default("pending"),
     evidence: evidenceStatus("evidence").notNull().default("none"),
+    /**
+     * The TDi booking this review came from, when the reviewer had a
+     * confirmed appointment with the doctor that has passed. TDi's own record
+     * is the proof of visit: such a review is evidence = checked at submission,
+     * with no document to upload. Null for reviews written without a booking.
+     */
+    appointmentId: uuid("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+    /** Reviewer chose "Reviewer A.S." over the default first name + initial. Moderators see the account either way. */
+    anonymous: boolean("anonymous").notNull().default(false),
     riskScore: smallint("risk_score").notNull().default(0),
     riskFlags: text("risk_flags").array().notNull().default(sql`'{}'::text[]`),
     deviceHash: text("device_hash"),
@@ -767,6 +776,12 @@ export const appointments = pgTable(
     /** Why the doctor declined or either side cancelled. */
     statusNote: text("status_note"),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
+    /**
+     * When the patient was emailed "How was your visit?" with a one-click
+     * review link (lib/services/review-invites.ts). Set without an email for
+     * no-shows and cancellations so they are never asked. One invite per booking.
+     */
+    reviewInviteSentAt: timestamp("review_invite_sent_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1340,6 +1355,7 @@ export const reviewsRelations = relations(reviews, ({ one, many }) => ({
   doctor: one(doctors, { fields: [reviews.doctorId], references: [doctors.id] }),
   author: one(users, { fields: [reviews.authorUserId], references: [users.id] }),
   response: one(doctorResponses, { fields: [reviews.id], references: [doctorResponses.reviewId] }),
+  appointment: one(appointments, { fields: [reviews.appointmentId], references: [appointments.id] }),
   evidenceFiles: many(reviewEvidence),
   reports: many(reviewReports),
 }));

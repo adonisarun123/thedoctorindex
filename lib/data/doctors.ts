@@ -95,6 +95,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
         visitMonth: "July 2026",
         mode: "In person",
         evidenceChecked: true,
+        fromBooking: false,
         ratings: { hospitality: 5, explanation: 5, wait_time: 3, hygiene: 4 },
         text:
           "Explained the angiogram report line by line and drew out what each number meant before recommending anything. Clinic was running about 35 minutes late on a Tuesday evening, which is worth planning for.",
@@ -107,6 +108,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
         visitMonth: "May 2026",
         mode: "Online",
         evidenceChecked: false,
+        fromBooking: false,
         ratings: { hospitality: 5, explanation: 4, wait_time: 5, hygiene: 4 },
         text:
           "Video consultation for my father's follow-up. Prescription and next review date came through on the same day. Asked for the older reports in advance, which made the call efficient.",
@@ -118,6 +120,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
         visitMonth: "March 2026",
         mode: "In person",
         evidenceChecked: true,
+        fromBooking: false,
         ratings: { hospitality: 4, explanation: 5, wait_time: 2, hygiene: 4 },
         text:
           "Second opinion before a planned procedure. Was told clearly that surgery was not required yet and to repeat the test in six months, which was not what the previous clinic had said.",
@@ -175,6 +178,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
         visitMonth: "June 2026",
         mode: "In person",
         evidenceChecked: true,
+        fromBooking: false,
         ratings: { hospitality: 4, explanation: 5, wait_time: 4, hygiene: 4 },
         text:
           "Device check took ten minutes and he showed the readings on screen while explaining what had changed since the last visit.",
@@ -452,6 +456,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
         visitMonth: "August 2026",
         mode: "In person",
         evidenceChecked: true,
+        fromBooking: false,
         ratings: { hospitality: 5, explanation: 5, wait_time: 4, hygiene: 5 },
         text:
           "Took time to ask what had already been tried before writing anything new, and set expectations that it would take about eight weeks to see a difference. It did.",
@@ -463,6 +468,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
         visitMonth: "June 2026",
         mode: "Online",
         evidenceChecked: false,
+        fromBooking: false,
         ratings: { hospitality: 5, explanation: 4, wait_time: 5, hygiene: 4 },
         text:
           "Follow-up for my daughter's eczema over video. Asked for photos in daylight beforehand and adjusted the routine without needing us to travel.",
@@ -745,6 +751,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
         visitMonth: "July 2026",
         mode: "In person",
         evidenceChecked: true,
+        fromBooking: false,
         ratings: { hospitality: 5, explanation: 5, wait_time: 3, hygiene: 4 },
         text:
           "Went in expecting to be told I needed a replacement. Was shown the X-ray, told the joint had years left, and given a loading programme instead. Six weeks on, walking better.",
@@ -1020,6 +1027,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
         visitMonth: "August 2026",
         mode: "In person",
         evidenceChecked: true,
+        fromBooking: false,
         ratings: { hospitality: 5, explanation: 5, wait_time: 4, hygiene: 4 },
         text:
           "Has seen both our children since birth. Writes down the plan on paper every visit and tells you exactly which symptoms mean come back sooner.",
@@ -1031,6 +1039,7 @@ export const SEED_DOCTORS: SeedDoctor[] = [
         visitMonth: "April 2026",
         mode: "Online",
         evidenceChecked: false,
+        fromBooking: false,
         ratings: { hospitality: 5, explanation: 5, wait_time: 5, hygiene: 4 },
         text:
           "Late-evening video call for a fever that had gone on three days. Advised what to watch for overnight and asked us to come in the next morning, which we did.",
