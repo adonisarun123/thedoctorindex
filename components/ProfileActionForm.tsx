@@ -143,7 +143,7 @@ function ReviewFields({ signedIn, questions }: { signedIn: boolean; questions: R
   const specific = questions.filter((q) => q.specialtyKey !== null);
   return (
     <>
-      <div className="eyebrow" style={{ marginBottom: "10px" }}>{signedIn ? "Your experience" : "Sign in first"}</div>
+      <div className="eyebrow" style={{ marginBottom: "10px" }}>{signedIn ? "Step 2 of 2 · Your experience" : "Sign in first"}</div>
       <div className="notice" style={{ marginBottom: "18px" }}>
         <b>Two minutes, and your name is never shown.</b> Rate the visit and add a line if you like. A person reads every review
         before it appears. Add your prescription or bill if you have it and the review carries a <b>Verified visit</b> badge.

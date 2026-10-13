@@ -37,7 +37,8 @@ export type FunnelEvent =
   | "register_result_click" // a result's action button       {cta_location: claim-published|claim-draft|create|claimed|…}
   | "add_profile_submit_attempt"
   | "add_profile_error" //                                     {error_code}
-  | "contact_click"; // patient contact action                 {contact_type, signed_in}
+  | "contact_click" // patient contact action                  {contact_type, signed_in}
+  | "review_cta_click"; // any "Rate your visit" on a profile  {cta_location: header|mobile_bar|reviews_block|reviews_head|rail|practice}
 
 export type FunnelParams = Record<string, string | number | boolean | null | undefined>;
 

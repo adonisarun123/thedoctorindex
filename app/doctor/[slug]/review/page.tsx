@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { Avatar } from "@/components/Avatar";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { OtpSignIn } from "@/components/OtpSignIn";
 import { ProfileActionForm } from "@/components/ProfileActionForm";
@@ -10,15 +12,16 @@ import { getDoctorBySlug } from "@/lib/data";
 import { LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
 import { absoluteUrl, paths } from "@/lib/site";
 import { displayName } from "@/lib/display-name";
+import { facilityLabel } from "@/lib/seo/profile-content";
 import { questionsForSpecialty } from "@/lib/reviews/questions";
 
 type Params = { slug: string };
 type Search = Record<string, string | string[] | undefined>;
 
 const KIND = "review" as const;
-const TITLE = "Write a review";
+const TITLE = "Rate your visit";
 const EYEBROW = "Patient reviews";
-const INTRO = "Rate the visit and add a comment if you like. A moderator reads every review before it appears. Attach your prescription or bill if you have it and the review carries a Verified visit badge.";
+const INTRO = "Four quick ratings and, if you like, a line about the visit. About two minutes. Your name is never shown, and a moderator reads every review before it appears.";
 const NEEDS_SIGN_IN = true;
 
 export const dynamic = "force-dynamic";
@@ -46,6 +49,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
   const here = `${paths.doctor(doctor.slug)}/${KIND}${about ? `?about=${about}` : ""}`;
   if (user && !user.profileComplete) redirect(setupPath(here));
   const questions = doctor.dbId ? await questionsForSpecialty(doctor.specialty) : [];
+  const primaryPractice = doctor.practices[0] ?? null;
 
   return (
     <>
@@ -75,9 +79,19 @@ export default async function Page({ params, searchParams }: { params: Promise<P
         <div className="flow">
           <span className="eyebrow">{EYEBROW}</span>
           <h1 style={{ margin: "10px 0 6px" }}>{TITLE}</h1>
-          <p style={{ color: "var(--ink-2)", fontSize: "15px", marginBottom: "22px", maxWidth: "58ch" }}>
-            {displayName(doctor)}, {specialty.one.toLowerCase()}. {INTRO}
-          </p>
+          <div className="flow-doc">
+            <Avatar name={doctor.name} id={doctor.id} size={52} photoUrl={doctor.photoUrl} />
+            <div>
+              <Link className="nm" href={paths.doctor(doctor.slug)}>
+                {displayName(doctor)}
+              </Link>
+              <div className="s">
+                {specialty.one}
+                {primaryPractice ? ` · ${[facilityLabel(primaryPractice), primaryPractice.localityName].filter(Boolean).join(", ")}` : ""}
+              </div>
+            </div>
+          </div>
+          <p style={{ color: "var(--ink-2)", fontSize: "16px", marginBottom: "22px", maxWidth: "58ch" }}>{INTRO}</p>
           {!doctor.dbId ? (
             <div className="notice" style={{ marginBottom: "16px" }}>
               <b>Read-only build.</b> This deployment runs on fixture data with no database, so the form below cannot be submitted. Set DATABASE_URL to enable it.
@@ -85,9 +99,9 @@ export default async function Page({ params, searchParams }: { params: Promise<P
           ) : null}
           {NEEDS_SIGN_IN && !user ? (
             <div className="panel pad">
-              <div className="eyebrow" style={{ marginBottom: "10px" }}>Step 1 of 2 · Sign in</div>
+              <div className="eyebrow" style={{ marginBottom: "10px" }}>Step 1 of 2 · Sign in with a one-time code</div>
               <p style={{ fontSize: "14.5px", color: "var(--ink-2)", marginBottom: "16px" }}>
-                Create your patient account with a one-time code. One account, one review per doctor. Your contact details, and any document you attach, are never shown on the site.
+                A code to your phone or email, nothing else to set up. One account, one review per doctor. Your contact details, and any document you attach, are never shown on the site. Step 2 is the rating itself.
               </p>
               <OtpSignIn next={here} label="Continue" />
             </div>

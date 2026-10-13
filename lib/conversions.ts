@@ -29,11 +29,15 @@ export type ConversionName =
   | "doctor_profile_submitted"; // new profile submitted for verification (primary conversion)
 
 const ADS_ID = process.env.NEXT_PUBLIC_GADS_ID ?? "AW-18482115489";
+// Google Ads conversion actions in account 420-018-5449 (labels read from the
+// account 13 Oct 2026). The two primary ones are 1.0 INR each and fire once
+// on their /thank-you pages; the lead click is a secondary action (observed,
+// not bid on) and fires on the landing-page CTA click.
 const ADS_LABELS: Partial<Record<ConversionName, string>> = {
-  doctor_claim_submitted: process.env.NEXT_PUBLIC_GADS_CLAIM_LABEL ?? "",
-  doctor_profile_submitted: process.env.NEXT_PUBLIC_GADS_PROFILE_LABEL ?? "",
-  doctor_lp_claim_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "",
-  doctor_lp_create_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "",
+  doctor_claim_submitted: process.env.NEXT_PUBLIC_GADS_CLAIM_LABEL ?? "54-uCNvmyoodEKHn-uxE", // "Doctor profile claimed"
+  doctor_profile_submitted: process.env.NEXT_PUBLIC_GADS_PROFILE_LABEL ?? "n9tsCN7myoodEKHn-uxE", // "Doctor profile created"
+  doctor_lp_claim_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "zjwnCKfGhpsdEKHn-uxE", // "Doctor landing page lead"
+  doctor_lp_create_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "zjwnCKfGhpsdEKHn-uxE",
 };
 
 type GtagWindow = Window & { gtag?: (...args: unknown[]) => void };
@@ -48,6 +52,47 @@ export function sendConversion(name: ConversionName, params: { src?: string | nu
   gtag("event", name, p);
   const label = ADS_LABELS[name];
   if (/^AW-\d+$/.test(ADS_ID) && label) {
-    gtag("event", "conversion", { send_to: `${ADS_ID}/${label}` });
+    gtag("event", "conversion", { send_to: `${ADS_ID}/${label}`, value: 1.0, currency: "INR" });
+  }
+}
+
+/**
+ * Thank-you-page hand-off. The form stashes the conversion in sessionStorage
+ * and navigates to its /thank-you page, which fires it exactly once: the stash
+ * is removed on read, so a refresh, a back-button visit or a direct hit to the
+ * thank-you URL records nothing. `display` is for the page copy only and is
+ * never sent to gtag.
+ */
+const STASH_KEY = "tdi:conversion";
+
+export interface StashedConversion {
+  name: ConversionName;
+  params?: { src?: string | null; method?: string | null };
+  display?: Record<string, string>;
+  t: number;
+}
+
+export function stashConversion(c: Omit<StashedConversion, "t">): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(STASH_KEY, JSON.stringify({ ...c, t: Date.now() }));
+  } catch {
+    // Storage blocked (private mode, disabled): the thank-you page then shows its generic copy.
+  }
+}
+
+/** Reads and clears the stash; fires the conversion if it is less than 10 minutes old. */
+export function takeStashedConversion(): StashedConversion | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(STASH_KEY);
+    if (!raw) return null;
+    window.sessionStorage.removeItem(STASH_KEY);
+    const c = JSON.parse(raw) as StashedConversion;
+    if (!c?.name || typeof c.t !== "number" || Date.now() - c.t > 10 * 60 * 1000) return null;
+    sendConversion(c.name, c.params ?? {});
+    return c;
+  } catch {
+    return null;
   }
 }
