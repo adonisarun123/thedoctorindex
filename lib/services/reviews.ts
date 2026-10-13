@@ -12,6 +12,9 @@ import { storeFile } from "@/lib/services/files";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { displayName } from "@/lib/display-name";
 import { questionsForSpecialty } from "@/lib/reviews/questions";
+import { publicAuthorLabel } from "@/lib/reviews/author-label";
+import { sameSourceBurst } from "@/lib/reviews/burst";
+import { bookingProvesVisit } from "@/lib/reviews/invite";
 import { overallScore, validateRatings } from "@/lib/reviews/score";
 
 /**
@@ -29,6 +32,28 @@ export interface ReviewInput {
   /** Optional comment; empty when the reviewer only rated. */
   text: string;
   attestation: boolean;
+  /** Show as "Reviewer A.S." instead of first name + initial. */
+  anonymous?: boolean;
+  /** Booking reference from the invite link (TDI-BK-…). Optional: a qualifying booking is found without it too. */
+  bookingRef?: string | null;
+}
+
+/**
+ * The reviewer's own TDi booking with this doctor, if one has passed: the
+ * site's record of the visit, which makes the review "Verified visit" with
+ * no document. With a ref from the invite link that booking is checked; without
+ * one, the most recent qualifying booking is used.
+ */
+export async function qualifyingAppointment(userId: string, doctorId: string, ref?: string | null) {
+  const db = getDb();
+  const rows = await db
+    .select({ id: s.appointments.id, ref: s.appointments.ref, status: s.appointments.status, startsAt: s.appointments.startsAt, endsAt: s.appointments.endsAt })
+    .from(s.appointments)
+    .where(and(eq(s.appointments.patientUserId, userId), eq(s.appointments.doctorId, doctorId), ...(ref ? [eq(s.appointments.ref, ref.trim().toUpperCase())] : [])))
+    .orderBy(desc(s.appointments.startsAt))
+    .limit(10);
+  const now = new Date();
+  return rows.find((a) => bookingProvesVisit(a, now)) ?? null;
 }
 
 /** Hard cap on how long proof can sit unmoderated before the bytes go anyway. */
@@ -96,6 +121,20 @@ export async function submitReview(userId: string, doctorId: string, input: Revi
     risk.flags.push("velocity");
     risk.score = Math.min(100, risk.score + 25);
   }
+  // Same device or address, same doctor, same day: a desk seeding reviews. Held for a person.
+  const ipHash = meta?.ip ? sha256(meta.ip, process.env.CONTACT_HASH_PEPPER ?? "tdi").slice(0, 32) : null;
+  const sourceHashes = [meta?.deviceHash ?? null, ipHash].filter((h): h is string => Boolean(h));
+  if (sourceHashes.length) {
+    const [{ n: same }] = (await db.execute(
+      sql`select count(*)::int as n from reviews where doctor_id = ${doctorId} and submitted_at > now() - interval '1 day' and (device_hash = any(${sourceHashes}) or ip_hash = any(${sourceHashes}))`,
+    )) as unknown as Array<{ n: number }>;
+    if (sameSourceBurst(Number(same) + 1)) {
+      risk.flags.push("same_source_burst");
+      risk.score = Math.min(100, risk.score + 40);
+    }
+  }
+  // A TDi booking that has passed is the proof of visit: no document needed.
+  const booking = await qualifyingAppointment(userId, doctorId, input.bookingRef);
   // Near-duplicate of a recent review on the same doctor.
   const [dupe] = input.text.trim()
     ? ((await db.execute(sql`select id from reviews where doctor_id = ${doctorId} and text <> '' and similarity(lower(text), ${input.text.toLowerCase()}) > ${Number(process.env.REVIEW_DUPLICATE_SIMILARITY_THRESHOLD ?? 0.85)} limit 1`)) as unknown as Array<{ id: string }>)
@@ -106,7 +145,8 @@ export async function submitReview(userId: string, doctorId: string, input: Revi
   }
 
   const [u] = await db.select({ displayName: s.users.displayName, email: s.users.email, phone: s.users.phone }).from(s.users).where(eq(s.users.id, userId)).limit(1);
-  const authorLabel = pseudonym(u?.displayName ?? u?.email ?? u?.phone ?? userId);
+  const anonymous = Boolean(input.anonymous);
+  const authorLabel = publicAuthorLabel(u?.displayName ?? u?.email ?? u?.phone ?? "", anonymous);
 
   const [review] = await db
     .insert(s.reviews)
@@ -121,29 +161,28 @@ export async function submitReview(userId: string, doctorId: string, input: Revi
       score,
       text: input.text.trim(),
       status: "pending",
-      evidence: evidence ? "supplied" : "none",
+      // The booking outranks a document: it is TDi's own record of the visit.
+      evidence: booking ? "checked" : evidence ? "supplied" : "none",
+      appointmentId: booking?.id ?? null,
+      anonymous,
       riskScore: risk.score,
       riskFlags: risk.flags,
       deviceHash: meta?.deviceHash ?? null,
-      ipHash: meta?.ip ? sha256(meta.ip, process.env.CONTACT_HASH_PEPPER ?? "tdi").slice(0, 32) : null,
+      ipHash,
     })
     .returning({ id: s.reviews.id });
 
-  if (evidence) {
+  if (evidence && !booking) {
     const file = await storeFile({ bucket: "private", filename: evidence.filename, mime: evidence.mime, bytes: evidence.bytes, uploadedByUserId: userId });
     // Brought forward to the moderation time once a decision is made (moderateReview).
     const purge = new Date(Date.now() + EVIDENCE_MAX_DAYS() * 86_400_000);
     await db.insert(s.reviewEvidence).values({ reviewId: review.id, fileId: file.id, purgeAfter: purge });
   }
-  await audit({ actorUserId: userId, actorRole: "patient", action: "review.submitted", entityType: "review", entityId: review.id, after: { doctorId, risk } });
-  return { id: review.id, risk };
-}
-
-/** "Anita Sharma" → "Reviewer A.S."; an email → initials of the local part. */
-function pseudonym(source: string): string {
-  const base = source.includes("@") ? source.split("@")[0].replace(/[._-]+/g, " ") : source;
-  const initials = base.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join(".");
-  return `Reviewer ${initials || "A"}.`;
+  await audit({ actorUserId: userId, actorRole: "patient", action: "review.submitted", entityType: "review", entityId: review.id, after: { doctorId, risk, bookingRef: booking?.ref ?? null, anonymous } });
+  // One invite per booking: a review written from the profile before the
+  // invite went out means the invite is no longer needed.
+  if (booking) await db.update(s.appointments).set({ reviewInviteSentAt: sql`coalesce(${s.appointments.reviewInviteSentAt}, now())` }).where(eq(s.appointments.id, booking.id));
+  return { id: review.id, risk, verifiedByBooking: Boolean(booking) };
 }
 
 export async function moderateReview(id: string, decision: "published" | "redacted" | "rejected" | "removed", staffUserId: string, opts: { publishedText?: string; reason?: string } = {}) {
@@ -222,13 +261,25 @@ export async function reportReview(reviewId: string, reporterUserId: string | nu
 
 export async function resolveReviewReport(id: string, status: "assessed" | "resolved" | "dismissed", staffUserId: string, resolution?: string) {
   const db = getDb();
+  // A doctor's dispute is decided by someone other than the moderator who
+  // published the review — the dashboard promises this, so it is enforced here.
+  const [rp] = await db
+    .select({ reporterUserId: s.reviewReports.reporterUserId, moderatedBy: s.reviews.moderatedByUserId, doctorOwner: s.doctors.claimedByUserId })
+    .from(s.reviewReports)
+    .innerJoin(s.reviews, eq(s.reviews.id, s.reviewReports.reviewId))
+    .innerJoin(s.doctors, eq(s.doctors.id, s.reviews.doctorId))
+    .where(eq(s.reviewReports.id, id))
+    .limit(1);
+  if (!rp) throw new Error("report not found");
+  const byDoctor = Boolean(rp.reporterUserId && rp.doctorOwner && rp.reporterUserId === rp.doctorOwner);
+  if (byDoctor && status !== "assessed" && rp.moderatedBy === staffUserId) throw new Error("This is the doctor's dispute of a review you published. A second moderator has to decide it — leave it as assessed and hand it over.");
   await db.update(s.reviewReports).set({ status, assessedAt: status === "assessed" ? new Date() : undefined, resolvedAt: status === "assessed" ? null : new Date(), resolvedByUserId: staffUserId, resolution: resolution ?? null }).where(eq(s.reviewReports.id, id));
   await audit({ actorUserId: staffUserId, actorRole: "staff", action: `review_report.${status}`, entityType: "review_report", entityId: id, reason: resolution });
 }
 
 /* Moderation queue reads */
 export async function listReviewQueue(status: "pending" | "published" | "redacted" | "rejected" | "removed" = "pending", limit = 100) {
-  return getDb().query.reviews.findMany({ where: eq(s.reviews.status, status), with: { doctor: true, response: true, evidenceFiles: true, reports: true }, orderBy: [desc(s.reviews.riskScore), desc(s.reviews.submittedAt)], limit });
+  return getDb().query.reviews.findMany({ where: eq(s.reviews.status, status), with: { doctor: true, response: true, evidenceFiles: true, reports: true, appointment: { columns: { ref: true, startsAt: true, status: true } }, author: { columns: { displayName: true, email: true, phone: true } } }, orderBy: [desc(s.reviews.riskScore), desc(s.reviews.submittedAt)], limit });
 }
 export async function listResponseQueue() {
   return getDb().query.doctorResponses.findMany({ where: eq(s.doctorResponses.status, "pending"), with: { review: { with: { doctor: true } } }, orderBy: [desc(s.doctorResponses.createdAt)], limit: 100 });
@@ -237,5 +288,5 @@ export async function listReviewReports(open = true) {
   return getDb().query.reviewReports.findMany({ where: open ? eq(s.reviewReports.status, "open") : gt(s.reviewReports.createdAt, new Date(0)), with: { review: { with: { doctor: true } } }, orderBy: [desc(s.reviewReports.createdAt)], limit: 100 });
 }
 export async function listDoctorReviewsForDashboard(doctorId: string) {
-  return getDb().query.reviews.findMany({ where: and(eq(s.reviews.doctorId, doctorId), sql`${s.reviews.status} in ('published','redacted')`), with: { response: true }, orderBy: [desc(s.reviews.submittedAt)] });
+  return getDb().query.reviews.findMany({ where: and(eq(s.reviews.doctorId, doctorId), sql`${s.reviews.status} in ('published','redacted')`), with: { response: true, appointment: { columns: { ref: true } } }, orderBy: [desc(s.reviews.submittedAt)] });
 }

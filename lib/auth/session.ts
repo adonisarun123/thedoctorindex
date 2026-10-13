@@ -45,7 +45,7 @@ export interface SessionUser {
   /** Staff only: has a TOTP authenticator been enrolled, and has this session passed it. */
   mfaEnrolled: boolean;
   mfaVerified: boolean;
-  /** Registration complete: name, mobile, email, locality and accepted terms. */
+  /** Registration complete: name, email, accepted terms; mobile and locality for patients. */
   profileComplete: boolean;
   localityKey: string | null;
 }
@@ -147,7 +147,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     sessionId: row.sessionId,
     mfaEnrolled: Boolean(row.mfaEnrolled),
     mfaVerified: Boolean(row.mfaVerifiedAt),
-    profileComplete: Boolean(row.profileCompletedAt && row.displayName && row.phone && row.email),
+    // A doctor's registration needs no mobile: it is asked when bookings are
+    // switched on, where a practice must be reachable (lib/booking/slots.ts).
+    profileComplete: Boolean(row.profileCompletedAt && row.displayName && row.email && (row.phone || row.accountType === "doctor")),
     localityKey: row.localityKey,
   };
 }

@@ -7,13 +7,14 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { OtpSignIn } from "@/components/OtpSignIn";
 import { ProfileActionForm } from "@/components/ProfileActionForm";
 import { RouteMeta } from "@/components/RouteMeta";
-import { getSessionUser, setupPath } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { getDoctorBySlug } from "@/lib/data";
 import { LOCALITIES, SPECIALTIES } from "@/lib/data/taxonomy";
 import { absoluteUrl, paths } from "@/lib/site";
 import { displayName } from "@/lib/display-name";
 import { facilityLabel } from "@/lib/seo/profile-content";
 import { questionsForSpecialty } from "@/lib/reviews/questions";
+import { qualifyingAppointment } from "@/lib/services/reviews";
 
 type Params = { slug: string };
 type Search = Record<string, string | string[] | undefined>;
@@ -21,7 +22,7 @@ type Search = Record<string, string | string[] | undefined>;
 const KIND = "review" as const;
 const TITLE = "Rate your visit";
 const EYEBROW = "Patient reviews";
-const INTRO = "Four quick ratings and, if you like, a line about the visit. About two minutes. Your name is never shown, and a moderator reads every review before it appears.";
+const INTRO = "Four quick ratings and, if you like, a line about the visit. About two minutes. You appear as your first name and initial, or hidden if you prefer, and a moderator reads every review before it appears.";
 const NEEDS_SIGN_IN = true;
 
 export const dynamic = "force-dynamic";
@@ -44,12 +45,35 @@ export default async function Page({ params, searchParams }: { params: Promise<P
   const sp = await searchParams;
   const practice = Number(Array.isArray(sp.practice) ? sp.practice[0] : sp.practice) || 0;
   const about = Array.isArray(sp.about) ? sp.about[0] : sp.about;
+  // Booking reference from the "How was your visit?" email. Checked against
+  // the signed-in account's own bookings; never trusted on its own.
+  const bookingRef = (Array.isArray(sp.booking) ? sp.booking[0] : sp.booking)?.trim().toUpperCase() || null;
   const specialty = SPECIALTIES[doctor.specialty];
   const user = await getSessionUser();
-  const here = `${paths.doctor(doctor.slug)}/${KIND}${about ? `?about=${about}` : ""}`;
-  if (user && !user.profileComplete) redirect(setupPath(here));
+  const qs = new URLSearchParams();
+  if (about) qs.set("about", about);
+  if (bookingRef) qs.set("booking", bookingRef);
+  const here = `${paths.doctor(doctor.slug)}/${KIND}${qs.size ? `?${qs}` : ""}`;
+  // A staff account has no business reviewing; everyone else, including a
+  // brand-new account, gets the form — details are asked on it, not before it.
+  if (user?.role === "staff") redirect(paths.doctor(doctor.slug));
   const questions = doctor.dbId ? await questionsForSpecialty(doctor.specialty) : [];
   const primaryPractice = doctor.practices[0] ?? null;
+  const booking = user && doctor.dbId ? await qualifyingAppointment(user.id, doctor.dbId, bookingRef) : null;
+  const reviewCtx = user
+    ? {
+        needsDetails: !user.profileComplete,
+        phoneKnown: Boolean(user.phone),
+        emailKnown: Boolean(user.email),
+        booking: booking
+          ? {
+              ref: booking.ref,
+              when: booking.startsAt.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }),
+              month: booking.startsAt.toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" }),
+            }
+          : null,
+      }
+    : null;
 
   return (
     <>
@@ -101,7 +125,8 @@ export default async function Page({ params, searchParams }: { params: Promise<P
             <div className="panel pad">
               <div className="eyebrow" style={{ marginBottom: "10px" }}>Step 1 of 2 · Sign in with a one-time code</div>
               <p style={{ fontSize: "14.5px", color: "var(--ink-2)", marginBottom: "16px" }}>
-                A code to your phone or email, nothing else to set up. One account, one review per doctor. Your contact details, and any document you attach, are never shown on the site. Step 2 is the rating itself.
+                A code to your email{process.env.NEXT_PUBLIC_SMS_ENABLED === "1" ? " or phone" : ""}, or continue with Google — nothing else to set up. One account, one review per doctor. Your contact details, and any document you attach, are never shown on the site. Step 2 is the rating itself.
+                {bookingRef ? " Sign in with the email your booking was made with, so the review is tied to it." : ""}
               </p>
               <OtpSignIn next={here} label="Continue" />
             </div>
@@ -112,6 +137,7 @@ export default async function Page({ params, searchParams }: { params: Promise<P
               about={about}
               signedIn={Boolean(user)}
               questions={questions}
+              review={reviewCtx}
               doctor={{
                 slug: doctor.slug,
                 name: doctor.name,

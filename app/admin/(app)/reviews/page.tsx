@@ -20,7 +20,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
       <div className="dash-head">
         <div>
           <h1>Review moderation</h1>
-          <div className="sub">Highest risk first. Automated checks flag; a person decides. <Link href="/admin/reviews/questions">Edit review questions →</Link> <b>Step 1 (only when a document was uploaded):</b> open it and record whether it is valid (doctor or practice name and a date that fits the stated visit month) — a valid one earns the review the Verified visit badge; a false one rejects the review. <b>Step 2:</b> publish, redact or reject the text. Reviews without a document are judged on the text alone. Documents are deleted overnight once the review is decided.</div>
+          <div className="sub">Highest risk first. Automated checks flag; a person decides. <Link href="/admin/reviews/questions">Edit review questions →</Link> <b>Step 1 (only when a document was uploaded):</b> open it and record whether it is valid (doctor or practice name and a date that fits the stated visit month) — a valid one earns the review the Verified visit badge; a false one rejects the review. <b>Step 2:</b> publish, redact or reject the text. Reviews without a document are judged on the text alone. Documents are deleted overnight once the review is decided. A review tied to a <b>TDi booking</b> is already Verified visit — the site's own record of the appointment. <b>Hold</b> marks three or more reviews for one doctor from one device or address in a day; read these with the account details.</div>
         </div>
         <div className="quick" style={{ marginTop: 0 }}>
           {(["pending", "published", "redacted", "rejected", "removed"] as const).map((st) => (
@@ -81,7 +81,12 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
           <div className="qcard" id={r.id} key={r.id}>
             <div className="qh">
               <div>
-                <div className="qt">{r.authorLabel} on <Link href={`/admin/doctors/${r.doctorId}`}>Dr {r.doctor.name}</Link></div>
+                <div className="qt">
+                  {r.authorLabel} on <Link href={`/admin/doctors/${r.doctorId}`}>Dr {r.doctor.name}</Link>
+                  {r.riskFlags.includes("same_source_burst") ? <span className="pill warn" style={{ marginLeft: "8px" }}>Hold</span> : null}
+                </div>
+                <div className="qm">account: {r.author?.displayName ?? "—"} · {r.author?.email ?? r.author?.phone ?? "—"}{r.anonymous ? " · chose to hide name" : ""}</div>
+                {r.appointment ? <div className="qm">Verified via TDi booking <span className="mono">{r.appointment.ref}</span> on {toDisplay(r.appointment.startsAt)} ({r.appointment.status})</div> : null}
                 <div className="qm">{r.visitMonth} · {r.mode} · for {r.forWhom} · submitted {toDisplay(r.submittedAt)} · score {r.score ?? "—"}</div>
                 <div className="qm">{Object.entries(r.ratings ?? {}).map(([k, v]) => `${labels.get(k)?.label ?? k} ${v}/5`).join(" · ") || "no ratings"}</div>
               </div>
@@ -115,6 +120,9 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
             ) : null}
             {r.status === "pending" && r.evidence === "none" ? (
               <div className="qm" style={{ marginTop: "10px" }}>No document uploaded — judge the text; the review publishes without the Verified visit badge.</div>
+            ) : null}
+            {r.status === "pending" && r.evidence === "checked" && r.appointment ? (
+              <div className="qm" style={{ marginTop: "10px" }}>Visit verified by the booking — judge the text; it publishes with the Verified visit badge.</div>
             ) : null}
             {r.status === "pending" || status !== "pending" ? (
               <ActionForm action={moderateReviewAction} submitLabel="Apply decision" variant="solid" style={{ marginTop: "10px" }}>

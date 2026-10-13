@@ -736,6 +736,20 @@ footer.site { border-top: 1px solid var(--hair); background: var(--surface); pad
 .dash-head .sub { font-size: 16px; color: var(--muted); margin-top: 4px; }
 
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+/* Listed → Verified → Bookable (components/TierBar.tsx) */
+.tierbar { list-style: none; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); overflow: hidden; }
+.tierbar .tier a { display: grid; grid-template-columns: 26px 1fr; gap: 4px 10px; padding: 12px 14px; color: inherit; text-decoration: none; height: 100%; border-left: 1px solid var(--hair); }
+.tierbar .tier:first-child a { border-left: 0; }
+.tierbar .dot { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 12px; border: 1.5px solid var(--hair); color: var(--muted); grid-row: 1 / span 2; align-self: start; }
+.tierbar .lbl { font-weight: 600; font-size: 14px; }
+.tierbar .hnt { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.tierbar .tier.done .dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tierbar .tier.here a { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.tierbar .tier.here .dot { border-color: var(--accent); color: var(--accent); }
+.tierbar .tier.here .lbl::after { content: " · you are here"; font-weight: 400; font-size: 12px; color: var(--accent); }
+.tierbar .tier.next .lbl { color: var(--ink-2); }
+@media (max-width: 720px) { .tierbar { grid-template-columns: 1fr; } .tierbar .tier a { border-left: 0; border-top: 1px solid var(--hair); } .tierbar .tier:first-child a { border-top: 0; } }
 @media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
 .tile { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 14px 16px; }
 .tile .l { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.01em; text-transform: none; color: var(--muted); }

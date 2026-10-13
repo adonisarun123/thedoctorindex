@@ -50,7 +50,10 @@ export function DoctorLpSearch({ src, autoFocus = false }: { src: string; autoFo
   }, [q, src]);
 
   const tag = `src=${encodeURIComponent(src)}`;
-  const createHref = `/add-doctor?${tag}`;
+  // The register search is the way in: it shows the doctor their own council
+  // entry before any sign-in, and going live from it is one confirmation.
+  const registerHref = (name: string) => `/claim-profile/find?q=${encodeURIComponent(name.replace(/^dr\.?\s*/i, "").trim())}&${tag}`;
+  const createHref = q.trim().length >= 3 ? registerHref(q) : `/claim-profile/find?${tag}`;
 
   return (
     <div className="lp-find">
@@ -97,7 +100,7 @@ export function DoctorLpSearch({ src, autoFocus = false }: { src: string; autoFo
                 ) : (
                   <a
                     className="btn solid lp-result-act"
-                    href={`/claim-profile?profile=${encodeURIComponent(d.slug)}&${tag}`}
+                    href={registerHref(d.name)}
                     onClick={() => sendConversion("doctor_lp_claim_click", { src })}
                   >
                     This is me
@@ -109,7 +112,7 @@ export function DoctorLpSearch({ src, autoFocus = false }: { src: string; autoFo
         ) : null}
         {results && results.length === 0 && !loading ? (
           <div className="lp-empty">
-            <b>No profile found for “{q.trim()}”.</b> Try a shorter spelling, or create one now — it takes a few minutes.
+            <b>No profile found for “{q.trim()}”.</b> Check the medical council register — if you are on it, your profile is one confirmation away.
           </div>
         ) : null}
       </div>
@@ -117,7 +120,7 @@ export function DoctorLpSearch({ src, autoFocus = false }: { src: string; autoFo
       <div className="lp-find-foot">
         {results ? "Not in the list?" : "Not listed yet?"}{" "}
         <a href={createHref} onClick={() => sendConversion("doctor_lp_create_click", { src })}>
-          Create your free profile →
+          Find yourself in the council register →
         </a>
       </div>
     </div>

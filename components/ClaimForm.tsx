@@ -20,7 +20,7 @@ export interface ClaimTarget {
 /** Verification options. The default needs nothing from the doctor: an officer calls the practice on file. */
 const METHOD_LABELS: Record<string, { short: string; long: string }> = {
   practice_otp: { short: "a one-time code to the practice number on file", long: "One-time password to the practice number already on file" },
-  work_email: { short: "an email at your hospital or clinic domain", long: "Email at your hospital or clinic domain" },
+  work_email: { short: "an email at your hospital or clinic domain — instant for the major hospital chains when you signed in with it", long: "Email at your hospital or clinic domain (instant when you signed in with a major hospital's address)" },
   practice_admin: { short: "confirmation from your practice administrator", long: "Confirmation from the practice administrator" },
   document: { short: "a document you upload", long: "Upload supporting evidence (registration certificate, hospital ID) — usually fastest" },
 };
@@ -35,7 +35,7 @@ export function ClaimForm({ initialRegistration, initialCouncil = "", profile, s
       reported.current = true;
       // The conversion fires on /claim-profile/thank-you (lib/conversions.ts), once.
       stashConversion({ name: "doctor_claim_submitted", params: { src: source, method }, display: { doctorName: state.doctorName ?? "" } });
-      router.replace("/claim-profile/thank-you");
+      router.replace(state.autoVerified ? `/claim-profile/thank-you?verified=${encodeURIComponent(state.autoVerified)}` : "/claim-profile/thank-you");
     }
     // method is read at the moment of success only; it must not re-trigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,7 +50,11 @@ export function ClaimForm({ initialRegistration, initialCouncil = "", profile, s
     return (
       <div className="panel pad">
         <div className="notice good" style={{ marginBottom: "16px" }}>
-          <b>Claim received for {state.doctorName}.</b> A verification officer confirms control through the method you chose — target 2 business days. If someone else has already claimed this profile we will not show you their details, and we will not transfer control without evidence from both sides.
+          {state.autoVerified ? (
+            <><b>Verified — {state.doctorName} is yours.</b> Your {state.autoVerified} email confirmed it on the spot.</>
+          ) : (
+            <><b>Claim received for {state.doctorName}.</b> A verification officer confirms control through the method you chose — target 2 business days. If someone else has already claimed this profile we will not show you their details, and we will not transfer control without evidence from both sides.</>
+          )}
         </div>
         <Link className="btn quiet" href="/dashboard">Go to your dashboard</Link>
       </div>

@@ -46,14 +46,14 @@ test("labelledRatings orders by question order and keeps retired keys", () => {
 
 /* Calendar unlock */
 
-const complete: UnlockFacts = { registrationVerified: true, practices: 1, practicesWithFee: 1, aboutChars: 120, aboutHasSuperlative: false, services: 3, languages: 2, modes: 1 };
+const complete: UnlockFacts = { registrationVerified: true, practices: 1, practicesWithFee: 1, aboutChars: 120, aboutHasSuperlative: false, services: 3, languages: 2, modes: 1, accountPhone: true };
 
 test("a complete profile unlocks the calendar", () => {
   assert.equal(isUnlocked(bookingRequirements(complete)), true);
 });
 
 test("each missing piece keeps it locked", () => {
-  for (const patch of [{ registrationVerified: false }, { practices: 0, practicesWithFee: 0 }, { practicesWithFee: 0 }, { aboutChars: 40 }, { aboutHasSuperlative: true }, { services: 2 }, { languages: 0 }]) {
+  for (const patch of [{ registrationVerified: false }, { practices: 0, practicesWithFee: 0 }, { practicesWithFee: 0 }, { aboutChars: 40 }, { aboutHasSuperlative: true }, { services: 2 }, { languages: 0 }, { accountPhone: false }]) {
     assert.equal(isUnlocked(bookingRequirements({ ...complete, ...patch })), false, JSON.stringify(patch));
   }
 });

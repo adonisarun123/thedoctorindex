@@ -158,8 +158,10 @@ export interface Review {
   /** Approximate visit month, not an exact date. */
   visitMonth: string;
   mode: "In person" | "Online";
-  /** True only where private proof of consultation was supplied AND validated. */
+  /** True where the visit was verified: a TDi booking that took place, or private proof of consultation that a moderator validated. */
   evidenceChecked: boolean;
+  /** The visit was booked through The Doctor Index — the site's own record, no document involved. */
+  fromBooking: boolean;
   /** Question key → 1..5 stars. Labels come from review_questions at render time. */
   ratings: Record<string, number>;
   text: string;

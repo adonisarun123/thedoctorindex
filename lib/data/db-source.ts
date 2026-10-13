@@ -245,6 +245,7 @@ function toView(row: DoctorRow, locality: (key: string) => Locality | null, roll
       visitMonth: r.visitMonth,
       mode: (r.mode === "Online" ? "Online" : "In person") as "In person" | "Online",
       evidenceChecked: r.evidence === "checked",
+      fromBooking: Boolean(r.appointmentId),
       ratings:
         r.ratings && Object.keys(r.ratings).length
           ? r.ratings
