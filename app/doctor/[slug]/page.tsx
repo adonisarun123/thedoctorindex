@@ -16,6 +16,7 @@ import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { CallButton, DirectionsButton, ViewBeacon } from "@/components/ContactActions";
 import { JsonLd } from "@/components/JsonLd";
 import { QrShare } from "@/components/QrShare";
+import { ReviewCta, StarIcon } from "@/components/ReviewCta";
 import { RouteMeta, type RouteMetaData } from "@/components/RouteMeta";
 import { canonicalDoctorPath, countIndexable, countsByLocality, countsBySpecialty, getAtFacility, getDoctorBySlug, getNearby, totals } from "@/lib/data";
 import { getGeo } from "@/lib/data/geo";
@@ -30,7 +31,7 @@ import { GoogleListingCard } from "@/components/GoogleListing";
 import { absoluteUrl, paths, SITE } from "@/lib/site";
 import { claimLink } from "@/lib/claim-source";
 import type { DoctorCredential, DoctorView } from "@/lib/types";
-import { displayName, honorific } from "@/lib/display-name";
+import { displayName } from "@/lib/display-name";
 
 type Params = { slug: string };
 
@@ -160,7 +161,9 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
   const passed = checks.filter((c) => c.ok).length;
   const qualsVerified = doctor.qualifications.filter((q) => q.state === "verified");
   const claimHref = doctor.claimed ? "/dashboard" : claimLink(doctor.slug, "profile");
-  const surname = doctor.name.split(" ").slice(-1)[0];
+  const reviewHref = `${paths.doctor(doctor.slug)}/review`;
+  const bookHref = `${paths.doctor(doctor.slug)}/book`;
+  const enquireHref = `${paths.doctor(doctor.slug)}/enquire?practice=0`;
 
   // "On record": only facts the record actually holds. A missing fact is
   // said once, in the practice card, not as a row of "Not stated".
@@ -214,13 +217,28 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
       <JsonLd data={[doctorLd(doctor), faqLd(paths.doctor(doctor.slug), faqs), breadcrumbLd(crumbs.map((c) => ({ name: c.name, path: c.path })))]} />
       <ViewBeacon doctorId={doctor.dbId} localityKey={doctor.localities[0]} />
 
-      {primaryPractice ? (
-        <nav className="mobile-actions" aria-label="Contact this practice">
-          <CallButton practiceId={primaryPractice.id} variant="solid" />
-          <DirectionsButton practiceId={primaryPractice.id} variant="outline" />
-          {doctor.bookingEnabled ? <Link className="btn" href={`${paths.doctor(doctor.slug)}/book`}>Book</Link> : <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>Enquire</Link>}
-        </nav>
-      ) : null}
+      {/*
+        Phone: one fixed bar, three actions. Call and the appointment action are
+        what a patient came for; the third slot is the review, because a profile
+        with reviews is what brings the next patient. Directions live in the
+        practice card, one scroll down, next to the address they belong to.
+      */}
+      <nav className="mobile-actions" aria-label="Contact this practice">
+        {primaryPractice ? <CallButton practiceId={primaryPractice.id} variant="solid" /> : null}
+        {doctor.bookingEnabled ? (
+          <Link className="btn" href={bookHref}>
+            Book
+          </Link>
+        ) : primaryPractice ? (
+          <Link className="btn" href={enquireHref}>
+            Appointment
+          </Link>
+        ) : null}
+        <ReviewCta href={reviewHref} doctorId={doctor.dbId} placement="mobile_bar">
+          <StarIcon />
+          Rate visit
+        </ReviewCta>
+      </nav>
 
       <header className="idband">
         <Breadcrumbs items={crumbs} />
@@ -238,11 +256,6 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               <div className="role">
                 {specialty.one}
                 {qualsVerified.length ? ` · ${qualsVerified.map((q) => q.degree).slice(0, 2).join(", ")}` : ""}
-                {doctor.practiceStartYear
-                  ? ` · practising since ${doctor.practiceStartYear}`
-                  : doctor.registration.registeredYear
-                    ? ` · registered ${doctor.registration.registeredYear}`
-                    : ""}
                 {doctor.subspecialties.length ? ` · ${doctor.subspecialties.join(", ")}` : ""}
               </div>
               {primaryPractice ? (
@@ -251,64 +264,87 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                   <span>{[facilityLabel(primaryPractice), primaryPractice.localityName, primaryPractice.city].filter((v, i, a) => v && a.indexOf(v) === i).join(", ")}</span>
                 </div>
               ) : null}
-              {doctor.rating.count ? (
-                <a className="idband-rating" href="#reviews">
-                  <Stars value={doctor.rating.average} />
-                  <b>{doctor.rating.average.toFixed(1)}</b>
-                  <span>
-                    {doctor.rating.count} patient {doctor.rating.count === 1 ? "review" : "reviews"}
-                  </span>
-                </a>
-              ) : (
-                <Link className="idband-rating none" href={`${paths.doctor(doctor.slug)}/review`}>
-                  <Stars value={0} />
-                  <span>No patient reviews yet · be the first to rate your visit</span>
-                </Link>
-              )}
-              <div className="meter" aria-label={`${passed} of ${checks.length} checks passed`}>
-                <div className="meter-head">
-                  <span>
-                    {passed} of {checks.length} checks passed
-                  </span>
-                  <Link href={paths.policy("verification")} className="mono">
-                    What each check means
-                  </Link>
-                </div>
-                <div className="meter-bars">
-                  {checks.map((c) => (
-                    <i key={c.label} className={c.ok ? "ok" : c.pending ? "wait" : ""} />
-                  ))}
-                </div>
-                <div className="meter-labels">
-                  {checks.map((c) => (
-                    <span key={c.label} className={c.ok ? "ok" : ""}>
-                      {c.label}
+
+              {/* The three numbers a patient reads first: rating, experience, fee. Each says so when it is not on record. */}
+              <div className="keyfacts" aria-label="At a glance">
+                {doctor.rating.count ? (
+                  <a className="kf kf-rating" href="#reviews">
+                    <Stars value={doctor.rating.average} size={17} />
+                    <b>{doctor.rating.average.toFixed(1)}</b>
+                    <span>
+                      {doctor.rating.count} patient {doctor.rating.count === 1 ? "review" : "reviews"}
                     </span>
-                  ))}
-                </div>
+                  </a>
+                ) : (
+                  <ReviewCta href={reviewHref} doctorId={doctor.dbId} placement="header" className="kf kf-rating none">
+                    <Stars value={0} size={17} />
+                    <span>No reviews yet · be the first</span>
+                  </ReviewCta>
+                )}
+                {doctor.yearsOfExperience ? (
+                  <span className="kf">
+                    <b>{doctor.yearsOfExperience}+ yrs</b> <span>experience</span>
+                  </span>
+                ) : doctor.registration.registeredYear ? (
+                  <span className="kf">
+                    <b>Registered {doctor.registration.registeredYear}</b>
+                  </span>
+                ) : null}
+                {primaryPractice?.feeInr !== null && primaryPractice?.feeInr !== undefined ? (
+                  <span className="kf">
+                    <b>₹{primaryPractice.feeInr.toLocaleString("en-IN")}</b> <span>consultation</span>
+                  </span>
+                ) : primaryPractice ? (
+                  <span className="kf muted">
+                    <span>Fee not on record</span>
+                  </span>
+                ) : null}
               </div>
+
+              {/* Trust strip: the four checks as plain words, each a link to the row that proves it. */}
+              <ul className="trust" aria-label={`${passed} of ${checks.length} checks passed`}>
+                {checks.map((c) => (
+                  <li key={c.label}>
+                    <a className={`chip ${c.ok ? "ok" : c.pending ? "wait" : "off"}`} href="#verification" title={c.detail}>
+                      <i aria-hidden="true">{c.ok ? "✓" : c.pending ? "…" : "–"}</i>
+                      {c.ok ? c.label : c.pending ? `${c.label} pending` : c.offLabel}
+                    </a>
+                  </li>
+                ))}
+                <li className="trust-more">
+                  <Link href={paths.policy("verification")}>What these mean</Link>
+                </li>
+              </ul>
             </div>
-            {primaryPractice ? (
-              <div className="idband-acts">
-                <CallButton practiceId={primaryPractice.id} variant="solid" />
-                <div className="pair">
-                  <DirectionsButton practiceId={primaryPractice.id} variant="outline" />
+
+            <div className="idband-acts">
+              {primaryPractice ? (
+                <>
                   {doctor.bookingEnabled ? (
-                    <Link className="btn" href={`${paths.doctor(doctor.slug)}/book`}>
+                    <Link className="btn solid" href={bookHref}>
                       Book appointment
                     </Link>
                   ) : (
-                    <Link className="btn" href={`${paths.doctor(doctor.slug)}/enquire?practice=0`}>
-                      Enquire
-                    </Link>
+                    <CallButton practiceId={primaryPractice.id} variant="solid" />
                   )}
-                </div>
-                <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/review`}>
-                  Rate your visit
-                </Link>
-                <p>Number shown after sign-in, to keep it off scraper lists.</p>
-              </div>
-            ) : null}
+                  {doctor.bookingEnabled ? (
+                    <div className="pair">
+                      <CallButton practiceId={primaryPractice.id} variant="outline" />
+                      <DirectionsButton practiceId={primaryPractice.id} variant="outline" />
+                    </div>
+                  ) : (
+                    <>
+                      <Link className="btn" href={enquireHref}>
+                        Request appointment
+                      </Link>
+                      <DirectionsButton practiceId={primaryPractice.id} variant="outline" />
+                    </>
+                  )}
+                </>
+              ) : null}
+              <ReviewCta href={reviewHref} doctorId={doctor.dbId} placement="header" />
+              <p>{primaryPractice ? "Number shown after sign-in, to keep it off scraper lists. " : ""}Reviews take two minutes; your name is never shown.</p>
+            </div>
           </div>
         </div>
       </header>
@@ -316,8 +352,62 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
       <div className="wrap">
         <div className="prof">
           <div>
-            <section className="block">
-              <h2>On record</h2>
+            {doctor.practices.length ? (
+              <section className="block">
+                <h2>{doctor.practices.length > 1 ? "Practices" : "Practice"}</h2>
+                <div className="practices">
+                  {doctor.practices.map((p, i) => {
+                    const confirmed = hasDate(p.confirmedOn) && doctor.status !== "stale";
+                    // A bare number in days/hours ("4" / "12") is a form field misread, not a timing; treat it as absent rather than print it.
+                    const timings = [p.days, p.hours].filter(Boolean).join(" ").trim();
+                    const hasTimings = /[A-Za-z:]/.test(timings);
+                    const gaps = [
+                      p.feeInr === null ? "fee" : null,
+                      !hasTimings ? "timings" : null,
+                      !doctor.languages.length ? "languages" : null,
+                    ].filter(Boolean) as string[];
+                    return (
+                      <div className="practice" key={p.id ?? p.facility}>
+                        {doctor.practices.length > 1 ? (
+                          <div className="eyebrow">
+                            Practice {i + 1} of {doctor.practices.length}
+                          </div>
+                        ) : null}
+                        <div className="f">{facilityLabel(p)}</div>
+                        <div className="a">{addressLine(p).replace(new RegExp(`^${facilityLabel(p).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},\\s*`), "")}</div>
+                        <div className="badges">
+                          {confirmed ? <span className="badge ok">Address confirmed {p.confirmedOn}</span> : <span className="badge wait">Address not yet reconfirmed with the clinic</span>}
+                          {p.feeInr !== null ? <span className="badge ok">Fee ₹{p.feeInr.toLocaleString("en-IN")} · confirmed {p.feeCheckedOn}</span> : null}
+                        </div>
+                        {hasTimings ? <div className="h mono">{timings}</div> : null}
+                        {gaps.length ? (
+                          <p className="gaps">
+                            {cap(listJoin(gaps))} {gaps.length > 1 ? "are" : "is"} not on record yet. Ask when you call{doctor.claimed ? "" : ", or the practice can confirm them by claiming this page"}.
+                          </p>
+                        ) : null}
+                        <div className="acts">
+                          <Link className="btn solid" href={doctor.bookingEnabled && p.id ? `${paths.doctor(doctor.slug)}/book?practice=${p.id}` : `${paths.doctor(doctor.slug)}/enquire?practice=${i}`}>
+                            {doctor.bookingEnabled ? "Book appointment" : "Request appointment"}
+                          </Link>
+                          <CallButton practiceId={p.id} variant="outline" />
+                          <DirectionsButton practiceId={p.id} variant="outline" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {doctor.googleListing ? (
+                  <div style={{ marginTop: "12px" }}>
+                    <GoogleListingCard listing={doctor.googleListing} doctorName={displayName(doctor)} />
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            <Reviews doctor={doctor} />
+
+            <section className="block" aria-labelledby="about-h">
+              <h2 id="about-h">About {displayName(doctor)}</h2>
               <dl className="facts">
                 {facts.map((f) => (
                   <div key={f.k}>
@@ -334,61 +424,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               ) : null}
             </section>
 
-            {doctor.practices.length ? (
-              <section className="block">
-                <h2>{doctor.practices.length > 1 ? "Practices" : "Practice"}</h2>
-                <div className="practices">
-                  {doctor.practices.map((p, i) => {
-                    const confirmed = hasDate(p.confirmedOn) && doctor.status !== "stale";
-                    const gaps = [
-                      p.feeInr === null ? "fee" : null,
-                      !p.days && !p.hours ? "timings" : null,
-                      !doctor.languages.length ? "languages" : null,
-                    ].filter(Boolean) as string[];
-                    return (
-                      <div className="practice" key={p.id ?? p.facility}>
-                        {doctor.practices.length > 1 ? (
-                          <div className="eyebrow">
-                            Practice {i + 1} of {doctor.practices.length}
-                          </div>
-                        ) : null}
-                        <div className="f">{facilityLabel(p)}</div>
-                        <div className="a">{addressLine(p).replace(new RegExp(`^${facilityLabel(p).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},\\s*`), "")}</div>
-                        <div className="badges">
-                          {confirmed ? <span className="badge ok">Address confirmed {p.confirmedOn}</span> : <span className="badge wait">Address not yet reconfirmed with the clinic</span>}
-                          {p.feeInr !== null ? <span className="badge ok">Fee ₹{p.feeInr.toLocaleString("en-IN")} · confirmed {p.feeCheckedOn}</span> : null}
-                        </div>
-                        {p.days || p.hours ? (
-                          <div className="h mono">
-                            {p.days} {p.hours}
-                          </div>
-                        ) : null}
-                        {gaps.length ? (
-                          <p className="gaps">
-                            {cap(listJoin(gaps))} {gaps.length > 1 ? "are" : "is"} not on record yet. Ask when you call{doctor.claimed ? "" : ", or the practice can confirm them by claiming this page"}.
-                          </p>
-                        ) : null}
-                        <div className="acts">
-                          <DirectionsButton practiceId={p.id} variant="outline" />
-                          <Link className="btn quiet" href={doctor.bookingEnabled && p.id ? `${paths.doctor(doctor.slug)}/book?practice=${p.id}` : `${paths.doctor(doctor.slug)}/enquire?practice=${i}`}>
-                            {doctor.bookingEnabled ? "Book appointment" : "Request appointment"}
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {doctor.googleListing ? (
-                  <div style={{ marginTop: "12px" }}>
-                    <GoogleListingCard listing={doctor.googleListing} doctorName={displayName(doctor)} />
-                  </div>
-                ) : null}
-              </section>
-            ) : null}
-
-            <Reviews doctor={doctor} />
-
-            <section className="block">
+            <section className="block" id="verification">
               <div className="section-head" style={{ marginBottom: "12px" }}>
                 <h2>Verification record</h2>
                 <span className="mono blockmeta">
@@ -510,6 +546,24 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
           </div>
 
           <aside className="sticky">
+            <div className="railreview">
+              <div className="eyebrow">Patient reviews</div>
+              {doctor.rating.count ? (
+                <a className="railreview-score" href="#reviews">
+                  <Stars value={doctor.rating.average} size={16} />
+                  <b>{doctor.rating.average.toFixed(1)}</b>
+                  <span>
+                    · {doctor.rating.count} {doctor.rating.count === 1 ? "review" : "reviews"}
+                  </span>
+                </a>
+              ) : (
+                <div className="t">Seen {displayName(doctor)}?</div>
+              )}
+              <p>{doctor.rating.count ? "Add your visit and help the next patient decide." : "Be the first to rate a visit. The next patient will read it."}</p>
+              <ReviewCta href={reviewHref} doctorId={doctor.dbId} placement="rail" />
+              <span className="railreview-note">2 minutes · name never shown</span>
+            </div>
+
             {doctor.claimed ? (
               <div className="panel pad">
                 <div className="eyebrow">Claimed by the doctor</div>
@@ -520,7 +574,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               </div>
             ) : (
               <div className="claimcard">
-                <div className="eyebrow">Is this you, {honorific(doctor.specialty)}{surname}?</div>
+                <div className="eyebrow">Is this you, {displayName(doctor)}?</div>
                 <div className="t">Claim this page, free</div>
                 <p>Correct anything, add your fee and timings, and reply to reviews. Takes about five minutes with your registration number.</p>
                 <Link className="btn solid" href={claimHref}>
@@ -553,14 +607,37 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
  * The four checks the header meter shows. Same derivations as the badges
  * and the verification record, so the meter can never disagree with them.
  */
-function profileChecks(doctor: DoctorView): Array<{ label: string; ok: boolean; pending?: boolean }> {
+function profileChecks(doctor: DoctorView): Array<{ label: string; offLabel: string; detail: string; ok: boolean; pending?: boolean }> {
   const reg = registrationState(doctor);
   const quals = doctor.qualifications;
+  const qualsOk = quals.length > 0 && quals.every((q) => q.state === "verified");
   return [
-    { label: "Registration", ok: reg === "verified", pending: reg === "submitted" },
-    { label: "Qualification", ok: quals.length > 0 && quals.every((q) => q.state === "verified"), pending: quals.length > 0 },
-    { label: "Address", ok: Boolean(doctor.practices[0]) && doctor.status !== "stale" },
-    { label: "Claimed", ok: doctor.claimed },
+    {
+      label: "Registration checked",
+      offLabel: "Registration not checked",
+      detail: reg === "verified" ? `Checked against the ${doctor.registration.council} register on ${doctor.registration.checkedOn}` : "Not yet checked against the council register",
+      ok: reg === "verified",
+      pending: reg === "submitted",
+    },
+    {
+      label: "Qualifications verified",
+      offLabel: quals.length ? "Qualifications as supplied" : "No qualification on record",
+      detail: qualsOk ? "Every degree listed was checked with the awarding body" : "Degrees shown as supplied; not yet checked",
+      ok: qualsOk,
+      pending: quals.length > 0 && !qualsOk,
+    },
+    {
+      label: "Address confirmed",
+      offLabel: doctor.practices[0] ? "Address not reconfirmed" : "No address on record",
+      detail: doctor.practices[0] ? `Practice location confirmed ${doctor.practices[0].confirmedOn}` : "No practice address has been supplied",
+      ok: Boolean(doctor.practices[0]) && doctor.status !== "stale",
+    },
+    {
+      label: "Claimed by doctor",
+      offLabel: "Not yet claimed",
+      detail: doctor.claimed ? "The doctor controls the editable fields on this page" : "Compiled from permitted sources; the doctor can claim it free",
+      ok: doctor.claimed,
+    },
   ];
 }
 
@@ -578,6 +655,7 @@ function systemLabel(system: string): string {
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const withArticle = (noun: string) => `${/^[aeiou]/i.test(noun) ? "an" : "a"} ${noun}`;
 const listJoin = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 function PinIcon() {
@@ -629,39 +707,86 @@ function GateBanner({ doctor }: { doctor: DoctorView }) {
 
 async function Reviews({ doctor }: { doctor: DoctorView }) {
   const { rating, reviews } = doctor;
+  const name = displayName(doctor);
+  const reviewHref = `${paths.doctor(doctor.slug)}/review`;
   // Labels live in review_questions (staff-editable); retired questions keep theirs.
   const labels = reviews.length && doctor.dbId ? await questionLabels() : new Map<string, { label: string; sort: number }>();
   for (const [k, label, sort] of [["hospitality", "Courtesy of doctor and staff", 40], ["explanation", "Explanation", 20], ["wait_time", "Waiting time", 60], ["hygiene", "Hygiene and cleanliness", 50]] as const) {
     if (!labels.has(k)) labels.set(k, { label, sort });
   }
+
+  // What a review here asks, in the order the form asks it. Shown in the empty
+  // state so a patient knows it is four taps, not an essay.
+  const asks = [...labels.entries()].sort((a, b) => a[1].sort - b[1].sort).map(([, v]) => v.label).slice(0, 4);
+
   if (!rating.count && !reviews.length) {
     return (
-      <section className="block" id="reviews">
-        <h2>Patient reviews</h2>
-        <div className="panel pad revempty">
-          <div className="revempty-stars" aria-hidden="true"><Stars value={0} size={22} /></div>
-          <p className="revempty-lead">Seen {displayName(doctor)}? Rate your visit.</p>
-          <p>
-            Two minutes: how the consultation went, how clearly things were explained, the wait and the clinic. Your name is never shown. Reviews describe the
-            visit, not clinical outcome, and are read by a moderator before they appear. <Link href={paths.policy("reviews")}>Review policy</Link>
-          </p>
-          <Link className="btn solid" href={`${paths.doctor(doctor.slug)}/review`}>
-            Rate your visit
-          </Link>
+      <section className="block revblock" id="reviews" aria-labelledby="reviews-h">
+        <div className="section-head">
+          <h2 id="reviews-h">Patient reviews</h2>
+          <span className="blockmeta">None yet</span>
+        </div>
+        <div className="revinvite">
+          <div className="revinvite-main">
+            <div className="revinvite-stars" aria-hidden="true">
+              <Stars value={0} size={26} />
+            </div>
+            <p className="revinvite-lead">Seen {name}? Yours would be the first review.</p>
+            <p className="revinvite-body">
+              The next patient choosing {withArticle(SPECIALTIES[doctor.specialty].one.toLowerCase())} will read it. Four quick ratings and, if you like, a line about the visit.
+            </p>
+            <ul className="revasks" aria-label="What you rate">
+              {asks.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+            <div className="revinvite-acts">
+              <ReviewCta href={reviewHref} doctorId={doctor.dbId} placement="reviews_block" variant="solid" className="big">
+                <StarIcon />
+                Rate your visit
+              </ReviewCta>
+              <span className="revinvite-time">About 2 minutes</span>
+            </div>
+          </div>
+          <ReviewHow />
         </div>
       </section>
     );
   }
+
+  // Per-question averages across the published reviews on this page. The
+  // rollup holds only the overall figure, so these are computed from what is
+  // shown and labelled as such.
+  const dims = new Map<string, { label: string; sort: number; sum: number; n: number }>();
+  for (const r of reviews) {
+    for (const x of labelledRatings(r.ratings, labels)) {
+      const d = dims.get(x.key) ?? { label: x.label, sort: labels.get(x.key)?.sort ?? 999, sum: 0, n: 0 };
+      d.sum += x.value;
+      d.n += 1;
+      dims.set(x.key, d);
+    }
+  }
+  const dimRows = [...dims.values()].filter((d) => d.n > 0).sort((a, b) => a.sort - b.sort).slice(0, 6);
+  const verified = reviews.filter((r) => r.evidenceChecked).length;
+
   return (
-    <section className="block" id="reviews">
-      <h2>Patient reviews</h2>
+    <section className="block revblock" id="reviews" aria-labelledby="reviews-h">
+      <div className="section-head">
+        <h2 id="reviews-h">Patient reviews</h2>
+        <ReviewCta href={reviewHref} doctorId={doctor.dbId} placement="reviews_head" />
+      </div>
       <div className="revsum">
-        <div>
+        <div className="revsum-score">
           <div className="big">{rating.count ? rating.average.toFixed(1) : "—"}</div>
-          <div className="revsum-stars"><Stars value={rating.average} size={18} /></div>
-          <div className="of">{rating.count ? `${rating.count} ${rating.count === 1 ? "review" : "reviews"}` : "no reviews yet"}</div>
+          <div className="revsum-stars">
+            <Stars value={rating.average} size={18} />
+          </div>
+          <div className="of">
+            {rating.count ? `${rating.count} ${rating.count === 1 ? "review" : "reviews"}` : "no reviews yet"}
+            {verified ? ` · ${verified} verified ${verified === 1 ? "visit" : "visits"}` : ""}
+          </div>
         </div>
-        <div>
+        <div className="revsum-dist">
           {[5, 4, 3, 2, 1].map((star) => {
             const count = rating.distribution[star - 1];
             const pct = rating.count ? Math.round((count / rating.count) * 100) : 0;
@@ -676,60 +801,107 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
             );
           })}
         </div>
+        {dimRows.length ? (
+          <dl className="revdims" aria-label="Average by question">
+            {dimRows.map((d) => (
+              <div key={d.label}>
+                <dt>{d.label}</dt>
+                <dd>
+                  <Stars value={d.sum / d.n} size={13} />
+                  <b>{(d.sum / d.n).toFixed(1)}</b>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </div>
 
-      {reviews.length ? (
-        reviews.map((r) => (
-          <article className="rev" key={r.id}>
-            <div className="top">
-              <span className="who">
-                {r.author}{" "}
-                {r.evidenceChecked ? (
-                  <span className="badge ok" style={{ marginLeft: "6px" }} title="The reviewer's prescription or bill from this doctor was checked by a moderator">
-                    Verified visit
+      <div className="revlist">
+        {reviews.length ? (
+          reviews.map((r) => (
+            <article className="rev" key={r.id}>
+              <div className="top">
+                <span className="who">
+                  <span className="rev-av" aria-hidden="true">
+                    {r.author.charAt(0).toUpperCase()}
                   </span>
-                ) : null}
-              </span>
-              <span className="when">
-                {r.visitMonth} · {r.mode}
-              </span>
-            </div>
-            <div className="dims">
-              {labelledRatings(r.ratings, labels).map((x) => (
-                <span key={x.key}>
-                  {x.label} {x.value}/5
+                  {r.author}
+                  {r.evidenceChecked ? (
+                    <span className="badge ok" title="The reviewer's prescription or bill from this doctor was checked by a moderator">
+                      Verified visit
+                    </span>
+                  ) : null}
                 </span>
-              ))}
-            </div>
-            {r.text ? <p className="txt">{r.text}</p> : null}
-            {r.reply ? (
-              <div className="reply">
-                <div className="who">Reply from {displayName(doctor)}</div>
-                <p className="txt">{r.reply}</p>
+                <span className="when">
+                  {r.visitMonth} · {r.mode}
+                </span>
               </div>
-            ) : null}
-          </article>
-        ))
-      ) : (
-        <div className="rev">
-          <p className="txt" style={{ color: "var(--muted)" }}>
-            No reviews have been published for this doctor yet.
+              <div className="dims">
+                {labelledRatings(r.ratings, labels).map((x) => (
+                  <span key={x.key}>
+                    <Stars value={x.value} size={12} />
+                    {x.label}
+                  </span>
+                ))}
+              </div>
+              {r.text ? <p className="txt">{r.text}</p> : null}
+              {r.reply ? (
+                <div className="reply">
+                  <div className="who">Reply from {name}</div>
+                  <p className="txt">{r.reply}</p>
+                </div>
+              ) : null}
+            </article>
+          ))
+        ) : (
+          <div className="rev">
+            <p className="txt" style={{ color: "var(--muted)" }}>
+              No reviews have been published for this doctor yet.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="revfoot">
+        <div>
+          <p className="revinvite-lead small">Seen {name} too?</p>
+          <p className="blocknote" style={{ margin: 0 }}>
+            Add your visit. Four quick ratings, about two minutes, and your name is never shown.
           </p>
         </div>
-      )}
-
-      <div className="blockacts">
-        <Link className="btn solid" href={`${paths.doctor(doctor.slug)}/review`}>
-          Rate your visit
-        </Link>
-        <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/report?about=review`}>
-          Report a review
-        </Link>
+        <div className="blockacts" style={{ marginTop: 0 }}>
+          <ReviewCta href={reviewHref} doctorId={doctor.dbId} placement="reviews_block" variant="solid" />
+          <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/report?about=review`}>
+            Report a review
+          </Link>
+        </div>
       </div>
       <p className="blocknote">
         Every review is read by a moderator before it appears; &ldquo;Verified visit&rdquo; marks reviews whose prescription or bill from this doctor was checked. Reviews describe the visit, not clinical outcome. <Link href={paths.policy("reviews")}>Review policy</Link>
       </p>
     </section>
+  );
+}
+
+/** How a review gets published — the three facts that answer "is this worth my time / is it safe". */
+function ReviewHow() {
+  return (
+    <ol className="revhow" aria-label="How reviews work">
+      <li>
+        <b>Sign in with a one-time code</b>
+        <span>One account, one review per doctor. Your phone or email is never shown.</span>
+      </li>
+      <li>
+        <b>Rate the visit</b>
+        <span>Four quick questions, a comment if you want one. No diagnosis, no outcomes.</span>
+      </li>
+      <li>
+        <b>A moderator reads it, then it goes live</b>
+        <span>
+          Attach a prescription or bill and it carries a <em>Verified visit</em> badge. <Link href={paths.policy("reviews")}>Review policy</Link>
+        </span>
+      </li>
+    </ol>
   );
 }
 

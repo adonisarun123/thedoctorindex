@@ -53,7 +53,7 @@ export async function GoogleListingCard({ listing, doctorName }: { listing: List
         </a>
       </div>
       <p style={{ fontSize: "11.5px", color: "var(--muted)", margin: "10px 0 0" }}>
-        Ratings and reviews there are Google's, not ours; Google checks for and removes fake content but does not verify reviews. Our own reviews below require visit evidence.
+        Ratings and reviews there are Google's, not ours; Google checks for and removes fake content but does not verify reviews. Our own reviews below are read by a moderator before they appear, and a checked prescription or bill earns a Verified visit badge.
       </p>
     </div>
   );
