@@ -29,14 +29,15 @@ export type ConversionName =
   | "doctor_profile_submitted"; // new profile submitted for verification (primary conversion)
 
 const ADS_ID = process.env.NEXT_PUBLIC_GADS_ID ?? "AW-18482115489";
-// Google Ads conversion action "Doctor profile claimed" (created 13 Oct 2026),
-// value 1.0 INR per Google's event snippet. Fired on claim-form success rather
-// than on a page load, because the claim has no dedicated thank-you page.
+// Google Ads conversion actions in account 420-018-5449 (labels read from the
+// account 13 Oct 2026). The two primary ones are 1.0 INR each and fire once
+// on their /thank-you pages; the lead click is a secondary action (observed,
+// not bid on) and fires on the landing-page CTA click.
 const ADS_LABELS: Partial<Record<ConversionName, string>> = {
-  doctor_claim_submitted: process.env.NEXT_PUBLIC_GADS_CLAIM_LABEL ?? "54-uCNvmyoodEKHn-uxE",
-  doctor_profile_submitted: process.env.NEXT_PUBLIC_GADS_PROFILE_LABEL ?? "",
-  doctor_lp_claim_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "",
-  doctor_lp_create_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "",
+  doctor_claim_submitted: process.env.NEXT_PUBLIC_GADS_CLAIM_LABEL ?? "54-uCNvmyoodEKHn-uxE", // "Doctor profile claimed"
+  doctor_profile_submitted: process.env.NEXT_PUBLIC_GADS_PROFILE_LABEL ?? "n9tsCN7myoodEKHn-uxE", // "Doctor profile created"
+  doctor_lp_claim_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "zjwnCKfGhpsdEKHn-uxE", // "Doctor landing page lead"
+  doctor_lp_create_click: process.env.NEXT_PUBLIC_GADS_LEAD_LABEL ?? "zjwnCKfGhpsdEKHn-uxE",
 };
 
 type GtagWindow = Window & { gtag?: (...args: unknown[]) => void };
