@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { submitProfileAction, type SubmitState } from "@/app/add-doctor/actions";
 import { CouncilSelect } from "@/components/CouncilSelect";
@@ -13,7 +14,7 @@ import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { paths } from "@/lib/site";
 import type { DoctorView } from "@/lib/types";
 import { displayName } from "@/lib/display-name";
-import { sendConversion } from "@/lib/conversions";
+import { stashConversion } from "@/lib/conversions";
 import { trackEvent } from "@/lib/funnel";
 
 /**
@@ -30,13 +31,16 @@ export function AddDoctorFlow({ lookup, source = null, initialRegistration = "",
   const [checking, setChecking] = useState(false);
   const [qualRows, setQualRows] = useState(3);
   const [state, act, pending] = useActionState<SubmitState, FormData>(submitProfileAction, {});
+  const router = useRouter();
   const reported = useRef(false);
   useEffect(() => {
     if (state.ok && !reported.current) {
       reported.current = true;
-      sendConversion("doctor_profile_submitted", { src: source });
+      // The conversion fires on /add-doctor/thank-you (lib/conversions.ts), once.
+      stashConversion({ name: "doctor_profile_submitted", params: { src: source }, display: { reference: state.id?.slice(0, 8) ?? "" } });
+      router.replace("/add-doctor/thank-you");
     }
-  }, [state.ok, source]);
+  }, [state.ok, state.id, source, router]);
   // One view per step shown: registration → match_found | no_match → details.
   const stepName = step === 1 ? "registration" : step === 2 ? (match ? "match_found" : "no_match") : "details";
   useEffect(() => {
@@ -56,6 +60,7 @@ export function AddDoctorFlow({ lookup, source = null, initialRegistration = "",
   }
 
   if (state.ok) {
+    // Shown only for the instant before /add-doctor/thank-you renders.
     return (
       <div className="panel pad">
         <div className="notice good" style={{ marginBottom: "16px" }}>

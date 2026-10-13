@@ -54,3 +54,44 @@ export function sendConversion(name: ConversionName, params: { src?: string | nu
     gtag("event", "conversion", { send_to: `${ADS_ID}/${label}`, value: 1.0, currency: "INR" });
   }
 }
+
+/**
+ * Thank-you-page hand-off. The form stashes the conversion in sessionStorage
+ * and navigates to its /thank-you page, which fires it exactly once: the stash
+ * is removed on read, so a refresh, a back-button visit or a direct hit to the
+ * thank-you URL records nothing. `display` is for the page copy only and is
+ * never sent to gtag.
+ */
+const STASH_KEY = "tdi:conversion";
+
+export interface StashedConversion {
+  name: ConversionName;
+  params?: { src?: string | null; method?: string | null };
+  display?: Record<string, string>;
+  t: number;
+}
+
+export function stashConversion(c: Omit<StashedConversion, "t">): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(STASH_KEY, JSON.stringify({ ...c, t: Date.now() }));
+  } catch {
+    // Storage blocked (private mode, disabled): the thank-you page then shows its generic copy.
+  }
+}
+
+/** Reads and clears the stash; fires the conversion if it is less than 10 minutes old. */
+export function takeStashedConversion(): StashedConversion | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(STASH_KEY);
+    if (!raw) return null;
+    window.sessionStorage.removeItem(STASH_KEY);
+    const c = JSON.parse(raw) as StashedConversion;
+    if (!c?.name || typeof c.t !== "number" || Date.now() - c.t > 10 * 60 * 1000) return null;
+    sendConversion(c.name, c.params ?? {});
+    return c;
+  } catch {
+    return null;
+  }
+}

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 
 import { claimAction, type ClaimState } from "@/app/claim-profile/actions";
 import { CouncilSelect } from "@/components/CouncilSelect";
-import { sendConversion } from "@/lib/conversions";
+import { stashConversion } from "@/lib/conversions";
 import { trackEvent } from "@/lib/funnel";
 
 export interface ClaimTarget {
@@ -27,11 +28,14 @@ const METHOD_LABELS: Record<string, { short: string; long: string }> = {
 export function ClaimForm({ initialRegistration, initialCouncil = "", profile, source = null }: { initialRegistration: string; initialCouncil?: string; profile: ClaimTarget | null; source?: string | null }) {
   const [state, act, pending] = useActionState<ClaimState, FormData>(claimAction, {});
   const [method, setMethod] = useState("practice_otp");
+  const router = useRouter();
   const reported = useRef(false);
   useEffect(() => {
     if (state.ok && !reported.current) {
       reported.current = true;
-      sendConversion("doctor_claim_submitted", { src: source, method });
+      // The conversion fires on /claim-profile/thank-you (lib/conversions.ts), once.
+      stashConversion({ name: "doctor_claim_submitted", params: { src: source, method }, display: { doctorName: state.doctorName ?? "" } });
+      router.replace("/claim-profile/thank-you");
     }
     // method is read at the moment of success only; it must not re-trigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -42,6 +46,7 @@ export function ClaimForm({ initialRegistration, initialCouncil = "", profile, s
   }, [state]);
 
   if (state.ok) {
+    // Shown only for the instant before /claim-profile/thank-you renders.
     return (
       <div className="panel pad">
         <div className="notice good" style={{ marginBottom: "16px" }}>
