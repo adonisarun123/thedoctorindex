@@ -10,6 +10,7 @@ import type { DoctorView } from "@/lib/types";
 import { localityFromForm } from "@/lib/services/places";
 import { claimSource } from "@/lib/claim-source";
 import { workflowErrorCode } from "@/lib/funnel-errors";
+import { cleanFee, practiceProblems } from "@/lib/services/practice-clean";
 
 /**
  * Duplicate check, run on the server so the directory never ships to the
@@ -64,7 +65,7 @@ export async function submitProfileAction(_prev: SubmitState, form: FormData): P
             postalCode: String(form.get("postal") ?? ""),
             days: String(form.get("days") ?? ""),
             hours: String(form.get("hours") ?? ""),
-            feeInr: Number(form.get("fee")) || null,
+            feeInr: cleanFee(form.get("fee")),
             phone: String(form.get("phone") ?? ""),
           }
         : undefined,
@@ -75,6 +76,10 @@ export async function submitProfileAction(_prev: SubmitState, form: FormData): P
         accurate: form.get("c_accurate") === "on",
       },
     };
+    if (form.get("facility")) {
+      const problems = practiceProblems({ facilityName: String(form.get("facility") ?? ""), days: String(form.get("days") ?? ""), hours: String(form.get("hours") ?? ""), fee: String(form.get("fee") ?? "").trim() || null });
+      if (problems.length) return { error: `Please check your practice details: ${problems.join(" ")}`, code: "bad_practice" };
+    }
     if (!payload.name || !payload.specialtyKey) return { error: "Name and speciality are required.", code: "missing_name_specialty" };
     if (!payload.consents.publish || !payload.consents.accurate) return { error: "The publication and accuracy consents are required.", code: "missing_consent" };
     if (/\b(best|no\.?\s*1|top|most trusted)\b/i.test(payload.about ?? "")) return { error: "Superlatives such as “best” are not allowed in the introduction. Describe what you treat and where.", code: "superlative" };
