@@ -11,6 +11,7 @@ import { audit } from "@/lib/services/audit";
 import { clawbackForDoctor, settleReferralsForDoctor } from "@/lib/services/tribe";
 import { normalizeLanguages } from "@/lib/data/languages";
 import { cleanSubspecialties } from "@/lib/data/subspecialties";
+import { goodFacilityName, cleanFee, cleanSchedule } from "@/lib/services/practice-clean";
 
 /**
  * Doctor record service: creation by staff, direct edits by staff, lifecycle,
@@ -218,11 +219,12 @@ export async function createDoctor(input: NewDoctorInput, actorUserId: string | 
     for (const [i, p] of (input.practices ?? []).entries()) {
       let facilityId = p.facilityId;
       if (!facilityId) {
-        if (!p.facilityName || !p.localityKey || !p.address) continue;
+        if (!goodFacilityName(p.facilityName) || !p.localityKey || !p.address) continue;
         const [f] = await tx.insert(s.facilities).values({ name: p.facilityName, localityKey: p.localityKey, address: p.address, postalCode: p.postalCode ?? null, phone: p.phone ?? null, confirmedOn: p.confirmed ? today : null }).returning({ id: s.facilities.id });
         facilityId = f.id;
       }
-      await tx.insert(s.doctorPractices).values({ doctorId: doc.id, facilityId, days: p.days ?? "", hours: p.hours ?? "", feeInr: p.feeInr ?? null, feeCheckedOn: p.feeInr != null ? today : null, confirmedOn: p.confirmed ? today : null, phone: p.phone ?? null, sort: i });
+      const fee = cleanFee(p.feeInr);
+      await tx.insert(s.doctorPractices).values({ doctorId: doc.id, facilityId, days: cleanSchedule(p.days), hours: cleanSchedule(p.hours), feeInr: fee, feeCheckedOn: fee != null ? today : null, confirmedOn: p.confirmed ? today : null, phone: p.phone || null, sort: i });
     }
     return doc;
   });
@@ -538,11 +540,12 @@ export async function addPractice(doctorId: string, p: { facilityId?: string; fa
   const today = todayIso();
   let facilityId = p.facilityId;
   if (!facilityId) {
-    if (!p.facilityName || !p.localityKey || !p.address) throw new Error("facility name, locality and address are required");
+    if (!goodFacilityName(p.facilityName) || !p.localityKey || !p.address) throw new Error("facility name, locality and address are required");
     const [f] = await db.insert(s.facilities).values({ name: p.facilityName, localityKey: p.localityKey, address: p.address, postalCode: p.postalCode ?? null, phone: p.phone ?? null, confirmedOn: confirmed ? today : null }).returning({ id: s.facilities.id });
     facilityId = f.id;
   }
-  const [row] = await db.insert(s.doctorPractices).values({ doctorId, facilityId, days: p.days ?? "", hours: p.hours ?? "", feeInr: p.feeInr ?? null, feeCheckedOn: p.feeInr != null ? today : null, confirmedOn: confirmed ? today : null, phone: p.phone ?? null, sort: 99 }).returning();
+  const fee = cleanFee(p.feeInr);
+  const [row] = await db.insert(s.doctorPractices).values({ doctorId, facilityId, days: cleanSchedule(p.days), hours: cleanSchedule(p.hours), feeInr: fee, feeCheckedOn: fee != null ? today : null, confirmedOn: confirmed ? today : null, phone: p.phone || null, sort: 99 }).returning();
   await audit({ actorUserId, action: "doctor.practice_added", entityType: "doctor", entityId: doctorId, after: row });
   await recomputeQuality(doctorId);
   return row;

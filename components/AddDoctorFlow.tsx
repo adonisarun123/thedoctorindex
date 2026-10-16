@@ -235,14 +235,14 @@ export function AddDoctorFlow({ lookup, source = null, initialRegistration = "",
 
           <div style={{ borderTop: "1px solid var(--hair)", paddingTop: "16px", marginTop: "8px" }}>
             <div className="eyebrow" style={{ marginBottom: "10px" }}>First practice location</div>
-            <div className="field"><label htmlFor="facility">Clinic or hospital</label><input id="facility" name="facility" type="text" placeholder="Indiranagar Cardiac Centre" /></div>
+            <div className="field"><label htmlFor="facility">Clinic or hospital</label><input id="facility" name="facility" type="text" autoComplete="off" placeholder="Indiranagar Cardiac Centre" /></div>
             <PlacePicker idPrefix="practice" required={false} />
             <div className="field"><label htmlFor="address">Address</label><input id="address" name="address" type="text" placeholder="2nd Floor, 100 Feet Road" /></div>
             <div className="two" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
               <div className="field"><label htmlFor="postal">PIN</label><input id="postal" name="postal" type="text" placeholder="560038" /></div>
-              <div className="field"><label htmlFor="days">Days</label><input id="days" name="days" type="text" placeholder="Mon–Fri" /></div>
-              <div className="field"><label htmlFor="hours">Hours</label><input id="hours" name="hours" type="text" placeholder="10:00–13:00" /></div>
-              <div className="field"><label htmlFor="fee">Fee (₹)</label><input id="fee" name="fee" type="text" inputMode="numeric" placeholder="900" /></div>
+              <div className="field"><label htmlFor="days">Days</label><input id="days" name="days" type="text" autoComplete="off" placeholder="Mon–Fri" /></div>
+              <div className="field"><label htmlFor="hours">Hours</label><input id="hours" name="hours" type="text" autoComplete="off" placeholder="10:00–13:00" /></div>
+              <div className="field"><label htmlFor="fee">Fee (₹)</label><input id="fee" name="fee" type="text" autoComplete="off" inputMode="numeric" placeholder="900" /></div>
             </div>
             <div className="field"><label htmlFor="phone">Practice phone</label><input id="phone" name="phone" type="tel" placeholder="+91 80 …" /></div>
           </div>
