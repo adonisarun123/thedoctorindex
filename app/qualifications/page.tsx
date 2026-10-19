@@ -10,7 +10,7 @@ import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 const TITLE = "Medical qualifications in India, explained";
 const DESCRIPTION = "What each degree, diploma, fellowship and membership on a doctor's profile means — MBBS, MD, MS, DNB, DM, MCh, the diplomas, BDS, BAMS, FRCS and the rest — and how many doctors here hold it.";
@@ -38,7 +38,7 @@ export default async function QualificationsPage() {
           canonical: absoluteUrl(paths.qualifications()),
           index: true,
           structuredData: "CollectionPage › BreadcrumbList",
-          notes: [{ label: "Counts live", text: "One query per qualification against the production database, cached for an hour." }],
+          notes: [{ label: "Counts live", text: "One query per qualification against the production database, refreshed at least daily." }],
         }}
       />
       <JsonLd

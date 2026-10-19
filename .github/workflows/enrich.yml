@@ -69,8 +69,16 @@ jobs:
           NEXT_PUBLIC_SITE_URL: ${{ vars.SITE_URL || 'https://www.thedoctorindex.com' }}
           INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
         run: npm run db:maintenance
-      - name: Refresh the site's data cache
-        if: ${{ github.event.inputs.dry != 'true' }}
+      # No sitewide cache drop on the hourly schedule. POST /api/revalidate
+      # throws away every cached page (all profiles and ~12,000 SEO listing
+      # routes), so doing it every hour meant each page re-rendered and
+      # re-wrote its cache on the next crawler visit — the bulk of the Oct
+      # 2026 Vercel bill. Enrichment is background data: the daily
+      # /api/cron/maintenance run (vercel.json) drops the cache once a day,
+      # and pages expire on their own within 24h. A manual run can still ask
+      # for an immediate refresh.
+      - name: Refresh the site's data cache (manual runs only)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry != 'true' }}
         env:
           SITE_URL: ${{ vars.SITE_URL || 'https://www.thedoctorindex.com' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -78,5 +86,5 @@ jobs:
           if [ -n "$CRON_SECRET" ]; then
             curl -sS -X POST -H "Authorization: Bearer $CRON_SECRET" "$SITE_URL/api/revalidate" || echo "revalidate call failed (non-fatal)"
           else
-            echo "CRON_SECRET not set; cache expires on its own within the hour"
+            echo "CRON_SECRET not set; cache expires on its own within 24h"
           fi

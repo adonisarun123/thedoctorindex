@@ -22,7 +22,7 @@ import { SITE, absoluteUrl, paths } from "@/lib/site";
 type Params = { slug: string };
 
 /** Counts on the page are live; prerendered, then refreshed hourly. */
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export function generateStaticParams(): Params[] {
   return QUALIFICATIONS.map((q) => ({ slug: q.slug }));
@@ -187,7 +187,7 @@ export default async function QualificationPage({ params }: { params: Promise<Pa
           structuredData: "Article (about: EducationalOccupationalCredential) › FAQPage, BreadcrumbList",
           lastmod: q.checkedOn,
           notes: [
-            { label: "Counts live", text: `One query matching the pattern ${q.pattern} against normalised degree strings, cached for an hour. Zero prints nothing.` },
+            { label: "Counts live", text: `One query matching the pattern ${q.pattern} against normalised degree strings, refreshed at least daily. Zero prints nothing.` },
             { label: "Facts dated", text: `Length, entry route and awarding body were checked against the sources listed on ${q.checkedOn}.` },
           ],
         }}

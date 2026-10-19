@@ -16,7 +16,7 @@ const DESCRIPTION = `What each of ${SPECIALTY_KEYS.length} medical, dental, AYUS
 
 export const metadata = pageMeta({ title: "Doctors by speciality in India", description: DESCRIPTION, path: "/specialties" });
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 const fmt = (n: number) => n.toLocaleString("en-IN");
 
@@ -123,7 +123,7 @@ export default async function SpecialtiesIndexPage() {
           structuredData: "CollectionPage (ItemList) › FAQPage, BreadcrumbList",
           notes: [
             { label: "Whole card is the link", text: "The speciality name is the card's one link, stretched over the card; the 'When to consult' chip sits above it and stays separately clickable." },
-            { label: "Counts live", text: "Listed and verified counts are live queries, cached for an hour. A zero verified count prints nothing." },
+            { label: "Counts live", text: "Listed and verified counts are live queries, refreshed at least daily. A zero verified count prints nothing." },
             { label: "Reviewed count", text: "Counts entries with a reviewedOn date, not entries with guidance. Never report guidance as reviewed without a named sign-off." },
           ],
         }}

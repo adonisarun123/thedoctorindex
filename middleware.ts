@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { env } from "@/lib/env";
 import { lookupRedirect } from "@/lib/seo/redirects";
+import { SESSION_HINT_COOKIE } from "@/lib/session-hint";
 import { parseReferralCode, TRIBE, tribeChannel } from "@/lib/tribe";
 
 /**
@@ -78,13 +79,26 @@ export function middleware(request: NextRequest) {
   // nothing personal is in the document. Only bare URLs qualify — a query
   // string means a filter, a sort, a page or a location, and those stay live.
   //
-  // s-maxage is short and stale-while-revalidate long: a visitor is served
-  // from the edge immediately while the CDN refreshes behind them, so the
-  // worst case after an import is a minute-old page, against the hour the
-  // data cache already allows.
+  // The city × speciality and locality × speciality listings render per
+  // request (force-dynamic: they read ?page and filter params), so this
+  // header is the only thing between a crawler walking ~12,000 listing URLs
+  // and a full render on every hit. Oct 2026: at s-maxage=60 that walk cost
+  // more than every other project on the account combined. An hour at the
+  // edge, a day of stale-while-revalidate: a visitor is served from the edge
+  // immediately while the CDN refreshes behind them; the worst case after an
+  // import is an hour-old listing.
   if (isCacheableBrowsePage(request)) {
-    response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
+    response.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
   }
+
+  // Signed-in hint for client components. The session cookie is httpOnly, so
+  // the header's account menu and the gated call/directions buttons could
+  // only learn "signed out" by calling /api/me — a function invocation on
+  // every page view for every anonymous visitor. This readable flag (no
+  // secret in it; /api/me stays the authority) lets them skip that call when
+  // there is no session at all. Kept in step with the session cookie here
+  // because every page request passes through.
+  syncSessionHint(request, response);
 
   // Staging and preview hosts must never be indexed, whatever the page-level
   // gates say. FORCE_NOINDEX=1 adds an X-Robots-Tag header to every response,
@@ -93,6 +107,16 @@ export function middleware(request: NextRequest) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
   return response;
+}
+
+function syncSessionHint(request: NextRequest, response: NextResponse): void {
+  const hasSession = Boolean(request.cookies.get(process.env.AUTH_COOKIE_NAME ?? "tdi_session"));
+  const hasHint = request.cookies.get(SESSION_HINT_COOKIE)?.value === "1";
+  if (hasSession && !hasHint) {
+    response.cookies.set(SESSION_HINT_COOKIE, "1", { path: "/", sameSite: "lax", secure: request.nextUrl.protocol === "https:", maxAge: 30 * 86400 });
+  } else if (!hasSession && hasHint) {
+    response.cookies.delete(SESSION_HINT_COOKIE);
+  }
 }
 
 /**
@@ -108,7 +132,9 @@ function isCacheableBrowsePage(request: NextRequest): boolean {
 }
 
 export const config = {
-  // Run on everything except Next internals and static assets, so the
-  // FORCE_NOINDEX header covers sitemaps and robots.txt too.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Run on pages, sitemaps and robots.txt (so FORCE_NOINDEX covers them), but
+  // not on Next internals, /api/* or static files: middleware is billed as an
+  // invocation per request, and none of its work applies to JSON endpoints,
+  // icons or images. /api/* is already Disallowed in robots.txt.
+  matcher: ["/((?!_next/static|_next/image|api/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?|css|js|map)$).*)"],
 };

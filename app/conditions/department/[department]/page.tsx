@@ -15,7 +15,7 @@ import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
 import { absoluteUrl, paths } from "@/lib/site";
 
 type Params = { department: string };
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export function generateStaticParams(): Params[] {
   return DEPARTMENTS.map((d) => ({ department: d.slug }));

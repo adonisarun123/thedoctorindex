@@ -15,7 +15,7 @@ import { absoluteUrl, paths } from "@/lib/site";
 
 type Params = { state: string };
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 export const dynamicParams = true;
 
 export function generateStaticParams(): Params[] {

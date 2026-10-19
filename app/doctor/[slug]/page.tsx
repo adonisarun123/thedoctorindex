@@ -36,12 +36,13 @@ import { displayName } from "@/lib/display-name";
 type Params = { slug: string };
 
 /**
- * Profiles render on demand and are cached for an hour. Tens of thousands
+ * Profiles render on demand and are cached for a day. Tens of thousands
  * of profiles make prerendering every one at build time pointless; the
  * first visitor (or crawler) pays a single render, after which the page is
- * static until a verification event or the hour passes.
+ * static until a verification event or the day passes (an hourly expiry
+ * meant crawlers re-rendered every profile they revisited).
  */
-export const revalidate = 3600;
+export const revalidate = 86400;
 export const dynamicParams = true;
 
 export function generateStaticParams(): Params[] {

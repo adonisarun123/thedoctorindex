@@ -10,7 +10,7 @@ import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
 import { SITE, absoluteUrl, paths } from "@/lib/site";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 const TITLE = "Medical and professional registers in India";
 const DESCRIPTION = "Every council and registering body a doctor, dentist, AYUSH or allied-health practitioner in India can cite — where its register is searched, and who on this site cites it.";
@@ -40,7 +40,7 @@ export default async function RegistersPage() {
           canonical: absoluteUrl(paths.registers()),
           index: true,
           structuredData: "CollectionPage › BreadcrumbList",
-          notes: [{ label: "Counts live", text: "One query per register against the production database, cached for an hour." }],
+          notes: [{ label: "Counts live", text: "One query per register against the production database, refreshed at least daily." }],
         }}
       />
       <JsonLd
