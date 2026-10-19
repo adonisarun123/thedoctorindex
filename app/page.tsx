@@ -110,7 +110,7 @@ export default async function HomePage() {
             },
             {
               label: "Counts",
-              text: "Every figure on this page is a live published count, cached for an hour. Verified counts are deliberately absent here; they belong on the profile, where a zero is a statement.",
+              text: "Every figure on this page is a live published count, refreshed at least daily. Verified counts are deliberately absent here; they belong on the profile, where a zero is a statement.",
             },
           ],
         }}

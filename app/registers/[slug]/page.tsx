@@ -21,7 +21,7 @@ import { SITE, absoluteUrl, paths } from "@/lib/site";
 type Params = { slug: string };
 
 /** Counts on the page are live; prerendered, then refreshed hourly. */
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export function generateStaticParams(): Params[] {
   return REGISTERS.map((r) => ({ slug: r.slug }));
@@ -183,7 +183,7 @@ export default async function RegisterPage({ params }: { params: Promise<Params>
           lastmod: r.checkedOn,
           notes: [
             { label: "Facts dated", text: `Office, website and search page were read from the sources listed on ${r.checkedOn}. A field we could not verify is omitted, never guessed.` },
-            { label: "Counts live", text: "The measured block is one query against the production database, cached for an hour. Zero prints nothing." },
+            { label: "Counts live", text: "The measured block is one query against the production database, refreshed at least daily. Zero prints nothing." },
           ],
         }}
       />

@@ -23,7 +23,7 @@ export const metadata: Metadata = pageMeta({
  * open city still links through so its cities can be seen. States with no
  * profiles at all are absent — we do not mint an empty page to look national.
  */
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export default async function DoctorsIndexPage() {
   const [geo, byState, published, t] = await Promise.all([getGeo(), countsByState(), countsByState("published"), totals()]);

@@ -31,11 +31,41 @@ export function rememberLocation(value: string): void {
 
 let pending: Promise<string | null> | null = null;
 
-/** One /api/region request per page load, shared by every search box on the page. */
+/** The IP guess, remembered per browser so /api/region runs once a day per visitor, not once per page view. */
+const DETECTED_KEY = "tdi_loc_ip";
+const DETECTED_TTL_MS = 24 * 3600 * 1000;
+
+function readDetected(): { city: string | null } | null {
+  try {
+    const raw = window.localStorage.getItem(DETECTED_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { city: string | null; at: number };
+    return typeof v.at === "number" && Date.now() - v.at < DETECTED_TTL_MS ? { city: v.city ?? null } : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDetected(city: string | null): void {
+  try {
+    window.localStorage.setItem(DETECTED_KEY, JSON.stringify({ city, at: Date.now() }));
+  } catch {
+    /* storage blocked: next page asks again, which is still correct */
+  }
+}
+
+/** One /api/region request per visitor per day, shared by every search box on the page. */
 export function detectedLocation(): Promise<string | null> {
+  const remembered = readDetected();
+  if (remembered) return Promise.resolve(remembered.city);
   pending ??= fetch("/api/region", { cache: "no-store" })
-    .then((r) => (r.ok ? (r.json() as Promise<{ city: string | null }>) : { city: null }))
-    .then((j) => j.city ?? null)
+    .then((r) => (r.ok ? (r.json() as Promise<{ city: string | null }>) : null))
+    .then((j) => {
+      if (!j) return null;
+      const city = j.city ?? null;
+      writeDetected(city);
+      return city;
+    })
     .catch(() => null);
   return pending;
 }

@@ -6,7 +6,7 @@ import { SITE } from "@/lib/site";
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 export const dynamicParams = true;
 
 /** Rendered on first request and refreshed hourly: the card carries a live count. */

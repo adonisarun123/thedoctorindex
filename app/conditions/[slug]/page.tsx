@@ -27,7 +27,7 @@ import { absoluteUrl, paths } from "@/lib/site";
 
 type Params = { slug: string };
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 /** Indexable articles are prerendered; the 2,500 drafts render on first request. */
 export const dynamicParams = true;
 

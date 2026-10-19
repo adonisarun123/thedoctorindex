@@ -12,7 +12,7 @@ import { pageMeta } from "@/lib/seo/meta";
 import { breadcrumbLd, collectionLd } from "@/lib/seo/structured-data";
 import { absoluteUrl, paths } from "@/lib/site";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 const TITLE = "Health conditions A–Z: what they are and which doctor to see";
 const DESCRIPTION = "Browse health conditions by name or department, read what each one is, and find the right specialist with a checked registration.";

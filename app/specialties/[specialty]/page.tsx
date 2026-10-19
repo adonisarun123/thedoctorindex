@@ -25,7 +25,7 @@ import { absoluteUrl, paths } from "@/lib/site";
 type Params = { specialty: string };
 
 /** Counts on the hub are live data: prerendered, then refreshed hourly. */
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export function generateStaticParams(): Params[] {
   return SPECIALTY_KEYS.map((k) => ({ specialty: k }));

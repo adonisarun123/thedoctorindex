@@ -104,7 +104,7 @@ async function readLocalities(): Promise<Locality[]> {
 /** Outside a Next server runtime (scripts, tests) unstable_cache has no store to write to. */
 async function loadLocalities(): Promise<Locality[]> {
   if (!process.env.NEXT_RUNTIME || isBuildPhase()) return readLocalities();
-  return unstable_cache(readLocalities, ["geo:localities"], { revalidate: 3600, tags: [DATA_CACHE_TAG] })();
+  return unstable_cache(readLocalities, ["geo:localities"], { revalidate: 86400, tags: [DATA_CACHE_TAG] })();
 }
 
 export function invalidateGeo(): void {

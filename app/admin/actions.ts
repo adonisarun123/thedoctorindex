@@ -31,9 +31,13 @@ function fail(e: unknown): AdminState {
   return { error: e instanceof Error ? e.message : "Something went wrong." };
 }
 function done(message: string, paths: string[] = ["/admin"]): AdminState {
+  // revalidateDoctors() already drops every page that reads public doctor
+  // data (they are all tagged through the data cache). The extra
+  // revalidatePath("/", "layout") that used to follow it also threw away
+  // every static page on the site on every admin click — each one then
+  // re-rendered and re-written on its next visit.
   revalidateDoctors();
   for (const p of paths) revalidatePath(p);
-  revalidatePath("/", "layout");
   return { ok: true, message };
 }
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();

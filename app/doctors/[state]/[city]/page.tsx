@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   });
 }
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 export const dynamicParams = true;
 
 export function generateStaticParams(): Params[] {

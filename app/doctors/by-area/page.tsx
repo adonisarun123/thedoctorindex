@@ -24,7 +24,7 @@ export const metadata: Metadata = pageMeta({
  * index rather than reachable only through city pages and the sitemap.
  * A static segment, so it takes precedence over /doctors/[state].
  */
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 interface Entry { label: string; path: string; n: number }
 

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { trackEvent } from "@/lib/funnel";
+import { getMe, resetMe } from "@/lib/session-client";
 import { paths } from "@/lib/site";
 
 /**
@@ -18,18 +19,12 @@ import { paths } from "@/lib/site";
  * returned to the same page.
  */
 
-let sessionPromise: Promise<boolean> | null = null;
+/** Shared with the header's account menu: one /api/me per page, none without a session. */
 function signedIn(): Promise<boolean> {
-  if (!sessionPromise) {
-    sessionPromise = fetch("/api/me", { credentials: "same-origin", cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { signedIn: false }))
-      .then((j) => Boolean(j.signedIn))
-      .catch(() => false);
-  }
-  return sessionPromise;
+  return getMe().then((j) => j.signedIn);
 }
 export function resetSessionProbe() {
-  sessionPromise = null;
+  resetMe();
 }
 
 export function useSignedIn(): boolean | null {
@@ -101,7 +96,7 @@ function GatedButton({ practiceId, purpose, label, variant, hint }: { practiceId
   if (!practiceId || isIn === false || isIn === null) {
     // Not signed in (or not yet known, or a seed-mode build with no practice ids): route through sign-in.
     return (
-      <Link className={cls(variant)} href={paths.signIn(pathname || "/")} title={hint} rel="nofollow" onClick={() => trackEvent("contact_click", { contact_type: purpose, signed_in: false })}>
+      <Link className={cls(variant)} href={paths.signIn(pathname || "/")} prefetch={false} title={hint} rel="nofollow" onClick={() => trackEvent("contact_click", { contact_type: purpose, signed_in: false })}>
         {label}
       </Link>
     );

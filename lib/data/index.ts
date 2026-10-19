@@ -267,7 +267,7 @@ async function source(): Promise<DataSource> {
  */
 export { DATA_CACHE_TAG } from "@/lib/data/cache-tag";
 import { DATA_CACHE_TAG } from "@/lib/data/cache-tag";
-const DATA_CACHE_SECONDS = 3600;
+const DATA_CACHE_SECONDS = 86400;
 
 /**
  * Bump this whenever a cached shape gains, loses or renames a field.
