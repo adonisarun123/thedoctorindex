@@ -29,6 +29,17 @@ export default function robots(): MetadataRoute.Robots {
           "/admin",
           "/admin/",
           "/api/",
+          // Per-doctor flows and generated images. Oct 2026: crawlers walking
+          // every profile followed these into ~19,000 form renders and QR-card
+          // rasterisations a day — the largest compute line on the account.
+          // The pages are noindex anyway; the images carry X-Robots-Tag.
+          "/doctor/*/report",
+          "/doctor/*/review",
+          "/doctor/*/enquire",
+          "/doctor/*/book",
+          "/doctor/*/correct",
+          "/d/*/card",
+          "/d/*/badge",
         ],
       },
     ],

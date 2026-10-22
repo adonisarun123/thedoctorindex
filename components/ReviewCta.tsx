@@ -33,6 +33,7 @@ export function ReviewCta({
     <Link
       className={className ? `${cls} ${className}` : cls}
       href={href}
+      rel="nofollow"
       onClick={() => {
         trackEvent("review_cta_click", { cta_location: placement });
         beacon("review_started", { doctorId });

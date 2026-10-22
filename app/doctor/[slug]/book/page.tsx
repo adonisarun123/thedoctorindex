@@ -65,7 +65,7 @@ export default async function BookPage({ params, searchParams }: { params: Promi
           {!state?.enabled ? (
             <div className="panel pad">
               <p style={{ marginTop: 0 }}>This doctor is not taking online bookings right now.</p>
-              <Link className="btn solid" href={`${profilePath}/enquire?practice=0`}>Send an appointment enquiry instead</Link>
+              <Link className="btn solid" href={`${profilePath}/enquire?practice=0`} rel="nofollow">Send an appointment enquiry instead</Link>
             </div>
           ) : !user ? (
             <div className="panel pad">
@@ -78,7 +78,7 @@ export default async function BookPage({ params, searchParams }: { params: Promi
           ) : days.length === 0 ? (
             <div className="panel pad">
               <p style={{ marginTop: 0 }}>No open slots in the next two weeks.</p>
-              <Link className="btn solid" href={`${profilePath}/enquire?practice=0`}>Send an appointment enquiry instead</Link>
+              <Link className="btn solid" href={`${profilePath}/enquire?practice=0`} rel="nofollow">Send an appointment enquiry instead</Link>
             </div>
           ) : (
             <BookForm slug={doctor.slug} profilePath={profilePath} days={days} contact={{ name: user.displayName ?? "", phone: user.phone ?? "" }} multiPractice={new Set(filtered.map((s) => s.practiceId)).size > 1} />

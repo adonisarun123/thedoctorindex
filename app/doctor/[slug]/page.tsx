@@ -227,11 +227,11 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
       <nav className="mobile-actions" aria-label="Contact this practice">
         {primaryPractice ? <CallButton practiceId={primaryPractice.id} variant="solid" /> : null}
         {doctor.bookingEnabled ? (
-          <Link className="btn" href={bookHref}>
+          <Link className="btn" href={bookHref} rel="nofollow">
             Book
           </Link>
         ) : primaryPractice ? (
-          <Link className="btn" href={enquireHref}>
+          <Link className="btn" href={enquireHref} rel="nofollow">
             Appointment
           </Link>
         ) : null}
@@ -322,7 +322,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
               {primaryPractice ? (
                 <>
                   {doctor.bookingEnabled ? (
-                    <Link className="btn solid" href={bookHref}>
+                    <Link className="btn solid" href={bookHref} rel="nofollow">
                       Book appointment
                     </Link>
                   ) : (
@@ -335,7 +335,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                     </div>
                   ) : (
                     <>
-                      <Link className="btn" href={enquireHref}>
+                      <Link className="btn" href={enquireHref} rel="nofollow">
                         Request appointment
                       </Link>
                       <DirectionsButton practiceId={primaryPractice.id} variant="outline" />
@@ -387,7 +387,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                           </p>
                         ) : null}
                         <div className="acts">
-                          <Link className="btn solid" href={doctor.bookingEnabled && p.id ? `${paths.doctor(doctor.slug)}/book?practice=${p.id}` : `${paths.doctor(doctor.slug)}/enquire?practice=${i}`}>
+                          <Link className="btn solid" href={doctor.bookingEnabled && p.id ? `${paths.doctor(doctor.slug)}/book?practice=${p.id}` : `${paths.doctor(doctor.slug)}/enquire?practice=${i}`} rel="nofollow">
                             {doctor.bookingEnabled ? "Book appointment" : "Request appointment"}
                           </Link>
                           <CallButton practiceId={p.id} variant="outline" />
@@ -582,7 +582,7 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
                   Claim this profile
                 </Link>
                 <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "10px 0 0" }}>
-                  Would rather not be listed? <Link href={`${paths.doctor(doctor.slug)}/report?about=takedown`}>Ask for this page to be taken down</Link> — no account needed.
+                  Would rather not be listed? <Link href={`${paths.doctor(doctor.slug)}/report?about=takedown`} rel="nofollow">Ask for this page to be taken down</Link> — no account needed.
                 </p>
               </div>
             )}
@@ -593,8 +593,8 @@ export default async function DoctorPage({ params }: { params: Promise<Params> }
 
             <div className="panel pad honest">
               <div className="eyebrow">Keep this page honest</div>
-              <Link href={`${paths.doctor(doctor.slug)}/correct`}>Suggest a correction →</Link>
-              <Link href={`${paths.doctor(doctor.slug)}/report`}>Report this profile →</Link>
+              <Link href={`${paths.doctor(doctor.slug)}/correct`} rel="nofollow">Suggest a correction →</Link>
+              <Link href={`${paths.doctor(doctor.slug)}/report`} rel="nofollow">Report this profile →</Link>
               <p className="mono">
                 Public ID {doctor.id} · last verified {doctor.lastVerifiedOn}
               </p>
@@ -877,7 +877,7 @@ async function Reviews({ doctor }: { doctor: DoctorView }) {
         </div>
         <div className="blockacts" style={{ marginTop: 0 }}>
           <ReviewCta href={reviewHref} doctorId={doctor.dbId} placement="reviews_block" variant="solid" />
-          <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/report?about=review`}>
+          <Link className="btn quiet" href={`${paths.doctor(doctor.slug)}/report?about=review`} rel="nofollow">
             Report a review
           </Link>
         </div>
