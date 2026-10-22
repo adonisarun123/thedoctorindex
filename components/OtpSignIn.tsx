@@ -71,6 +71,7 @@ export function OtpSignIn({
         <a
           className="btn"
           href={`/api/auth/google?next=${encodeURIComponent(next)}`}
+          rel="nofollow"
           onClick={() => trackEvent("google_click", { flow })}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", background: "#fff", borderColor: "#dadce0", color: "#3c4043", marginBottom: showLinkedIn ? "10px" : 0 }}
         >
@@ -89,6 +90,7 @@ export function OtpSignIn({
         <a
           className="btn"
           href={`/api/auth/linkedin?next=${encodeURIComponent(next)}`}
+          rel="nofollow"
           onClick={() => trackEvent("linkedin_click", { flow })}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", background: "#0A66C2", borderColor: "#0A66C2", color: "#fff" }}
         >

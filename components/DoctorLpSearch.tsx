@@ -94,7 +94,7 @@ export function DoctorLpSearch({ src, autoFocus = false }: { src: string; autoFo
                   <div className="sub">{[d.specialty, d.city].filter(Boolean).join(" · ")}</div>
                 </div>
                 {d.claimed ? (
-                  <a className="btn quiet lp-result-act" href="/sign-in?next=%2Fdashboard">
+                  <a className="btn quiet lp-result-act" href="/sign-in?next=%2Fdashboard" rel="nofollow">
                     Claimed · Sign in
                   </a>
                 ) : (
