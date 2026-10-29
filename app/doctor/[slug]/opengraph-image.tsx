@@ -8,7 +8,10 @@ import { displayName } from "@/lib/display-name";
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
-export const revalidate = 86400;
+// A week, not a day: crawlers walk ~19K profiles once each, so a 1-day TTL
+// meant nearly every fetch was a fresh satori render (Oct 2026 bill). Edits
+// still show at once: getDoctorBySlug is tagged and revalidateDoctors() drops it.
+export const revalidate = 604800;
 export const dynamicParams = true;
 
 export function generateStaticParams() {
