@@ -68,6 +68,8 @@ export interface RunReport {
   hits: number;
   fresh: number;
   candidates: Array<{ subject: string; event: string; score: number; outcome: string }>;
+  /** Everything triage proposed, including stories below the score cut. */
+  triaged?: Array<{ subject: string; event: string; score: number }>;
   drafted: number;
   autoApproved: number;
   published: number;
@@ -158,25 +160,38 @@ async function discover(report: { via: string[] }): Promise<Hit[]> {
   return Array.from(byUrl.values());
 }
 
+/** What triage proposed on the last call, kept in the run report so an empty day can be diagnosed. */
+let lastTriage: Array<{ subject: string; event: string; score: number }> = [];
+
 async function triage(hits: Hit[], usage: LlmUsage): Promise<Candidate[]> {
+  lastTriage = [];
   if (!hits.length) return [];
-  const list = hits.slice(0, 250).map((h, i) => `[${i}] ${h.title} | ${h.source} | ${h.date || "date unknown"} | ${h.snippet}`).join("\n");
+  const slugWords = (u: string) => {
+    try {
+      return (new URL(u).pathname.split("/").filter(Boolean).pop() ?? "").replace(/\.[a-z]+$/, "").replace(/-?\d{5,}$/, "").replace(/[-_]+/g, " ");
+    } catch {
+      return "";
+    }
+  };
+  // Section-page headlines are sometimes the article's opening line; the URL slug carries the real headline.
+  const list = hits.slice(0, 250).map((h, i) => `[${i}] ${h.title} | url words: ${slugWords(h.url)} | ${h.source} | ${h.date || "date unknown"}${h.snippet ? ` | ${h.snippet}` : ""}`).join("\n");
   const out = await askJson<{ stories: Candidate[] }>({
     system: SYSTEM_RULES,
     usage,
     maxTokens: 3000,
     user: `Below are today's news search results. Group results that report the SAME event about the SAME named doctor, and keep only stories that are:
-- about one or more named individual medical doctors (physicians, surgeons, dentists) — not hospitals alone, not companies, not non-medical scientists;
+- about one or more named individual medical doctors (physicians, surgeons, dentists) — not hospitals alone, not companies, not non-medical scientists. A recognition list that names several Indian doctors (e.g. "23 Indian surgeons in Stanford's top 2% scientists list") qualifies: use the group as the subject, e.g. "23 Indian surgeons";
 - an achievement or appointment: award, honour, recognition, medical first or rare procedure, published research, election to a professional body, senior appointment, milestone, or a notable life-saving act (e.g. saving a passenger mid-flight);
 - about a doctor practising in India, or an Indian-origin doctor practising abroad.
-Exclude: crime, negligence, disputes, court cases, deaths and obituaries, politics, protests, strikes, regulation and policy news, advertorials and "sponsored" content, events clearly older than 7 days, and anything where no individual doctor is named or nameable from the headline.
+Exclude: crime, negligence, disputes, court cases, deaths and obituaries, politics, protests, strikes, regulation and policy news, lifestyle and wellness tips, advertorials and "sponsored" content, and events clearly older than 7 days. Most days a few results qualify; return every one that does, even if modest.
 Score newsworthiness 1–10 for Indian patients and doctors (national award or genuine first = 8–10; local felicitation = 3–4).
 Categories: ${Object.keys(NEWS_CATEGORIES).join(", ")}.
 Return {"stories":[{"items":[indices],"subject":"Dr Full Name","event":"5-8 word description of the event","category":"…","score":n,"where":"india"|"abroad"}]} — best first, at most 8. Return {"stories":[]} if none qualify.
 
 ${list}`,
   });
-  return (out.stories ?? []).filter((c) => c.items?.length && c.subject && c.score >= 5);
+  lastTriage = (out.stories ?? []).map((c) => ({ subject: c.subject, event: c.event, score: c.score }));
+  return (out.stories ?? []).filter((c) => c.items?.length && c.subject && c.score >= 4);
 }
 
 async function corroborate(c: Candidate, known: Set<string>): Promise<Hit[]> {
@@ -313,9 +328,8 @@ export async function runNewsPipeline(opts: { publish?: boolean } = {}): Promise
     report.fresh = fresh.length;
 
     const candidates = (await triage(fresh, usage)).sort((a, b) => b.score - a.score).slice(0, MAX_CANDIDATES);
-    const used = new Set<number>();
-    for (const c of candidates) c.items.forEach((i) => used.add(i));
-    await markSeen(fresh.filter((_, i) => !used.has(i)).map((h) => h.url), "skipped:triage");
+    // Triage-skipped URLs are not marked seen: triage is one cheap call, and a story it missed today may be picked up on a later run.
+    report.triaged = lastTriage;
 
     const known = new Set(hits.map((h) => h.url));
     const results = await Promise.allSettled(
