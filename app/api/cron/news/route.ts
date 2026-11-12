@@ -15,6 +15,10 @@ export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || (req.headers.get("authorization") ?? "") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!process.env.DATABASE_URL) return NextResponse.json({ error: "no database" }, { status: 503 });
+  // Vercel passes the deployment's OIDC token on each invocation; it lets the
+  // newsroom use AI Gateway when no Anthropic key works (lib/news/llm.ts).
+  const oidc = req.headers.get("x-vercel-oidc-token");
+  if (oidc) process.env.VERCEL_OIDC_TOKEN = oidc;
   try {
     return NextResponse.json(await runNewsPipeline());
   } catch (e) {

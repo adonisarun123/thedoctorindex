@@ -1,5 +1,7 @@
 import "server-only";
 
+import { llmProviders, postMessages } from "@/lib/news/llm";
+
 /**
  * Finding and reading reporting: Serper's Google News endpoint for discovery
  * and corroboration, and a plain fetch + paragraph extraction for the text a
@@ -131,20 +133,16 @@ export function ageDays(pageAge: string | null | undefined, now = Date.now()): n
  * query on the Anthropic bill, so it runs only when Serper fails.
  */
 export async function claudeSearch(q: string, maxAgeDays = 3): Promise<Hit[]> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set.");
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({
+  const res = await postMessages(
+    {
       model: process.env.NEWS_SEARCH_MODEL || "claude-haiku-4-5-20251001",
       max_tokens: 64,
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1, user_location: { type: "approximate", country: "IN" } }],
       tool_choice: { type: "tool", name: "web_search" },
       messages: [{ role: "user", content: `Search the latest news (last few days) for: ${q}` }],
-    }),
-    signal: AbortSignal.timeout(60_000),
-  });
+    },
+    60_000,
+  );
   if (!res.ok) throw new Error(`Anthropic web search ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { content: Array<{ type: string; content?: Array<{ type: string; url: string; title: string; page_age?: string | null }> }> };
   const out: Hit[] = [];
@@ -164,7 +162,7 @@ export async function newsSearch(q: string, opts: { tbs?: string; num?: number; 
   try {
     return { hits: await serperNews(q, opts), via: "serper" };
   } catch (e) {
-    if (!process.env.ANTHROPIC_API_KEY) throw e;
+    if (!llmProviders().length) throw e;
     return { hits: await claudeSearch(q, opts.maxAgeDays ?? 3), via: "claude" };
   }
 }

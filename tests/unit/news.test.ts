@@ -87,3 +87,10 @@ test("section pages yield article links, not tag or section links", async () => 
   assert.equal(links.length, 1);
   assert.ok(links[0].url.endsWith("-180999") && links[0].title.startsWith("Dr Asha Rao"));
 });
+
+test("gateway model ids map from Anthropic ids", async () => {
+  const { gatewayModel } = await import("../../lib/news/llm");
+  assert.equal(gatewayModel("claude-sonnet-5-5"), "anthropic/claude-sonnet-5.5");
+  assert.equal(gatewayModel("claude-haiku-4-5-20251001"), "anthropic/claude-haiku-4.5");
+  assert.equal(gatewayModel("anthropic/claude-opus-5"), "anthropic/claude-opus-5");
+});
