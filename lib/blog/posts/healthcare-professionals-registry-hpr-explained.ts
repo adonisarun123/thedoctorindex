@@ -10,7 +10,7 @@ export const post: BlogPost = {
   targetQuery: "healthcare professionals registry hpr india",
   author: "The Doctor Index editorial team",
   publishedOn: "17 Sep 2026",
-  updatedOn: "17 Sep 2026",
+  updatedOn: "19 Nov 2026",
   related: ["how-to-spot-a-fake-doctor-in-india", "how-to-choose-a-doctor-in-india", "how-to-complain-about-a-doctor-in-india"],
   body: [
     {
@@ -28,7 +28,7 @@ export const post: BlogPost = {
     },
     {
       k: "p",
-      text: "The Indian Medical Register is the national compilation of those state registers, historically maintained by the Medical Council of India and now under the National Medical Commission. It is searchable, it is free, and for the purposes of checking whether a named person holds a medical registration, it remains the thing that works.",
+      text: "The Indian Medical Register is the national compilation of those state registers, historically maintained by the Medical Council of India and now under the National Medical Commission. It is searchable, it is free, and for the purposes of checking whether a named person holds a medical registration, it remains the thing that works. The number people still call an MCI number is an entry on it, as [what an MCI registration number is](/blog/mci-registration-number-explained) sets out.",
     },
     {
       k: "note",

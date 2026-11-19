@@ -296,12 +296,12 @@ export const OTHER_QUALIFICATIONS: QualificationEntry[] = [
     name: "Fellowship in Minimal Access Surgery",
     kind: "fellowship",
     system: "modern",
-    awardedBy: "Private training institutes (chiefly the World Laparoscopy Hospital, Gurugram)",
+    awardedBy: "Association of Minimal Access Surgeons of India; also private training institutes",
     registerSlug: NMC,
     pattern: "^FMAS",
-    standfirst: "The FMAS is a short laparoscopic-surgery course from a private institute — real hands-on training, but not a recognised qualification.",
+    standfirst: "The FMAS is a fellowship earned on a short laparoscopic-surgery course — real hands-on training, but not a recognised qualification.",
     about: [
-      "The FMAS — Fellowship in Minimal Access Surgery — is a short course in laparoscopic surgery run by private training institutes, most prominently the World Laparoscopy Hospital in Gurugram, and taken by qualified surgeons and gynaecologists who want to add or refresh laparoscopic skills. Courses run for days or weeks rather than years. It is genuine training, and it is common on the letterheads of gynaecologists and general surgeons across India; it is not a qualification any statutory body recognises, and it is not the two-year, examined [FNB](/qualifications/fnb) in minimal access surgery that the National Board awards.",
+      "The FMAS — Fellowship in Minimal Access Surgery — is awarded after a short course in laparoscopic surgery. The Association of Minimal Access Surgeons of India awards it to members who complete its skill course of about three days and pass the theory, practical and viva assessment at the end; private training institutes, most prominently the World Laparoscopy Hospital in Gurugram, award a fellowship of the same name after a course of about two weeks. It is taken by qualified surgeons and gynaecologists who want to add or refresh laparoscopic skills. Courses run for days or weeks rather than years. It is genuine training, and it is common on the letterheads of gynaecologists and general surgeons across India; it is not a qualification any statutory body recognises, and it is not the two-year, examined [FNB](/qualifications/fnb) in minimal access surgery that the National Board awards.",
       "On this site the FMAS is one of the most frequently recorded fellowships, chiefly on gynaecologists and general surgeons in Madhya Pradesh. It is shown after the qualifications; the MS, DGO, DNB or MD beside it is what licenses the surgery.",
     ],
     extraFaqs: [

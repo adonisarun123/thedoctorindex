@@ -10,7 +10,7 @@ export const post: BlogPost = {
   targetQuery: "how to check if a doctor is genuine in india",
   author: "The Doctor Index editorial team",
   publishedOn: "17 Sep 2026",
-  updatedOn: "17 Sep 2026",
+  updatedOn: "19 Nov 2026",
   related: ["how-to-choose-a-doctor-in-india", "healthcare-professionals-registry-hpr-explained", "how-to-complain-about-a-doctor-in-india"],
   body: [
     {
@@ -56,7 +56,7 @@ export const post: BlogPost = {
     { k: "h2", text: "Check two: read the degree letters, then the council name" },
     {
       k: "p",
-      text: "India has several parallel systems of medicine, each with its own qualification, its own council and its own register. The letters tell you which one you are dealing with.",
+      text: "India has several parallel systems of medicine, each with its own qualification, its own council and its own register. The letters tell you which one you are dealing with, and [BAMS, BHMS, BDS and BPT](/blog/bams-bhms-bds-bpt-who-is-a-doctor-in-india) sets the systems side by side. Letters after the degree need the same care: [what the fellowship letters mean](/blog/medical-fellowships-fiages-fmas-fics-frcs-explained) separates examined qualifications from society memberships.",
     },
     {
       k: "ul",

@@ -326,7 +326,7 @@ export default async function RegisterPage({ params }: { params: Promise<Params>
           </section>
         ) : null}
 
-        <BlogReading posts={postsForRegister()} title="Checking a doctor, in practice" />
+        <BlogReading posts={postsForRegister(3, r)} title="Checking a doctor, in practice" />
       </article>
     </>
   );
