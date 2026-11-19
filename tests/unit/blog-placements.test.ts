@@ -63,3 +63,19 @@ test("profile rotation spreads links across the whole pool", () => {
   for (let i = 0; i < 400; i++) postsForProfile(`doctor-${i}`).forEach((p) => seen.add(p.slug));
   assert.equal(seen.size, POOLS.profile.length, "some profile-pool posts are never shown");
 });
+
+test("qualification and register pages lead with the post that explains that kind of page", () => {
+  const lead = (kind: string, system: string) => postsForQualification(3, { kind, system })[0].slug;
+  assert.equal(lead("diploma", "modern"), "diploma-vs-degree-specialist-doctors");
+  assert.equal(lead("fellowship", "modern"), "medical-fellowships-fiages-fmas-fics-frcs-explained");
+  assert.equal(lead("membership", "modern"), "medical-fellowships-fiages-fmas-fics-frcs-explained");
+  assert.equal(lead("superspecialty", "modern"), "specialist-vs-super-specialist-dm-mch");
+  assert.equal(lead("postgraduate", "modern"), "md-vs-dnb-difference");
+  assert.equal(lead("primary", "ayush"), "bams-bhms-bds-bpt-who-is-a-doctor-in-india");
+  assert.equal(postsForRegister(3, { kind: "medical" })[0].slug, "mci-registration-number-explained");
+  assert.equal(postsForRegister(3, { kind: "dental" })[0].slug, "bams-bhms-bds-bpt-who-is-a-doctor-in-india");
+  for (const kind of ["diploma", "fellowship", "superspecialty", "postgraduate", "primary"]) {
+    const got = postsForQualification(3, { kind, system: "modern" });
+    assert.equal(new Set(got.map((p) => p.slug)).size, 3, `qualification ${kind}: block not full and distinct`);
+  }
+});

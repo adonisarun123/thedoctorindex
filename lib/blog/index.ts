@@ -20,6 +20,12 @@ import { post as emergency } from "@/lib/blog/posts/emergency-treatment-rights-i
 import { post as generics } from "@/lib/blog/posts/generic-medicines-and-jan-aushadhi";
 import { post as prescriptions } from "@/lib/blog/posts/prescriptions-and-pharmacies-in-india";
 import { post as firstAppointment } from "@/lib/blog/posts/preparing-for-your-first-doctor-appointment";
+import { post as mdVsDnb } from "@/lib/blog/posts/md-vs-dnb-difference";
+import { post as diplomaVsDegree } from "@/lib/blog/posts/diploma-vs-degree-specialist-doctors";
+import { post as fellowships } from "@/lib/blog/posts/medical-fellowships-fiages-fmas-fics-frcs-explained";
+import { post as whoIsADoctor } from "@/lib/blog/posts/bams-bhms-bds-bpt-who-is-a-doctor-in-india";
+import { post as mciNumber } from "@/lib/blog/posts/mci-registration-number-explained";
+import { post as superSpecialist } from "@/lib/blog/posts/specialist-vs-super-specialist-dm-mch";
 
 export * from "@/lib/blog/types";
 
@@ -61,6 +67,12 @@ export const CATEGORY_ORDER: CategoryKey[] = ["checking", "choosing", "rights"];
 
 /** Published posts, newest first. Order here is the order on the index. */
 export const POSTS: BlogPost[] = [
+  mciNumber,
+  mdVsDnb,
+  whoIsADoctor,
+  fellowships,
+  diplomaVsDegree,
+  superSpecialist,
   chooseADoctor,
   firstAppointment,
   emergency,

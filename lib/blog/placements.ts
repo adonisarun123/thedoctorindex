@@ -35,6 +35,7 @@ const ALLIED = new Set([
 export const POOLS: Record<string, string[]> = {
   surgical: [
     "informed-consent-before-surgery-in-india",
+    "medical-fellowships-fiages-fmas-fics-frcs-explained",
     "how-to-read-a-hospital-bill-in-india",
     "cashless-vs-reimbursement-health-insurance-claims",
     "getting-a-second-opinion-in-india",
@@ -46,12 +47,14 @@ export const POOLS: Record<string, string[]> = {
     "how-to-read-a-hospital-bill-in-india",
   ],
   allied: [
+    "bams-bhms-bds-bpt-who-is-a-doctor-in-india",
     "how-to-spot-a-fake-doctor-in-india",
     "preparing-for-your-first-doctor-appointment",
     "doctor-consultation-fees-in-india",
   ],
   clinical: [
     "preparing-for-your-first-doctor-appointment",
+    "specialist-vs-super-specialist-dm-mch",
     "doctor-consultation-fees-in-india",
     "how-to-choose-a-doctor-in-india",
     "getting-a-second-opinion-in-india",
@@ -67,12 +70,19 @@ export const POOLS: Record<string, string[]> = {
     "abha-health-id-explained",
   ],
   register: [
+    "mci-registration-number-explained",
     "how-to-spot-a-fake-doctor-in-india",
     "healthcare-professionals-registry-hpr-explained",
     "how-to-complain-about-a-doctor-in-india",
+    "bams-bhms-bds-bpt-who-is-a-doctor-in-india",
   ],
   qualification: [
+    "md-vs-dnb-difference",
+    "specialist-vs-super-specialist-dm-mch",
     "how-to-spot-a-fake-doctor-in-india",
+    "diploma-vs-degree-specialist-doctors",
+    "medical-fellowships-fiages-fmas-fics-frcs-explained",
+    "bams-bhms-bds-bpt-who-is-a-doctor-in-india",
     "how-to-choose-a-doctor-in-india",
     "prescriptions-and-pharmacies-in-india",
   ],
@@ -86,6 +96,8 @@ export const POOLS: Record<string, string[]> = {
     "online-doctor-consultation-rules-in-india",
     "how-to-get-your-medical-records-in-india",
     "abha-health-id-explained",
+    "md-vs-dnb-difference",
+    "mci-registration-number-explained",
   ],
 };
 
@@ -121,12 +133,39 @@ export function postsForCondition(slug: string, count = 3): BlogPost[] {
   return take(POOLS.condition, count, slug);
 }
 
-export function postsForRegister(count = 3): BlogPost[] {
-  return take(POOLS.register, count);
+/** The post that answers the first question a reader of one register page has. */
+function leadForRegister(kind?: string): string {
+  return kind === undefined || kind === "medical"
+    ? "mci-registration-number-explained"
+    : "bams-bhms-bds-bpt-who-is-a-doctor-in-india";
 }
 
-export function postsForQualification(count = 3): BlogPost[] {
-  return take(POOLS.qualification, count);
+/**
+ * The post that explains the kind of qualification a page is about. These pages
+ * draw most of their impressions from "what does X mean" searches, so the first
+ * card is the long answer to that question for that kind of qualification.
+ */
+function leadForQualification(q?: { kind: string; system: string }): string {
+  if (!q) return "md-vs-dnb-difference";
+  if (q.system !== "modern") return "bams-bhms-bds-bpt-who-is-a-doctor-in-india";
+  if (q.kind === "diploma") return "diploma-vs-degree-specialist-doctors";
+  if (q.kind === "fellowship" || q.kind === "membership") return "medical-fellowships-fiages-fmas-fics-frcs-explained";
+  if (q.kind === "superspecialty") return "specialist-vs-super-specialist-dm-mch";
+  if (q.kind === "primary") return "bams-bhms-bds-bpt-who-is-a-doctor-in-india";
+  return "md-vs-dnb-difference";
+}
+
+/** `lead` first, then the pool in order, without repeating it. */
+function leadThen(lead: string, pool: string[], count: number): BlogPost[] {
+  return take([lead, ...pool.filter((s) => s !== lead)], count);
+}
+
+export function postsForRegister(count = 3, register?: { kind: string }): BlogPost[] {
+  return leadThen(leadForRegister(register?.kind), POOLS.register, count);
+}
+
+export function postsForQualification(count = 3, qualification?: { kind: string; system: string }): BlogPost[] {
+  return leadThen(leadForQualification(qualification), POOLS.qualification, count);
 }
 
 export function postsForProfile(slug: string, count = 2): BlogPost[] {

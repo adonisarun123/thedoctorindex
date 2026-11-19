@@ -32,7 +32,9 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const q = qualificationBySlug((await params).slug);
   if (!q) return { title: "Not found", robots: { index: false, follow: false } };
   return pageMeta({
-    title: `${q.abbr}: what it means`,
+    // Most searches that reach these pages are "<letters> full form" or "<letters> means"; the
+    // title says so for the base qualifications. Branch pages keep the shorter form, which fits.
+    title: !q.parent && q.abbr.length <= 8 ? `${q.abbr} full form, meaning and who awards it` : `${q.abbr}: what it means`,
     ogTitle: `What ${abbrWithArticle(q.abbr)} means on a doctor's profile`,
     description: q.standfirst,
     path: paths.qualification(q.slug),
@@ -341,7 +343,7 @@ export default async function QualificationPage({ params }: { params: Promise<Pa
           </section>
         ) : null}
 
-        <BlogReading posts={postsForQualification()} title="Checking a doctor, in practice" />
+        <BlogReading posts={postsForQualification(3, q)} title="Checking a doctor, in practice" />
       </article>
     </>
   );
