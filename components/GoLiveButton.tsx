@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import { goLiveAction, type GoLiveState } from "@/app/claim-profile/find/actions";
+import { sendConversion } from "@/lib/conversions";
 import { trackEvent } from "@/lib/funnel";
 
 const REVIEW: Record<string, string> = {
@@ -22,9 +23,17 @@ const BLOCKED: Record<string, string> = {
 };
 
 /** One register entry → a live profile. Shown only to a signed-in user on /claim-profile/find. */
-export function GoLiveButton({ entry, label }: { entry: number; label: string }) {
+export function GoLiveButton({ entry, label, src = "" }: { entry: number; label: string; src?: string }) {
   const [state, action, pending] = useActionState<GoLiveState, FormData>(goLiveAction, {});
   const o = state.outcome;
+  // Going live is the conversion the ads bid on: fire it once, on success only
+  // (sendConversion is a no-op until the visitor has accepted ad measurement).
+  const fired = useRef(false);
+  useEffect(() => {
+    if (o?.kind !== "live" || fired.current) return;
+    fired.current = true;
+    sendConversion(o.created ? "doctor_profile_submitted" : "doctor_claim_submitted", { src: src || null, method: "register" });
+  }, [o, src]);
 
   if (o?.kind === "live" || o?.kind === "already_yours") {
     return (
@@ -44,6 +53,7 @@ export function GoLiveButton({ entry, label }: { entry: number; label: string })
   return (
     <form action={action} onSubmit={() => trackEvent("register_result_click", { cta_location: "go-live" })}>
       <input type="hidden" name="entry" value={entry} />
+      {src ? <input type="hidden" name="src" value={src} /> : null}
       <label style={{ display: "flex", gap: "8px", alignItems: "flex-start", fontSize: "14px", margin: "0 0 10px" }}>
         <input type="checkbox" name="confirm" required style={{ marginTop: "3px" }} />
         <span>This is my registration, and I agree to these register details being shown on my profile.</span>
