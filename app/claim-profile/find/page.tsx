@@ -30,13 +30,13 @@ const qs = (o: Record<string, string>) => new URLSearchParams(o).toString();
  * click (components/GoLiveButton → lib/services/instant-onboard.ts). Signed out,
  * the same button sends them through sign-in and back to these results.
  */
-function actionFor(hit: RegisterHit, signedIn: boolean, back: string, picked: boolean) {
+function actionFor(hit: RegisterHit, signedIn: boolean, back: string, picked: boolean, src: string) {
   const a = hit.action;
   // Signed out, the entry chosen is remembered in `pick` so that after
   // sign-in the person lands on it, confirmed and ready, not on a list.
   const goLive = (note: string) =>
     signedIn
-      ? { cta: <GoLiveButton entry={hit.id} label={picked ? "Confirm — this is me, go live" : "This is me — go live"} />, note: picked ? `Welcome back. ${note}` : note }
+      ? { cta: <GoLiveButton entry={hit.id} src={src} label={picked ? "Confirm — this is me, go live" : "This is me — go live"} />, note: picked ? `Welcome back. ${note}` : note }
       : { cta: <RegisterResultCta href={`/sign-in?${qs({ next: `${back}&pick=${hit.id}`, as: "doctor" })}`} kind={`${a.kind}:sign-in`} label="This is me — sign in to go live" />, note };
   switch (a.kind) {
     case "claim-published":
@@ -61,10 +61,13 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const state = typeof sp.state === "string" && STATE_NAMES[sp.state] ? sp.state : "";
+  // Acquisition tag from the ad / landing page (src=gads …), kept through the
+  // search, the sign-in round trip and the go-live click so the claim is credited.
+  const src = typeof sp.src === "string" && /^[a-z0-9:_-]{1,32}$/i.test(sp.src) ? sp.src : "";
   const parsed = q ? parseQuery(q) : null;
   const user = await getSessionUser();
   const signedIn = Boolean(user?.profileComplete);
-  const back = `/claim-profile/find?${qs(state ? { q, state } : { q })}`;
+  const back = `/claim-profile/find?${qs({ q, ...(state ? { state } : {}), ...(src ? { src } : {}) })}`;
   const pick = Number(typeof sp.pick === "string" ? sp.pick : "") || 0;
 
   let hits: RegisterHit[] = [];
@@ -94,6 +97,7 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
                 ))}
               </select>
             </div>
+            {src ? <input type="hidden" name="src" value={src} /> : null}
             <button type="submit" className="btn solid" style={{ width: "100%" }}>Search the register</button>
           </form>
   );
@@ -131,7 +135,7 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
             <div style={{ display: "grid", gap: "12px" }}>
               {hits.map((hit) => {
                 const picked = signedIn && pick === hit.id;
-                const { cta, note } = actionFor(hit, signedIn, back, picked);
+                const { cta, note } = actionFor(hit, signedIn, back, picked, src);
                 return (
                   <div className="panel pad" key={hit.id} style={picked ? { borderColor: "var(--accent)", boxShadow: "0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent)" } : undefined}>
                     <div style={{ fontWeight: 600, fontSize: "16px" }}>{hit.name}</div>
@@ -148,13 +152,13 @@ export default async function FindRegistrationPage({ searchParams }: { searchPar
               {hits.length >= 10 ? <div className="hint">Showing the first 10. Add your state or use your registration number to narrow it down.</div> : null}
               <div className="notice">
                 <b>None of these is you?</b> Search again above with your registration number, or{" "}
-                <Link href="/add-doctor?manual=1&src=find">fill in the full form</Link>. {NON_NMC_NOTE}
+                <Link href={`/add-doctor?manual=1&src=${encodeURIComponent(src || "find")}`}>fill in the full form</Link>. {NON_NMC_NOTE}
               </div>
             </div>
           ) : parsed && parsed.kind !== "invalid" && !limited ? (
             <div className="notice">
               <b>No entry found.</b> The register spells some names differently from how you write them (initials, a surname first). Try your registration number, or{" "}
-              <Link href="/add-doctor?manual=1&src=find">fill in the full form with your registration</Link>; a verification officer checks it against the register. {NON_NMC_NOTE}
+              <Link href={`/add-doctor?manual=1&src=${encodeURIComponent(src || "find")}`}>fill in the full form with your registration</Link>; a verification officer checks it against the register. {NON_NMC_NOTE}
             </div>
           ) : null}
           {hits.length ? <div style={{ marginTop: "18px" }}>{searchForm}</div> : null}
