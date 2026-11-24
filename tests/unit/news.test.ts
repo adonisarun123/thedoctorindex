@@ -94,3 +94,20 @@ test("gateway model ids map from Anthropic ids", async () => {
   assert.equal(gatewayModel("claude-haiku-4-5-20251001"), "anthropic/claude-haiku-4.5");
   assert.equal(gatewayModel("anthropic/claude-opus-5"), "anthropic/claude-opus-5");
 });
+
+test("list names, positions and negations are not superlative claims", async () => {
+  const { ownVoiceClaim } = await import("../../lib/news/format");
+  assert.equal(ownVoiceClaim("49 researchers named in Stanford's 2026 top 2% list"), null);
+  assert.equal(ownVoiceClaim("A change at the top of the hospital board"), null);
+  assert.equal(ownVoiceClaim("Doctors stress the surgery is not a cure"), null);
+  assert.equal(ownVoiceClaim("India's top cardiologist wins award"), "top");
+  assert.equal(ownVoiceClaim("A miracle cure for spina bifida"), "miracle");
+});
+
+test("staff can publish over warnings, not over blockers", async () => {
+  const { storyIssues } = await import("../../lib/news/format");
+  const w = storyIssues({ ...good, dek: good.dek + " ".repeat(5) + "x".repeat(120) });
+  assert.equal(w.blockers.length, 0);
+  assert.ok(w.warnings.length > 0);
+  assert.ok(storyIssues({ ...good, sources: [] }).blockers.length > 0);
+});

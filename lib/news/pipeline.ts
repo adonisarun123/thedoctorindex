@@ -7,7 +7,7 @@ import { SPECIALTIES, SPECIALTY_KEYS } from "@/lib/data/taxonomy";
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
 import { type LlmUsage, askJson } from "@/lib/news/llm";
-import { NEWS_BUFFER_MIN, NEWS_CATEGORIES, type NewsNumber, type NewsSource, fingerprint, isCategory, istDay } from "@/lib/news/format";
+import { NEWS_BUFFER_MIN, NEWS_CATEGORIES, storyProblems, type NewsNumber, type NewsSource, fingerprint, isCategory, istDay } from "@/lib/news/format";
 import { DISCOVERY_QUERIES, type Hit, type Page, newsSearch, readPage, sectionHits } from "@/lib/news/sources";
 import { bufferCount, createStory, publishDue, publishFallback, publishedTodayCount } from "@/lib/services/news";
 import { absoluteUrl } from "@/lib/site";
@@ -209,7 +209,7 @@ async function draft(c: Candidate | null, pages: Page[], usage: LlmUsage): Promi
   return askJson<Draft>({
     system: SYSTEM_RULES,
     usage,
-    maxTokens: 4000,
+    maxTokens: 8000,
     user: `Write a TDi Newsdesk story about: ${c ? `${c.subject} — ${c.event}` : "the named doctor these sources report on (their achievement or appointment)"}.
 
 ${texts}
@@ -258,6 +258,40 @@ async function markSeen(urls: string[], outcome: string, storyId: string | null 
 }
 
 /**
+ * Rewrite only what is wrong: editorial problems (length, superlatives in
+ * our voice, comments about the sources) and statements the claims check
+ * found unsupported — removed or reworded to what the sources say. Facts are
+ * never added here.
+ */
+async function repairDraft(d: Draft, problems: string[], unsupported: string[], usage: LlmUsage): Promise<Partial<Draft>> {
+  const out = await askJson<Partial<Draft>>({
+    system: SYSTEM_RULES,
+    usage,
+    maxTokens: 6000,
+    user: `Here is a TDi Newsdesk story as JSON. Fix ONLY the listed problems and return the corrected fields as one JSON object with keys headline, dek, highlights, whyItMatters, body, numbers. Keep everything else identical. Do not add any new fact.
+
+Problems:
+${problems.map((p) => `- ${p}`).join("\n") || "- none"}
+
+Statements no source supports — delete them, or reword them to exactly what the sources say:
+${unsupported.map((u) => `- ${u}`).join("\n") || "- none"}
+
+Rules: headline 30–110 characters; standfirst 60–200 characters; exactly 3 highlights under 160 characters each; no "best", "top", "leading", "renowned", "world-class", "miracle", "cure", "guarantee" in our own voice (a list's proper name such as "top 2%" is fine, and "not a cure" is fine); never comment on what a source does or does not say.
+
+Story:
+${JSON.stringify({ headline: d.headline, dek: d.dek, highlights: d.highlights, whyItMatters: d.whyItMatters, body: d.body, numbers: d.numbers })}`,
+  });
+  const keep: Partial<Draft> = {};
+  if (out.headline) keep.headline = out.headline;
+  if (out.dek) keep.dek = out.dek;
+  if (Array.isArray(out.highlights) && out.highlights.length) keep.highlights = out.highlights;
+  if (out.whyItMatters) keep.whyItMatters = out.whyItMatters;
+  if (out.body && out.body.length > 200) keep.body = out.body;
+  if (Array.isArray(out.numbers)) keep.numbers = out.numbers;
+  return keep;
+}
+
+/**
  * Draft, check, match and store one story from pages already read. Shared by
  * the daily run and by staff's "draft from links" (draftFromUrls).
  */
@@ -269,7 +303,19 @@ async function buildStory(c: Candidate | null, pages: Page[], usage: LlmUsage, o
     return { outcome: `skipped: ${d.skip ?? "no draft"}`, created: null };
   }
   const usedPages = d.sourcesUsed?.length ? d.sourcesUsed.map((i) => pages[i]).filter(Boolean) : pages;
-  const claims = await checkClaims(d, usedPages, usage);
+  let claims = await checkClaims(d, usedPages, usage);
+  // One repair pass: fix editorial problems and drop unsupported statements, then check again.
+  const draftProblems = () => storyProblems({ ...d, highlights: d.highlights ?? [], numbers: d.numbers ?? [], whyItMatters: d.whyItMatters ?? "", sources: usedPages.map((p) => ({ url: p.url, publisher: p.publisher, title: p.title })) });
+  const problems = draftProblems();
+  if (problems.length || claims.unsupported.length) {
+    try {
+      const fixed = await repairDraft(d, problems, claims.unsupported, usage);
+      Object.assign(d, fixed);
+      claims = await checkClaims(d, usedPages, usage);
+    } catch {
+      /* keep the first draft; the queue shows its problems */
+    }
+  }
   const specialtyKey = d.specialtyKey && d.specialtyKey in SPECIALTIES ? d.specialtyKey : null;
   const m = d.abroad ? null : await matchDoctor(d.subjectName, `${d.place} ${d.city ?? ""}`, specialtyKey);
   const sources: NewsSource[] = usedPages.map((p) => ({ url: p.url, publisher: p.publisher, title: p.title, publishedOn: p.publishedOn }));
