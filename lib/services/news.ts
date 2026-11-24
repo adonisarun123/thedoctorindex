@@ -4,7 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db/client";
 import * as s from "@/lib/db/schema";
-import { NEWS_DAILY_MAX, NEWS_FRESH_DAYS, type NewsNumber, type NewsSource, autoGate, independentSourceCount, istDayStart, newsSlug, storyProblems } from "@/lib/news/format";
+import { NEWS_DAILY_MAX, NEWS_FRESH_DAYS, type NewsNumber, type NewsSource, autoGate, independentSourceCount, istDayStart, newsSlug, storyIssues, storyProblems } from "@/lib/news/format";
 import { audit } from "@/lib/services/audit";
 
 /**
@@ -269,8 +269,9 @@ export async function decideStory(id: string, decision: StoryDecision, staffUser
 
   if (decision === "approve" || decision === "publish") {
     if (!["draft", "approved"].includes(row.status)) throw new Error("Only a draft or buffered story can be approved.");
-    const problems = storyProblems({ ...row, numbers: storyNumbers(row), sources: storySources(row) });
-    if (problems.length) throw new Error(`Fix before approving: ${problems.join(" ")}`);
+    // The editor decides on editorial warnings; only a missing essential stops an approval.
+    const { blockers } = storyIssues({ ...row, numbers: storyNumbers(row), sources: storySources(row) });
+    if (blockers.length) throw new Error(`Cannot publish yet: ${blockers.join(" ")}`);
     await db.update(s.newsStories).set({ ...decided, status: "approved" }).where(eq(s.newsStories.id, id));
     if (decision === "publish") await markPublished({ ...row, status: "approved" }, staffUserId, now, "staff");
     else await audit({ actorUserId: staffUserId, actorRole: "staff", action: "news.approved", entityType: "news_story", entityId: id, before: { status: row.status } });
@@ -325,8 +326,8 @@ export async function editStory(id: string, e: StoryEdit, staffUserId: string): 
     subjectRole: e.subjectRole.trim(),
     place: e.place.trim(),
   };
-  const problems = storyProblems({ ...clean, sources: storySources(row) });
-  if (problems.length && row.status !== "draft") throw new Error(problems.join(" "));
+  const { blockers } = storyIssues({ ...clean, sources: storySources(row) });
+  if (blockers.length && row.status !== "draft") throw new Error(blockers.join(" "));
   const now = new Date();
   const live = row.status === "published";
   if (live && !e.correction?.trim()) throw new Error("This story is live. Say what changed in the correction note — it is shown on the page.");
@@ -384,9 +385,30 @@ export interface NewStory {
  * (it waits for a slot). A fingerprint already on file returns null: the
  * event is covered, and its sources are merged into the existing story.
  */
+/**
+ * The same event drafted again under a different fingerprint (the model
+ * names it differently on another day): a non-rejected story from the last
+ * 21 days that shares a source URL, or names the same people in the same
+ * category. Three AIIMS drafts of one surgery slipped through before this.
+ */
+async function sameEvent(n: Pick<NewStory, "sources" | "subjectName" | "category">): Promise<StoryRow[]> {
+  const since = new Date(Date.now() - 21 * 86_400_000);
+  const recent = await getDb()
+    .select()
+    .from(s.newsStories)
+    .where(and(gte(s.newsStories.createdAt, since), inArray(s.newsStories.status, ["draft", "approved", "published"])))
+    .orderBy(desc(s.newsStories.createdAt))
+    .limit(200);
+  const urls = new Set(n.sources.map((x) => x.url));
+  const who = (x: string) => x.toLowerCase().replace(/\b(dr|prof)\.?\s+/g, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+  const subject = who(n.subjectName);
+  const hit = recent.find((r) => storySources(r).some((x) => urls.has(x.url)) || (subject.length > 5 && who(r.subjectName) === subject && r.category === n.category));
+  return hit ? [hit] : [];
+}
+
 export async function createStory(n: NewStory): Promise<{ row: StoryRow; gate: ReturnType<typeof autoGate> } | null> {
   const db = getDb();
-  const [dupe] = await db.select().from(s.newsStories).where(eq(s.newsStories.fingerprint, n.fingerprint)).limit(1);
+  const [dupe] = (await db.select().from(s.newsStories).where(eq(s.newsStories.fingerprint, n.fingerprint)).limit(1)).concat(await sameEvent(n));
   if (dupe) {
     const have = new Set(storySources(dupe).map((x) => x.url));
     const extra = n.sources.filter((x) => !have.has(x.url));

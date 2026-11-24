@@ -162,31 +162,64 @@ export function autoGate(input: { sources: NewsSource[]; matchedDoctor: boolean;
 /** Superlatives and promises the newsroom must not print in its own voice. */
 export const BANNED_IN_OWN_VOICE = /\b(best|top|no\.?\s?1|number one|leading|renowned|world-?class|miracle|cure[sd]?|guarantee[sd]?|100% success)\b/i;
 
-/** Every editorial problem with a story, in reading order. Empty when it may publish. */
-export function storyProblems(s: StoryInput): string[] {
+/**
+ * Phrases that contain a banned word but make no claim: the name of a list
+ * ("top 2%", "top-cited"), position ("at the top"), and negations ("not a
+ * cure"). Removed before the check so they never block a story.
+ */
+const ALLOWED_PHRASES = /\b(?:top[\s-]?\d+(?:\.\d+)?\s?(?:%|per\s?cent)|top[\s-]cited|at the top|(?:is |are |was )?not (?:a |the )?cure[sd]?|no cure|without (?:a )?guarantee|leading (?:to|up to|causes?)|best[\s-]practices?)(?![A-Za-z])/gi;
+
+/** A banned word used as a claim in our own voice, or null. Quoted words are the source's. */
+export function ownVoiceClaim(text: string): string | null {
+  const own = text.replace(/[“"][^”"]*[”"]/g, " ").replace(ALLOWED_PHRASES, " ");
+  return BANNED_IN_OWN_VOICE.exec(own)?.[0] ?? null;
+}
+
+const META_COMMENTARY = /\b(the (report|source|sources|article)s? (does not|do not|doesn'?t|don'?t)|the doctor index (has|have) not)\b/i;
+
+export interface StoryIssues {
+  /** Stop publication outright: the story is not a story without these. */
+  blockers: string[];
+  /** Editorial rules. They stop auto-publishing; an editor may publish over them. */
+  warnings: string[];
+}
+
+/**
+ * Every problem with a story, split by severity. Auto-publish (autoGate) and
+ * the daily fallback treat both kinds as disqualifying; a staff approval is
+ * stopped only by blockers, because the editor is the judge of the rest.
+ */
+export function storyIssues(s: StoryInput): StoryIssues {
   const L = NEWS_LIMITS;
-  const out: string[] = [];
-  if (s.headline.length < L.headlineMin || s.headline.length > L.headlineMax) out.push(`Headline must be ${L.headlineMin}–${L.headlineMax} characters (now ${s.headline.length}).`);
-  if (s.dek.length < L.dekMin || s.dek.length > L.dekMax) out.push(`Standfirst must be ${L.dekMin}–${L.dekMax} characters (now ${s.dek.length}).`);
-  if (s.highlights.length !== 3) out.push("Exactly three key highlights are required.");
-  if (s.highlights.some((h) => h.length > L.highlightMax)) out.push(`Each highlight must be under ${L.highlightMax} characters.`);
-  if (s.whyItMatters.trim().length < 60) out.push("“Why it matters for patients” needs at least a sentence or two.");
+  const blockers: string[] = [];
+  const warnings: string[] = [];
   const n = words(s.body);
-  if (n < L.bodyMinWords) out.push(`Body is ${n} words; needs at least ${L.bodyMinWords}.`);
-  if (n > L.bodyMaxWords) out.push(`Body is ${n} words; keep it under ${L.bodyMaxWords}.`);
-  if (/^\s*#\s/m.test(s.body)) out.push("Use ## for headings — the headline is the page's H1.");
-  if (!isCategory(s.category)) out.push(`Unknown category “${s.category}”.`);
-  if (!s.subjectName.trim()) out.push("The story must name who it is about.");
-  if (!s.sources.length) out.push("At least one source is required.");
-  for (const src of s.sources) if (!/^https?:\/\//.test(src.url)) out.push(`Source “${src.publisher}” has no usable link.`);
-  if (s.numbers.length > 4) out.push("At most four figures in “By the numbers”.");
-  // The story reports the news; it does not narrate its own sourcing.
-  if (/\b(the (report|source|sources|article)s? (does not|do not|doesn'?t|don'?t|names?|gives?)|the doctor index (has|have) not)\b/i.test(s.body)) out.push("The body comments on its sources (e.g. “the report does not say…”); rewrite it as reporting.");
-  // Quoted words are the source's; our own copy may not use them.
-  const own = [s.headline, s.dek, ...s.highlights, s.whyItMatters].join(" \n ").replace(/[“"][^”"]*[”"]/g, "");
-  const m = BANNED_IN_OWN_VOICE.exec(own);
-  if (m) out.push(`“${m[0]}” is not allowed in the headline, standfirst, highlights or patient panel.`);
-  return out;
+  if (!s.headline.trim()) blockers.push("The story needs a headline.");
+  if (n < 100) blockers.push(`Body is ${n} words; a story needs at least 100.`);
+  if (!s.sources.length) blockers.push("At least one source is required.");
+  if (!s.subjectName.trim()) blockers.push("The story must name who it is about.");
+  if (!isCategory(s.category)) blockers.push(`Unknown category “${s.category}”.`);
+
+  if (s.headline.length && (s.headline.length < L.headlineMin || s.headline.length > L.headlineMax)) warnings.push(`Headline should be ${L.headlineMin}–${L.headlineMax} characters (now ${s.headline.length}).`);
+  if (s.dek.length < L.dekMin || s.dek.length > L.dekMax) warnings.push(`Standfirst should be ${L.dekMin}–${L.dekMax} characters (now ${s.dek.length}).`);
+  if (s.highlights.length !== 3) warnings.push("Three key highlights are expected.");
+  if (s.highlights.some((h) => h.length > L.highlightMax)) warnings.push(`Each highlight should be under ${L.highlightMax} characters.`);
+  if (s.whyItMatters.trim().length < 60) warnings.push("“Why it matters for patients” needs a sentence or two.");
+  if (n >= 100 && n < L.bodyMinWords) warnings.push(`Body is ${n} words; ${L.bodyMinWords}+ reads better.`);
+  if (n > L.bodyMaxWords) warnings.push(`Body is ${n} words; keep it under ${L.bodyMaxWords}.`);
+  if (/^\s*#\s/m.test(s.body)) warnings.push("Use ## for headings — the headline is the page's H1.");
+  for (const src of s.sources) if (!/^https?:\/\//.test(src.url)) warnings.push(`Source “${src.publisher}” has no usable link.`);
+  if (s.numbers.length > 4) warnings.push("At most four figures in “By the numbers”.");
+  if (META_COMMENTARY.test(s.body)) warnings.push("The body comments on its sources (e.g. “the report does not say…”).");
+  const claim = ownVoiceClaim([s.headline, s.dek, ...s.highlights, s.whyItMatters].join(" \n "));
+  if (claim) warnings.push(`“${claim}” reads as a claim in our own voice (headline, standfirst, highlights or patient panel).`);
+  return { blockers, warnings };
+}
+
+/** Blockers and warnings together — what auto-publishing must be free of. Empty when it may publish itself. */
+export function storyProblems(s: StoryInput): string[] {
+  const { blockers, warnings } = storyIssues(s);
+  return [...blockers, ...warnings];
 }
 
 /** YYYY-MM-DD of an instant in India Standard Time. */
